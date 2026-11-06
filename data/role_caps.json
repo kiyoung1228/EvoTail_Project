@@ -1,0 +1,62 @@
+{
+  "dealer": {
+    "1": {
+      "hp": 300,
+      "attack": 300,
+      "defense": 300,
+      "agility": 300
+    },
+    "2": {
+      "hp": 500,
+      "attack": 500,
+      "defense": 500,
+      "agility": 500
+    },
+    "3": {
+      "hp": 1000,
+      "attack": 1000,
+      "defense": 1000,
+      "agility": 1000
+    }
+  },
+  "tank": {
+    "1": {
+      "hp": 300,
+      "attack": 300,
+      "defense": 300,
+      "agility": 300
+    },
+    "2": {
+      "hp": 500,
+      "attack": 500,
+      "defense": 500,
+      "agility": 500
+    },
+    "3": {
+      "hp": 1000,
+      "attack": 1000,
+      "defense": 1000,
+      "agility": 1000
+    }
+  },
+  "healer": {
+    "1": {
+      "hp": 300,
+      "attack": 300,
+      "defense": 300,
+      "agility": 300
+    },
+    "2": {
+      "hp": 500,
+      "attack": 500,
+      "defense": 500,
+      "agility": 500
+    },
+    "3": {
+      "hp": 1000,
+      "attack": 1000,
+      "defense": 1000,
+      "agility": 1000
+    }
+  }
+}
