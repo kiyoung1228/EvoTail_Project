@@ -3,7 +3,7 @@
 ## 실행
 
 ```
-pip install -r requirements.txt
+pip install -r requirements.txt   # pygame-ce (예전 pygame이 있으면 먼저 pip uninstall pygame)
 python run_gui.py
 ```
 

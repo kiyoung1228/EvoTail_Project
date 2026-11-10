@@ -1,3 +1,4 @@
 # Backend (roc/) uses Python 3.10+ standard library only.
-# GUI (gui/, run_gui.py):
-pygame>=2.5
+# GUI (gui/, run_gui.py): pygame-ce (import pygame). Python 3.14까지 설치 파일 제공.
+# 예전 pygame이 깔려 있으면 먼저: pip uninstall pygame
+pygame-ce>=2.5
