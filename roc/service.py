@@ -48,6 +48,9 @@ class GameService:
             except SaveConflictError as exc:
                 raise GameRuleError('다른 실행 중인 게임이 세이브를 생성했습니다. 다시 실행하세요.') from exc
         self._validate_loaded_save()
+        # The UI's fast/demo speed is session-only. Catch up real offline time
+        # at 1x even when the previous process exited while accelerated.
+        self.state['clock']['rate']=1.0
         self._mutate(lambda s:None) # reconcile offline work once on launch
 
     @staticmethod
@@ -132,7 +135,8 @@ class GameService:
         owned={key:self._new_animal(key,now) for key in starter.values()}
         inv={'snack':3}
         return {'schema':2,'event_seq':0,'created':now,'clock':{'virtual':now,'last_real':now,'rate':1.0},
-                'coins':300,'animals':owned,'inventory':inv,'toy_instances':[],
+                'coins':300,'animals':owned,'yard':list(owned)[:C.YARD_MAX_ANIMALS],
+                'inventory':inv,'toy_instances':[],
                 'plots':[{'crop':None,'end':None,'ready':False}], 'hunts':{}, 'jobs':{},
                 'battle':None,'battle_result':None,'battle_attempts':{},'last_team_roles':[],
                 'progress':-1,'cleared':[], 'rank':'none',
@@ -153,6 +157,15 @@ class GameService:
     def _mutate(self, fn):
         with self._lock:
             candidate=copy.deepcopy(self.state)
+            # Old SQLite saves have no yard key. Preserve every owned animal;
+            # only initialize the visible selection (up to six starters).
+            if 'yard' not in candidate:
+                candidate['yard']=list(candidate['animals'])[:C.YARD_MAX_ANIMALS]
+            yard=candidate['yard']
+            if (not isinstance(yard,list) or len(yard)>C.YARD_MAX_ANIMALS
+                or any(type(k)!=str or k not in candidate['animals'] for k in yard)
+                or len(set(yard))!=len(yard)):
+                raise GameRuleError('저장된 마당 동물 목록에 잘못된 값이 있습니다.')
             # The v2 save format had no monotonically increasing event IDs.
             # All new events are numbered, so the long-term SQLite history has
             # exactly-once insertion regardless of the 80-entry UI ring buffer.
@@ -414,6 +427,7 @@ class GameService:
             self.state=loaded
             self._revision=revision
             self._validate_loaded_save()
+            self.state['clock']['rate']=1.0
         return self.get_game_state()
 
     def get_game_state(self):
@@ -422,7 +436,9 @@ class GameService:
             return {'coins':s['coins'],'owned_count':len(s['animals']),
                     'clock':{'timestamp':now,'night':self._is_night(s,now), 'storm':self._is_storm(s),
                              'rate':s['clock']['rate']},
-                    'progress':s['progress'],'rank':s['rank'],'cook_xp':s['cook_xp'],
+                    'progress':s['progress'],'rank':s['rank'],
+                    'yard':list(s['yard']), 'yard_max':C.YARD_MAX_ANIMALS,
+                    'cook_xp':s['cook_xp'],
                     'cook_level':self._cook_level(s),'in_battle':s['battle'] is not None,
                     'plots_owned':len(s['plots']), 'recent_events':s['events'][-10:]}
         return self._read(read)
@@ -468,6 +484,7 @@ class GameService:
                     'rate':s['clock']['rate']},
                     'progress':s['progress'],'rank':s['rank'],
                     'animals':animals,'owned_count':len(animals),
+                    'yard':list(s['yard']), 'yard_max':C.YARD_MAX_ANIMALS,
                     'inventory':{'stackable':dict(s['inventory']),
                                  'toys':copy.deepcopy(s['toy_instances'])},
                     'plots':plots,'hunts':hunts,'stages':stages,
@@ -492,6 +509,29 @@ class GameService:
                 rows.append(row)
             return rows
         return self._read(read)
+
+    def get_yard_animals(self):
+        """Only the selected visible animal IDs; not the full owned collection."""
+        return self._read(lambda s:{'keys':list(s['yard']),'max':C.YARD_MAX_ANIMALS})
+
+    def set_yard_animals(self,keys):
+        """Choose 0..6 *owned* animals in display order; auto-save to SQLite.
+
+        This affects the GUI yard selection only, not training, battles,
+        metabolism, offline progression or autonomous behaviour.
+        """
+        def fn(s):
+            if type(keys) not in (list,tuple):
+                raise GameRuleError('마당 동물은 동물 ID 목록으로 전달해야 합니다.')
+            if len(keys)>C.YARD_MAX_ANIMALS:
+                raise GameRuleError(f'마당에는 최대 {C.YARD_MAX_ANIMALS}마리만 배치할 수 있습니다.')
+            if any(type(key)!=str or key not in s['animals'] for key in keys):
+                raise GameRuleError('보유하지 않은 동물을 마당에 배치할 수 없습니다.')
+            if len(set(keys))!=len(keys):
+                raise GameRuleError('같은 동물을 마당에 중복 배치할 수 없습니다.')
+            s['yard']=list(keys)
+            return {'yard':list(s['yard']),'count':len(keys),'max':C.YARD_MAX_ANIMALS}
+        return self._mutate(fn)
 
     def get_autonomous_state(self,key=None):
         """Pygame-facing autonomous AI decision and status snapshot.
@@ -535,7 +575,15 @@ class GameService:
     def get_rules(self):
         return {'training':copy.deepcopy(C.TRAINING),'caps':copy.deepcopy(self.caps),
                 'evolution_cost':dict(C.EVOLUTION_COST),'plot_costs':list(C.PLOT_COSTS),
-                'hunts':copy.deepcopy(C.HUNTS),'stages':copy.deepcopy(C.STAGES)}
+                'hunts':copy.deepcopy(C.HUNTS),'stages':copy.deepcopy(C.STAGES),
+                'yard_max':C.YARD_MAX_ANIMALS,
+                'cooking':{'xp_per_star':dict(C.COOK_XP),
+                           'level_thresholds':list(C.COOK_LEVEL_XP),
+                           'miss_rescue_by_level':list(C.COOK_MISS_RESCUE_BY_LEVEL),
+                           'miss_rescue_max_star':C.COOK_MISS_RESCUE_MAX_STAR,
+                           'grades':list(C.COOK_GRADES),
+                           'perfect_multiplier':C.COOK_PERFECT_MULTIPLIER,
+                           'timing':copy.deepcopy(C.COOK_TIMING)}}
 
     def get_inventory(self):
         return self._read(lambda s:{'stackable':dict(s['inventory']), 'toys':copy.deepcopy(s['toy_instances'])})
@@ -603,7 +651,7 @@ class GameService:
                 # Burnt food sometimes refused; no recovery on refusal.
                 refused=(spec['stars']==0 and self.rng.random()<.5)
                 if not refused:
-                    effect=C.FOOD_EFFECTS[spec['stars']]
+                    effect=spec['effects']
                     self._adjust(a,fullness=effect['fullness'],mood=effect['mood'],fatigue=effect['fatigue'])
                 return {'item':item,'refused':refused,'fullness':a['fullness'],'mood':a['mood'],'fatigue':a['fatigue']}
             if spec['kind']=='cure':
@@ -657,7 +705,12 @@ class GameService:
             stage=a['stage'];caps=self.caps[info['role']][stage]
             ready=(stage<info['max_stage'] and all(a['stats'][stat]>=caps[stat] for stat in C.STATS))
             return {'ready':ready,'stage':stage,'max_stage':info['max_stage'],
-                    'caps':caps,'next_cost':C.EVOLUTION_COST.get(stage+1) if stage<info['max_stage'] else None}
+                    'role':info['role'], 'stats':dict(a['stats']),
+                    'caps':copy.deepcopy(caps),
+                    'remaining':{stat:max(0,caps[stat]-a['stats'][stat]) for stat in C.STATS},
+                    'next_caps':copy.deepcopy(self.caps[info['role']][stage+1])
+                      if stage<info['max_stage'] else None,
+                    'next_cost':C.EVOLUTION_COST.get(stage+1) if stage<info['max_stage'] else None}
         return self._read(fn)
 
     def evolve(self,key):
@@ -673,7 +726,8 @@ class GameService:
             s['coins']-=cost
             a['stage']+=1
             self._emit(s,'evolve',animal=key,stage=a['stage'])
-            return {'id':key,'stage':a['stage'],'stats':dict(a['stats']),'coins':s['coins']}
+            return {'id':key,'stage':a['stage'],'stats':dict(a['stats']),'coins':s['coins'],
+                    **self.display_info(key,a['stage'])}
         return self._mutate(fn)
 
     def start_training(self,key,stat,difficulty):
@@ -786,32 +840,64 @@ class GameService:
         xp=s['cook_xp']
         return max(i+1 for i,threshold in enumerate(C.COOK_LEVEL_XP) if xp>=threshold)
 
+    def _cook_rescue_chance(self,stars,level):
+        if stars>C.COOK_MISS_RESCUE_MAX_STAR:
+            return 0.0
+        return C.COOK_MISS_RESCUE_BY_LEVEL[level-1]
+
     def get_recipes(self):
         def fn(s):
             level=self._cook_level(s)
             return {'level':level,'xp':s['cook_xp'],
-                    'recipes':{key:{**r,'failure_chance':max(.03,C.BASE_FAIL[r['stars']]-C.COOK_FAIL_REDUCTION[level-1])}
+                    'recipes':{key:{**r,'miss_rescue_chance':self._cook_rescue_chance(r['stars'],level),
+                                    'miss_failure_chance':1.0-self._cook_rescue_chance(r['stars'],level),
+                                    'travel_seconds':C.COOK_TIMING['travel_seconds_by_star'][r['stars']],
+                                    'regular_item':'food_'+key,'perfect_item':'food_perfect_'+key}
                                for key,r in C.RECIPES.items()}}
         return self._read(fn)
 
-    def cook(self,recipe):
+    def cook(self,recipe,grade='Good'):
+        """Resolve timing grades; only a low-star Miss can be rescued.
+
+        Perfect and Good always succeed and earn star-based XP. A rescued
+        1-3 star Miss gives regular food, without XP; 4-5 star Miss always burns.
+        Default Good preserves older CLI/demo calls, not GUI input validation.
+        """
         def fn(s):
-            if recipe not in C.RECIPES:raise GameRuleError('없는 요리입니다.')
+            if not isinstance(grade,str) or grade not in C.COOK_GRADES:
+                raise GameRuleError('요리 판정은 Perfect, Good, Miss 중 하나여야 합니다.')
+            if not isinstance(recipe,str) or recipe not in C.RECIPES:
+                raise GameRuleError('없는 요리입니다.')
             r=C.RECIPES[recipe]
             for item,quantity in r['ingredients'].items():
                 if s['inventory'].get(item,0)<quantity:raise GameRuleError('요리 재료가 부족합니다.')
             for item,quantity in r['ingredients'].items():self._take(s,item,quantity)
             level=self._cook_level(s)
-            fail=max(.03,C.BASE_FAIL[r['stars']]-C.COOK_FAIL_REDUCTION[level-1])
-            success=self.rng.random()>=fail
-            obtained='food_'+recipe if success else 'burned_food'
+            rescue_chance=self._cook_rescue_chance(r['stars'],level)
+            fail=1.0-rescue_chance if grade=='Miss' else 0.0
+            rescued=(grade=='Miss' and rescue_chance>0.0
+                     and self.rng.random()<rescue_chance)
+            success=grade!='Miss' or rescued
+            if not success:
+                obtained='burned_food'; result='failure'
+            elif grade=='Perfect':
+                obtained='food_perfect_'+recipe; result='great_success'
+            else:
+                obtained='food_'+recipe; result='success'
             self._add(s,obtained,1)
             self._count(s,'cooks_attempted')
+            gained=0
             if success:
                 self._count(s,'cooks_succeeded')
-                s['cook_xp']+=C.COOK_XP[r['stars']]
-            return {'success':success,'item':obtained,'xp':s['cook_xp'],
-                    'level':self._cook_level(s),'failure_chance':fail}
+                if not rescued:
+                    gained=C.COOK_XP[r['stars']]
+                    s['cook_xp']+=gained
+            return {'success':success,'grade':grade,'result':result,'item':obtained,
+                    'effect_multiplier':C.ITEMS[obtained]['effect_multiplier'],
+                    'effects':dict(C.ITEMS[obtained]['effects']),
+                    'xp':s['cook_xp'],'xp_gained':gained,'level':self._cook_level(s),
+                    'failure_chance':fail,'miss_rescue_chance':rescue_chance,
+                    'rescued':rescued}
         return self._mutate(fn)
 
     def get_stages(self):

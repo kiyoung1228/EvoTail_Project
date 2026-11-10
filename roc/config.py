@@ -6,8 +6,9 @@ ROLES = ('dealer', 'tank', 'healer')
 ROLE_ELEMENTS = {'dealer': 'fire', 'tank': 'water', 'healer': 'wind'}
 NATURES = ('glutton', 'sleepy', 'playful', 'balanced', 'picky')
 
-# PROVISIONAL: role-specific stage caps must be confirmed with teammate.
-CAPS = {role: {stage: {stat: cap for stat in STATS} for stage, cap in ((1,300),(2,500),(3,1000))} for role in ROLES}
+# Actual per-role, per-stat, per-evolution caps are in data/role_caps.json.
+# GameService.caps is the ONLY source for evolution/training limits.
+YARD_MAX_ANIMALS = 6
 EVOLUTION_COST = {2: 800, 3: 3000}
 TRAINING = {'easy': (600, 10, 10), 'medium': (1800, 30, 30), 'hard': (3600, 65, 65)} # sec, stat gain, fatigue+ / mood-fullness-
 # Agreement: avoid taking impossible state values or exceeding 100; easy/medium and hard requirements are provisional.
@@ -67,10 +68,21 @@ FOOD_EFFECTS = {
     4: {'fullness':70, 'mood':30, 'fatigue':-20},
     5: {'fullness':100, 'mood':50, 'fatigue':-40},
 }
-BASE_FAIL = {1:.05, 2:.10, 3:.15, 4:.20, 5:.25}
-COOK_XP = {1:10, 2:20, 3:35, 4:55, 5:80}
-COOK_LEVEL_XP = (0,100,300,700,1300)
-COOK_FAIL_REDUCTION = (0, .03, .06, .09, .12)
+COOK_XP = {stars: stars * 10 for stars in range(1, 6)}
+COOK_LEVEL_XP = (0,100,300,600,1000)
+COOK_MISS_RESCUE_BY_LEVEL = (0.0, .10, .20, .30, .40)
+COOK_MISS_RESCUE_MAX_STAR = 3
+COOK_GRADES = ('Perfect', 'Good', 'Miss')
+COOK_PERFECT_MULTIPLIER = 1.5
+# Normalized cursor coordinate: 0..100. GUI measures the timing grade;
+# the backend owns Miss rescue odds, inventory, XP and food effects.
+COOK_TIMING = {
+    'min_position': 0, 'max_position': 100,
+    'target_center_min': 20, 'target_center_max': 80,
+    'perfect_half_width': 5, 'good_half_width': 15,
+    'timeout_seconds': 5,
+    'travel_seconds_by_star': {1:1.8, 2:1.6, 3:1.4, 4:1.2, 5:1.0},
+}
 RECIPES = {
     'boiled_egg': {'label':'삶은 달걀', 'stars':1, 'ingredients':{'egg_food':1}, 'sell':12},
     'steamed_potato': {'label':'찐 감자', 'stars':1, 'ingredients':{'potato':1,'salt':1}, 'sell':35},
@@ -84,9 +96,18 @@ RECIPES = {
     'omelette_rice': {'label':'오므라이스', 'stars':5, 'ingredients':{'rice':2,'onion':1,'chicken':1,'egg_food':2,'butter':1}, 'sell':235},
     'rabbit_stew': {'label':'행운의 토끼고기 스튜', 'stars':5, 'ingredients':{'lucky_rabbit':1,'potato':1,'onion':1,'tomato':1,'butter':1}, 'sell':400},
 }
-ITEMS['burned_food'] = {'label':'탄 요리','buy':None,'sell':3,'kind':'food','stars':0}
+ITEMS['burned_food'] = {'label':'탄 요리','buy':None,'sell':3,'kind':'food','stars':0,
+                        'quality':'burned','effect_multiplier':1.0,'effects':dict(FOOD_EFFECTS[0])}
 for recipe_id, recipe in RECIPES.items():
-    ITEMS['food_'+recipe_id] = {'label':recipe['label'], 'buy':None, 'sell':recipe['sell'], 'kind':'food', 'stars':recipe['stars']}
+    base = {'label':recipe['label'], 'buy':None, 'sell':recipe['sell'], 'kind':'food', 'stars':recipe['stars']}
+    ITEMS['food_'+recipe_id] = {**base, 'quality':'normal', 'effect_multiplier':1.0,
+                               'effects':dict(FOOD_EFFECTS[recipe['stars']])}
+    # A distinct persistent item key keeps the bonus when stored or fed later.
+    # Sale price is unchanged: only feeding effects gain the 1.5x multiplier.
+    ITEMS['food_perfect_'+recipe_id] = {**base, 'label':recipe['label']+' (대성공)',
+                                       'quality':'perfect','effect_multiplier':COOK_PERFECT_MULTIPLIER,
+                                       'effects':{stat:int(value*COOK_PERFECT_MULTIPLIER)
+                                                  for stat,value in FOOD_EFFECTS[recipe['stars']].items()}}
 
 STAGES = {
     'tutorial': {'label':'뉴비', 'mode':'tutorial','power':40, 'reward':100,'ai':'tutorial','order':0},
