@@ -1,61 +1,61 @@
 {
   "dealer": {
     "1": {
-      "hp": 300,
-      "attack": 300,
-      "defense": 300,
-      "agility": 300
+      "hp": 240,
+      "attack": 420,
+      "defense": 180,
+      "agility": 360
     },
     "2": {
-      "hp": 500,
-      "attack": 500,
-      "defense": 500,
-      "agility": 500
+      "hp": 400,
+      "attack": 700,
+      "defense": 300,
+      "agility": 600
     },
     "3": {
-      "hp": 1000,
-      "attack": 1000,
-      "defense": 1000,
-      "agility": 1000
+      "hp": 800,
+      "attack": 1400,
+      "defense": 600,
+      "agility": 1200
     }
   },
   "tank": {
     "1": {
-      "hp": 300,
-      "attack": 300,
-      "defense": 300,
-      "agility": 300
+      "hp": 420,
+      "attack": 180,
+      "defense": 420,
+      "agility": 180
     },
     "2": {
-      "hp": 500,
-      "attack": 500,
-      "defense": 500,
-      "agility": 500
+      "hp": 700,
+      "attack": 300,
+      "defense": 700,
+      "agility": 300
     },
     "3": {
-      "hp": 1000,
-      "attack": 1000,
-      "defense": 1000,
-      "agility": 1000
+      "hp": 1400,
+      "attack": 600,
+      "defense": 1400,
+      "agility": 600
     }
   },
   "healer": {
     "1": {
-      "hp": 300,
-      "attack": 300,
-      "defense": 300,
+      "hp": 270,
+      "attack": 240,
+      "defense": 270,
       "agility": 300
     },
     "2": {
-      "hp": 500,
-      "attack": 500,
-      "defense": 500,
+      "hp": 450,
+      "attack": 400,
+      "defense": 450,
       "agility": 500
     },
     "3": {
-      "hp": 1000,
-      "attack": 1000,
-      "defense": 1000,
+      "hp": 900,
+      "attack": 800,
+      "defense": 900,
       "agility": 1000
     }
   }

@@ -130,10 +130,11 @@ class GameTests(unittest.TestCase):
     def test_evolution_only_when_all_caps_and_cost(self):
         a=self.ids[0]
         self.expect_error(lambda:self.g.evolve(a))
-        self.g._mutate(lambda s:(s.update(coins=1000),s['animals'][a]['stats'].update({k:300 for k in C.STATS})))
+        caps=self.g.get_evolution_status(a)['caps']
+        self.g._mutate(lambda s:(s.update(coins=1000),s['animals'][a]['stats'].update(dict(caps))))
         value=self.g.evolve(a)
         self.assertEqual(value['stage'],2)
-        self.assertEqual(value['stats']['attack'],300)
+        self.assertEqual(value['stats']['attack'],caps['attack'])
         self.assertEqual(self.g.get_evolution_status(a)['max_stage'],2)
         self.expect_error(lambda:self.g.evolve(a))
 
@@ -166,7 +167,8 @@ class GameTests(unittest.TestCase):
     def test_battle_outcome_injury_vs_hp(self):
         self.g.start_battle('tutorial',self.ids)
         self.g.forfeit_battle()
-        self.assertEqual(self.g.get_animals()[0]['stats']['hp'],54)
+        first=self.g.get_animals()[0]
+        self.assertEqual(first['stats']['hp'],self.g.characters[first['id']]['base_stats']['hp'])
         self.assertEqual(self.g.get_game_state()['coins'],300)
 
     def test_battle_item_in_combat(self):
