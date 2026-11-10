@@ -97,7 +97,7 @@ class AnimalsScene(Scene):
     # ---------- 그리기 ----------
     def draw(self, surface):
         surface.fill(T.BG)
-        text(surface, '집 · 내 동물', (180, 94), 22, T.INK, bold=True, anchor='midleft')
+        text(surface, '내 동물', (180, 94), 22, T.INK, bold=True, anchor='midleft')
         self._draw_list(surface)
         panel(surface, DETAIL)
         a = self.app.animal(self.selected)

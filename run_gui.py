@@ -13,8 +13,10 @@ def main(save_path='saves/game.db'):
     app = App(save_path)
     app.register('map', MapScene(app))
     app.register('animals', AnimalsScene(app))
-    for name, title in (('farm', '밭'), ('shop', '상점'), ('hospital', '병원'), ('kitchen', '주방'),
-                        ('hunting', '사냥터'), ('battle', '전투장'), ('pokedex', '도감')):
+    # 아직 만들지 않은 화면 (지도 건물 6개 + 오른쪽 메뉴)
+    for name, title in (('home', '집 · 요리 · 휴식'), ('shop', '상점'), ('hospital', '병원'), ('farm', '밭'),
+                        ('battle', '전투장'), ('hunting', '사냥터'),
+                        ('pokedex', '도감'), ('bag', '가방'), ('my_room', '마이룸'), ('settings', '설정')):
         app.register(name, PlaceholderScene(app, title))
     app.go('map')
     app.run()
