@@ -87,7 +87,7 @@ def test_training_evolution_and_offline():
         print(f"  Training: attack {before}->{after['stats']['attack']}; fatigue={after['fatigue']}; saved/reloaded")
 
         # Inject an end-of-stage test fixture to avoid hours of manual training.
-        cap = C.CAPS['dealer'][1]
+        cap = dict(again.get_evolution_status(key)['caps'])  # role_caps.json 기준
         def ready_for_evolution(s):
             s['coins'] = 1_200
             s['animals'][key]['stats'].update(cap)

@@ -108,6 +108,15 @@ class GameService:
         if 'clock' not in self.state or 'coins' not in self.state:
             raise GameRuleError('저장 파일의 핵심 데이터가 누락됐습니다.')
 
+    def display_info(self, key, stage=1):
+        """Name and sprite for a character at an evolution stage (stage is clamped)."""
+        info=self.characters[key]
+        names=info.get('stage_names') or [info['name']]
+        sprites=info.get('stage_sprites') or [info.get('sprite')]
+        i=max(0,min(int(stage or 1),len(names))-1)
+        return {'name':names[i],'sprite':sprites[min(i,len(sprites)-1)],
+                'species':info.get('species',info['name'])}
+
     def _new_animal(self, key, now):
         info=self.characters[key]
         return {'id':key,'stage':1,'stats':dict(info['base_stats']), 'nature':self.rng.choice(C.NATURES),
@@ -431,8 +440,8 @@ class GameService:
                 info=self.characters[key]
                 row=copy.deepcopy(a)
                 ok,reason=self._available(s,key)
-                row.update(name=info['name'],role=info['role'],element=info['element'],
-                           rarity=info['rarity'],sprite=info.get('sprite'),
+                row.update(**self.display_info(key,a['stage']),role=info['role'],element=info['element'],
+                           rarity=info['rarity'],
                            max_stage=info['max_stage'],
                            caps=copy.deepcopy(self.caps[info['role']][a['stage']]),
                            effective_stats=B.stats_for(a,a['equip']),
@@ -474,7 +483,8 @@ class GameService:
             for key,a in s['animals'].items():
                 info=self.characters[key]
                 row=copy.deepcopy(a)
-                row.update({'name':info['name'],'role':info['role'],'element':info['element'],
+                row.update(self.display_info(key,a['stage']))
+                row.update({'role':info['role'],'element':info['element'],
                             'rarity':info['rarity'],'max_stage':info['max_stage'],
                             'caps':copy.deepcopy(self.caps[info['role']][a['stage']]),
                             'effective_stats':B.stats_for(a,a['equip']),
@@ -511,7 +521,8 @@ class GameService:
 
     def get_pokedex(self):
         def fn(s):
-            return [{'id':key,'name':info['name'],'role':info['role'],'rarity':info['rarity'],
+            return [{'id':key,**self.display_info(key,s['animals'][key]['stage'] if key in s['animals'] else 1),
+                     'role':info['role'],'rarity':info['rarity'],
                      'element':info['element'],'owned':key in s['animals'],
                      'stage':s['animals'][key]['stage'] if key in s['animals'] else None,
                      'stats':dict(s['animals'][key]['stats']) if key in s['animals'] else None}
@@ -637,7 +648,7 @@ class GameService:
             duplicate=key in s['animals']
             if not duplicate:s['animals'][key]=self._new_animal(key,s['clock']['virtual'])
             self._emit(s,'hatch',animal=key,duplicate=duplicate)
-            return {'id':key,'name':self.characters[key]['name'],'duplicate':duplicate,'refund':0,'owned':len(s['animals'])}
+            return {'id':key,**self.display_info(key,1),'duplicate':duplicate,'refund':0,'owned':len(s['animals'])}
         return self._mutate(fn)
 
     def get_evolution_status(self,key):
@@ -827,11 +838,18 @@ class GameService:
                 counter_role=next(role for role,element in C.ROLE_ELEMENTS.items() if element==counter_element)
                 roles[0]=counter_role
                 roles[1]=counter_role
+        enemy_stage=3 if spec['power']>500 else (2 if spec['power']>300 else 1)
+        enemies=[]
+        for i,role in enumerate(roles):
+            pool=sorted(k for k,c in self.characters.items()
+                        if c['role']==role and c['max_stage']>=enemy_stage)
+            species=local_rng.choice(pool)
+            look=self.display_info(species,enemy_stage)
+            enemies.append({'id':f'enemy_{i}','name':'야생 '+look['name'],'sprite':look['sprite'],
+                            'species':species,'role':role,'element':C.ROLE_ELEMENTS[role],
+                            'stats':{stat:spec['power'] for stat in C.STATS}})
         return {'stage':stage,'label':spec['label'],'power':spec['power'],'ai':spec['ai'],
-                'enemy':[{'id':f'enemy_{i}','name':f'적 {C.ROLE_ELEMENTS[role]} {role} {i+1}',
-                          'role':role,'element':C.ROLE_ELEMENTS[role],
-                          'stats':{stat:spec['power'] for stat in C.STATS}}
-                         for i,role in enumerate(roles)]}
+                'enemy':enemies}
 
     def preview_stage(self,stage):
         """Enemy composition is stable from preview until start; changes next attempt."""
@@ -856,10 +874,14 @@ class GameService:
             player=[]
             for key in team:
                 a=s['animals'][key]; info=self.characters[key]
-                player.append(B.make_fighter(key,'player',info['role'],info['element'],a['stage'],
-                                              B.stats_for(a,a['equip'],potions.get(key))))
+                fighter=B.make_fighter(key,'player',info['role'],info['element'],a['stage'],
+                                       B.stats_for(a,a['equip'],potions.get(key)))
+                look=self.display_info(key,a['stage'])
+                fighter.update(name=look['name'],sprite=look['sprite'])
+                player.append(fighter)
             preview=self._stage_preview(s,stage)
-            enemy=[B.make_fighter(e['id'],'enemy',e['role'],e['element'],3 if spec['power']>500 else (2 if spec['power']>300 else 1),e['stats'])
+            enemy=[{**B.make_fighter(e['id'],'enemy',e['role'],e['element'],3 if spec['power']>500 else (2 if spec['power']>300 else 1),e['stats']),
+                    'name':e['name'],'sprite':e['sprite']}
                    for e in preview['enemy']]
             s.setdefault('battle_attempts',{})[stage]=s.get('battle_attempts',{}).get(stage,0)+1
             s['last_team_roles']=[self.characters[key]['role'] for key in team]
