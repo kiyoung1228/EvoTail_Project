@@ -10,6 +10,7 @@ from .service import GameService, GameRuleError
 
 ALLOWED_COMMANDS = frozenset('''
     get_snapshot get_game_state get_animals get_catalog get_pokedex
+    get_yard_animals set_yard_animals
     get_shop_catalog get_rules get_inventory get_autonomous_state
     get_evolution_status get_recipes get_plots get_hunts get_stages
     get_active_jobs get_ai_profiles get_battle get_battle_actions
