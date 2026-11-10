@@ -1,39 +1,7 @@
 {
   "dealer_normal_01": {
     "id": "dealer_normal_01",
-    "name": "임시 dealer normal 1",
-    "role": "dealer",
-    "element": "fire",
-    "rarity": "normal",
-    "max_stage": 2,
-    "base_stats": {
-      "hp": 54,
-      "attack": 81,
-      "defense": 45,
-      "agility": 72
-    },
-    "sprite": "assets/dealer_normal_01.png",
-    "placeholder": true
-  },
-  "dealer_normal_02": {
-    "id": "dealer_normal_02",
-    "name": "임시 dealer normal 2",
-    "role": "dealer",
-    "element": "fire",
-    "rarity": "normal",
-    "max_stage": 2,
-    "base_stats": {
-      "hp": 57,
-      "attack": 86,
-      "defense": 48,
-      "agility": 76
-    },
-    "sprite": "assets/dealer_normal_02.png",
-    "placeholder": true
-  },
-  "dealer_normal_03": {
-    "id": "dealer_normal_03",
-    "name": "임시 dealer normal 3",
+    "name": "불씨여우",
     "role": "dealer",
     "element": "fire",
     "rarity": "normal",
@@ -44,76 +12,136 @@
       "defense": 50,
       "agility": 80
     },
-    "sprite": "assets/dealer_normal_03.png",
-    "placeholder": true
+    "sprite": "assets/dealer_normal_01.png",
+    "placeholder": true,
+    "type": "딜러형",
+    "description": "꼬리 끝 불씨가 자랄수록 불꽃이 커지는 여우. 처음 함께하는 딜러.",
+    "species": "여우",
+    "stage_names": [
+      "불씨여우",
+      "불꽃여우"
+    ],
+    "strength": "기준",
+    "stage_sprites": [
+      "assets/sprites/dealer_normal_01_s1.png",
+      "assets/sprites/dealer_normal_01_s2.png"
+    ]
   },
-  "dealer_normal_04": {
-    "id": "dealer_normal_04",
-    "name": "임시 dealer normal 4",
+  "dealer_normal_02": {
+    "id": "dealer_normal_02",
+    "name": "불씨다람쥐",
     "role": "dealer",
     "element": "fire",
     "rarity": "normal",
     "max_stage": 2,
     "base_stats": {
-      "hp": 63,
-      "attack": 94,
-      "defense": 52,
-      "agility": 84
+      "hp": 57,
+      "attack": 90,
+      "defense": 48,
+      "agility": 88
     },
-    "sprite": "assets/dealer_normal_04.png",
-    "placeholder": true
+    "sprite": "assets/dealer_normal_02.png",
+    "placeholder": true,
+    "type": "딜러형",
+    "description": "볼에 불씨를 머금고 재빠르게 뛰어다닌다.",
+    "species": "다람쥐",
+    "stage_names": [
+      "불씨다람쥐",
+      "불꽃다람쥐"
+    ],
+    "strength": "민첩 ↑",
+    "stage_sprites": [
+      "assets/sprites/dealer_normal_02_s1.png",
+      "assets/sprites/dealer_normal_02_s2.png"
+    ]
   },
-  "dealer_normal_05": {
-    "id": "dealer_normal_05",
-    "name": "임시 dealer normal 5",
+  "dealer_normal_03": {
+    "id": "dealer_normal_03",
+    "name": "불씨두더지",
+    "role": "dealer",
+    "element": "fire",
+    "rarity": "normal",
+    "max_stage": 2,
+    "base_stats": {
+      "hp": 57,
+      "attack": 99,
+      "defense": 50,
+      "agility": 76
+    },
+    "sprite": "assets/dealer_normal_03.png",
+    "placeholder": true,
+    "type": "딜러형",
+    "description": "뜨거운 발톱으로 땅을 파고 튀어나와 공격한다.",
+    "species": "두더지",
+    "stage_names": [
+      "불씨두더지",
+      "불꽃두더지"
+    ],
+    "strength": "공격 ↑",
+    "stage_sprites": [
+      "assets/sprites/dealer_normal_03_s1.png",
+      "assets/sprites/dealer_normal_03_s2.png"
+    ]
+  },
+  "dealer_normal_04": {
+    "id": "dealer_normal_04",
+    "name": "불씨고양이",
     "role": "dealer",
     "element": "fire",
     "rarity": "normal",
     "max_stage": 2,
     "base_stats": {
       "hp": 66,
-      "attack": 99,
-      "defense": 55,
-      "agility": 88
+      "attack": 86,
+      "defense": 50,
+      "agility": 76
+    },
+    "sprite": "assets/dealer_normal_04.png",
+    "placeholder": true,
+    "type": "딜러형",
+    "description": "난로 옆을 좋아하는 고양이. 딜러 중 잘 버티는 편.",
+    "species": "고양이",
+    "stage_names": [
+      "불씨고양이",
+      "불꽃고양이"
+    ],
+    "strength": "체력 ↑",
+    "stage_sprites": [
+      "assets/sprites/dealer_normal_04_s1.png",
+      "assets/sprites/dealer_normal_04_s2.png"
+    ]
+  },
+  "dealer_normal_05": {
+    "id": "dealer_normal_05",
+    "name": "불씨족제비",
+    "role": "dealer",
+    "element": "fire",
+    "rarity": "normal",
+    "max_stage": 2,
+    "base_stats": {
+      "hp": 57,
+      "attack": 94,
+      "defense": 48,
+      "agility": 84
     },
     "sprite": "assets/dealer_normal_05.png",
-    "placeholder": true
+    "placeholder": true,
+    "type": "딜러형",
+    "description": "몸에서 불똥이 튀는 날렵한 사냥꾼.",
+    "species": "족제비",
+    "stage_names": [
+      "불씨족제비",
+      "불꽃족제비"
+    ],
+    "strength": "공격·민첩 ↑",
+    "stage_sprites": [
+      "assets/sprites/dealer_normal_05_s1.png",
+      "assets/sprites/dealer_normal_05_s2.png"
+    ]
   },
   "tank_normal_01": {
     "id": "tank_normal_01",
-    "name": "임시 tank normal 1",
-    "role": "tank",
-    "element": "water",
-    "rarity": "normal",
-    "max_stage": 2,
-    "base_stats": {
-      "hp": 90,
-      "attack": 45,
-      "defense": 81,
-      "agility": 36
-    },
-    "sprite": "assets/tank_normal_01.png",
-    "placeholder": true
-  },
-  "tank_normal_02": {
-    "id": "tank_normal_02",
-    "name": "임시 tank normal 2",
-    "role": "tank",
-    "element": "water",
-    "rarity": "normal",
-    "max_stage": 2,
-    "base_stats": {
-      "hp": 95,
-      "attack": 48,
-      "defense": 86,
-      "agility": 38
-    },
-    "sprite": "assets/tank_normal_02.png",
-    "placeholder": true
-  },
-  "tank_normal_03": {
-    "id": "tank_normal_03",
-    "name": "임시 tank normal 3",
+    "name": "물방울수달",
     "role": "tank",
     "element": "water",
     "rarity": "normal",
@@ -124,76 +152,136 @@
       "defense": 90,
       "agility": 40
     },
-    "sprite": "assets/tank_normal_03.png",
-    "placeholder": true
+    "sprite": "assets/tank_normal_01.png",
+    "placeholder": true,
+    "type": "탱커형",
+    "description": "물방울 방패를 만들어 동료를 지킨다. 처음 함께하는 탱커.",
+    "species": "수달",
+    "stage_names": [
+      "물방울수달",
+      "개울수달"
+    ],
+    "strength": "기준",
+    "stage_sprites": [
+      "assets/sprites/tank_normal_01_s1.png",
+      "assets/sprites/tank_normal_01_s2.png"
+    ]
   },
-  "tank_normal_04": {
-    "id": "tank_normal_04",
-    "name": "임시 tank normal 4",
+  "tank_normal_02": {
+    "id": "tank_normal_02",
+    "name": "물방울거북",
     "role": "tank",
     "element": "water",
     "rarity": "normal",
     "max_stage": 2,
     "base_stats": {
-      "hp": 105,
-      "attack": 52,
-      "defense": 94,
-      "agility": 42
+      "hp": 95,
+      "attack": 48,
+      "defense": 99,
+      "agility": 40
     },
-    "sprite": "assets/tank_normal_04.png",
-    "placeholder": true
+    "sprite": "assets/tank_normal_02.png",
+    "placeholder": true,
+    "type": "탱커형",
+    "description": "등껍질이 개울 조약돌처럼 반질반질하고 단단하다.",
+    "species": "거북",
+    "stage_names": [
+      "물방울거북",
+      "개울거북"
+    ],
+    "strength": "방어 ↑",
+    "stage_sprites": [
+      "assets/sprites/tank_normal_02_s1.png",
+      "assets/sprites/tank_normal_02_s2.png"
+    ]
   },
-  "tank_normal_05": {
-    "id": "tank_normal_05",
-    "name": "임시 tank normal 5",
+  "tank_normal_03": {
+    "id": "tank_normal_03",
+    "name": "물방울개구리",
+    "role": "tank",
+    "element": "water",
+    "rarity": "normal",
+    "max_stage": 2,
+    "base_stats": {
+      "hp": 95,
+      "attack": 50,
+      "defense": 86,
+      "agility": 44
+    },
+    "sprite": "assets/tank_normal_03.png",
+    "placeholder": true,
+    "type": "탱커형",
+    "description": "이슬을 모아 몸을 감싼다. 탱커 중 몸이 가볍다.",
+    "species": "개구리",
+    "stage_names": [
+      "물방울개구리",
+      "개울개구리"
+    ],
+    "strength": "민첩 ↑",
+    "stage_sprites": [
+      "assets/sprites/tank_normal_03_s1.png",
+      "assets/sprites/tank_normal_03_s2.png"
+    ]
+  },
+  "tank_normal_04": {
+    "id": "tank_normal_04",
+    "name": "물방울하마",
     "role": "tank",
     "element": "water",
     "rarity": "normal",
     "max_stage": 2,
     "base_stats": {
       "hp": 110,
+      "attack": 48,
+      "defense": 90,
+      "agility": 38
+    },
+    "sprite": "assets/tank_normal_04.png",
+    "placeholder": true,
+    "type": "탱커형",
+    "description": "물놀이를 좋아하는 하마. 체력이 넘친다.",
+    "species": "하마",
+    "stage_names": [
+      "물방울하마",
+      "개울하마"
+    ],
+    "strength": "체력 ↑",
+    "stage_sprites": [
+      "assets/sprites/tank_normal_04_s1.png",
+      "assets/sprites/tank_normal_04_s2.png"
+    ]
+  },
+  "tank_normal_05": {
+    "id": "tank_normal_05",
+    "name": "물방울비버",
+    "role": "tank",
+    "element": "water",
+    "rarity": "normal",
+    "max_stage": 2,
+    "base_stats": {
+      "hp": 95,
       "attack": 55,
-      "defense": 99,
-      "agility": 44
+      "defense": 90,
+      "agility": 38
     },
     "sprite": "assets/tank_normal_05.png",
-    "placeholder": true
+    "placeholder": true,
+    "type": "탱커형",
+    "description": "댐을 쌓듯 버티다가 꼬리로 받아친다.",
+    "species": "비버",
+    "stage_names": [
+      "물방울비버",
+      "개울비버"
+    ],
+    "strength": "공격 ↑",
+    "stage_sprites": [
+      "assets/sprites/tank_normal_05_s1.png",
+      "assets/sprites/tank_normal_05_s2.png"
+    ]
   },
   "healer_normal_01": {
     "id": "healer_normal_01",
-    "name": "임시 healer normal 1",
-    "role": "healer",
-    "element": "wind",
-    "rarity": "normal",
-    "max_stage": 2,
-    "base_stats": {
-      "hp": 54,
-      "attack": 54,
-      "defense": 54,
-      "agility": 54
-    },
-    "sprite": "assets/healer_normal_01.png",
-    "placeholder": true
-  },
-  "healer_normal_02": {
-    "id": "healer_normal_02",
-    "name": "임시 healer normal 2",
-    "role": "healer",
-    "element": "wind",
-    "rarity": "normal",
-    "max_stage": 2,
-    "base_stats": {
-      "hp": 57,
-      "attack": 57,
-      "defense": 57,
-      "agility": 57
-    },
-    "sprite": "assets/healer_normal_02.png",
-    "placeholder": true
-  },
-  "healer_normal_03": {
-    "id": "healer_normal_03",
-    "name": "임시 healer normal 3",
+    "name": "산들오리",
     "role": "healer",
     "element": "wind",
     "rarity": "normal",
@@ -204,76 +292,136 @@
       "defense": 60,
       "agility": 60
     },
-    "sprite": "assets/healer_normal_03.png",
-    "placeholder": true
+    "sprite": "assets/healer_normal_01.png",
+    "placeholder": true,
+    "type": "힐러형",
+    "description": "바람을 타고 둥실 떠다니며 동료를 돌본다. 처음 함께하는 힐러.",
+    "species": "오리",
+    "stage_names": [
+      "산들오리",
+      "구름오리"
+    ],
+    "strength": "기준",
+    "stage_sprites": [
+      "assets/sprites/healer_normal_01_s1.png",
+      "assets/sprites/healer_normal_01_s2.png"
+    ]
   },
-  "healer_normal_04": {
-    "id": "healer_normal_04",
-    "name": "임시 healer normal 4",
+  "healer_normal_02": {
+    "id": "healer_normal_02",
+    "name": "산들나비",
     "role": "healer",
     "element": "wind",
     "rarity": "normal",
     "max_stage": 2,
     "base_stats": {
-      "hp": 63,
-      "attack": 63,
-      "defense": 63,
-      "agility": 63
+      "hp": 57,
+      "attack": 60,
+      "defense": 57,
+      "agility": 66
     },
-    "sprite": "assets/healer_normal_04.png",
-    "placeholder": true
+    "sprite": "assets/healer_normal_02.png",
+    "placeholder": true,
+    "type": "힐러형",
+    "description": "바람을 타고 날며 꽃가루로 치유한다.",
+    "species": "나비",
+    "stage_names": [
+      "산들나비",
+      "구름나비"
+    ],
+    "strength": "민첩 ↑",
+    "stage_sprites": [
+      "assets/sprites/healer_normal_02_s1.png",
+      "assets/sprites/healer_normal_02_s2.png"
+    ]
   },
-  "healer_normal_05": {
-    "id": "healer_normal_05",
-    "name": "임시 healer normal 5",
+  "healer_normal_03": {
+    "id": "healer_normal_03",
+    "name": "산들햄스터",
     "role": "healer",
     "element": "wind",
     "rarity": "normal",
     "max_stage": 2,
     "base_stats": {
       "hp": 66,
+      "attack": 57,
+      "defense": 60,
+      "agility": 57
+    },
+    "sprite": "assets/healer_normal_03.png",
+    "placeholder": true,
+    "type": "힐러형",
+    "description": "볼주머니에 약초 씨앗을 가득 넣고 다닌다.",
+    "species": "햄스터",
+    "stage_names": [
+      "산들햄스터",
+      "구름햄스터"
+    ],
+    "strength": "체력 ↑",
+    "stage_sprites": [
+      "assets/sprites/healer_normal_03_s1.png",
+      "assets/sprites/healer_normal_03_s2.png"
+    ]
+  },
+  "healer_normal_04": {
+    "id": "healer_normal_04",
+    "name": "산들참새",
+    "role": "healer",
+    "element": "wind",
+    "rarity": "normal",
+    "max_stage": 2,
+    "base_stats": {
+      "hp": 57,
       "attack": 66,
+      "defense": 60,
+      "agility": 57
+    },
+    "sprite": "assets/healer_normal_04.png",
+    "placeholder": true,
+    "type": "힐러형",
+    "description": "휘파람으로 동료를 북돋고 부리로 쪼기도 한다.",
+    "species": "참새",
+    "stage_names": [
+      "산들참새",
+      "구름참새"
+    ],
+    "strength": "공격 ↑",
+    "stage_sprites": [
+      "assets/sprites/healer_normal_04_s1.png",
+      "assets/sprites/healer_normal_04_s2.png"
+    ]
+  },
+  "healer_normal_05": {
+    "id": "healer_normal_05",
+    "name": "산들사슴",
+    "role": "healer",
+    "element": "wind",
+    "rarity": "normal",
+    "max_stage": 2,
+    "base_stats": {
+      "hp": 57,
+      "attack": 57,
       "defense": 66,
-      "agility": 66
+      "agility": 60
     },
     "sprite": "assets/healer_normal_05.png",
-    "placeholder": true
+    "placeholder": true,
+    "type": "힐러형",
+    "description": "숲속 바람을 몰고 다니는 사슴.",
+    "species": "사슴",
+    "stage_names": [
+      "산들사슴",
+      "구름사슴"
+    ],
+    "strength": "방어 ↑",
+    "stage_sprites": [
+      "assets/sprites/healer_normal_05_s1.png",
+      "assets/sprites/healer_normal_05_s2.png"
+    ]
   },
   "dealer_special_01": {
     "id": "dealer_special_01",
-    "name": "임시 dealer special 1",
-    "role": "dealer",
-    "element": "fire",
-    "rarity": "special",
-    "max_stage": 3,
-    "base_stats": {
-      "hp": 76,
-      "attack": 112,
-      "defense": 63,
-      "agility": 99
-    },
-    "sprite": "assets/dealer_special_01.png",
-    "placeholder": true
-  },
-  "dealer_special_02": {
-    "id": "dealer_special_02",
-    "name": "임시 dealer special 2",
-    "role": "dealer",
-    "element": "fire",
-    "rarity": "special",
-    "max_stage": 3,
-    "base_stats": {
-      "hp": 81,
-      "attack": 119,
-      "defense": 66,
-      "agility": 104
-    },
-    "sprite": "assets/dealer_special_02.png",
-    "placeholder": true
-  },
-  "dealer_special_03": {
-    "id": "dealer_special_03",
-    "name": "임시 dealer special 3",
+    "name": "불씨늑대",
     "role": "dealer",
     "element": "fire",
     "rarity": "special",
@@ -284,76 +432,146 @@
       "defense": 70,
       "agility": 110
     },
-    "sprite": "assets/dealer_special_03.png",
-    "placeholder": true
+    "sprite": "assets/dealer_special_01.png",
+    "placeholder": true,
+    "type": "딜러형",
+    "description": "달밤에 불꽃 갈기를 휘날리며 무리를 이끈다.",
+    "species": "늑대",
+    "stage_names": [
+      "불씨늑대",
+      "불꽃늑대",
+      "화염늑대"
+    ],
+    "strength": "기준",
+    "stage_sprites": [
+      "assets/sprites/dealer_special_01_s1.png",
+      "assets/sprites/dealer_special_01_s2.png",
+      "assets/sprites/dealer_special_01_s3.png"
+    ]
   },
-  "dealer_special_04": {
-    "id": "dealer_special_04",
-    "name": "임시 dealer special 4",
+  "dealer_special_02": {
+    "id": "dealer_special_02",
+    "name": "불씨매",
     "role": "dealer",
     "element": "fire",
     "rarity": "special",
     "max_stage": 3,
     "base_stats": {
-      "hp": 89,
-      "attack": 131,
-      "defense": 74,
-      "agility": 116
+      "hp": 81,
+      "attack": 125,
+      "defense": 66,
+      "agility": 121
     },
-    "sprite": "assets/dealer_special_04.png",
-    "placeholder": true
+    "sprite": "assets/dealer_special_02.png",
+    "placeholder": true,
+    "type": "딜러형",
+    "description": "불타는 날개로 하늘에서 내리꽂는다.",
+    "species": "매",
+    "stage_names": [
+      "불씨매",
+      "불꽃매",
+      "화염매"
+    ],
+    "strength": "민첩 ↑",
+    "stage_sprites": [
+      "assets/sprites/dealer_special_02_s1.png",
+      "assets/sprites/dealer_special_02_s2.png",
+      "assets/sprites/dealer_special_02_s3.png"
+    ]
   },
-  "dealer_special_05": {
-    "id": "dealer_special_05",
-    "name": "임시 dealer special 5",
+  "dealer_special_03": {
+    "id": "dealer_special_03",
+    "name": "불씨호랑이",
+    "role": "dealer",
+    "element": "fire",
+    "rarity": "special",
+    "max_stage": 3,
+    "base_stats": {
+      "hp": 81,
+      "attack": 138,
+      "defense": 70,
+      "agility": 104
+    },
+    "sprite": "assets/dealer_special_03.png",
+    "placeholder": true,
+    "type": "딜러형",
+    "description": "용암처럼 끓는 줄무늬를 가진 호랑이.",
+    "species": "호랑이",
+    "stage_names": [
+      "불씨호랑이",
+      "불꽃호랑이",
+      "화염호랑이"
+    ],
+    "strength": "공격 ↑",
+    "stage_sprites": [
+      "assets/sprites/dealer_special_03_s1.png",
+      "assets/sprites/dealer_special_03_s2.png",
+      "assets/sprites/dealer_special_03_s3.png"
+    ]
+  },
+  "dealer_special_04": {
+    "id": "dealer_special_04",
+    "name": "불씨사자",
     "role": "dealer",
     "element": "fire",
     "rarity": "special",
     "max_stage": 3,
     "base_stats": {
       "hp": 94,
-      "attack": 138,
-      "defense": 77,
-      "agility": 121
+      "attack": 119,
+      "defense": 70,
+      "agility": 104
+    },
+    "sprite": "assets/dealer_special_04.png",
+    "placeholder": true,
+    "type": "딜러형",
+    "description": "태양빛을 갈기에 모아 오래 싸운다.",
+    "species": "사자",
+    "stage_names": [
+      "불씨사자",
+      "불꽃사자",
+      "화염사자"
+    ],
+    "strength": "체력 ↑",
+    "stage_sprites": [
+      "assets/sprites/dealer_special_04_s1.png",
+      "assets/sprites/dealer_special_04_s2.png",
+      "assets/sprites/dealer_special_04_s3.png"
+    ]
+  },
+  "dealer_special_05": {
+    "id": "dealer_special_05",
+    "name": "불씨봉황",
+    "role": "dealer",
+    "element": "fire",
+    "rarity": "special",
+    "max_stage": 3,
+    "base_stats": {
+      "hp": 81,
+      "attack": 131,
+      "defense": 66,
+      "agility": 116
     },
     "sprite": "assets/dealer_special_05.png",
-    "placeholder": true
+    "placeholder": true,
+    "type": "딜러형",
+    "description": "전설 속 불꽃의 새.",
+    "species": "봉황",
+    "stage_names": [
+      "불씨봉황",
+      "불꽃봉황",
+      "화염봉황"
+    ],
+    "strength": "공격·민첩 ↑",
+    "stage_sprites": [
+      "assets/sprites/dealer_special_05_s1.png",
+      "assets/sprites/dealer_special_05_s2.png",
+      "assets/sprites/dealer_special_05_s3.png"
+    ]
   },
   "tank_special_01": {
     "id": "tank_special_01",
-    "name": "임시 tank special 1",
-    "role": "tank",
-    "element": "water",
-    "rarity": "special",
-    "max_stage": 3,
-    "base_stats": {
-      "hp": 126,
-      "attack": 63,
-      "defense": 112,
-      "agility": 50
-    },
-    "sprite": "assets/tank_special_01.png",
-    "placeholder": true
-  },
-  "tank_special_02": {
-    "id": "tank_special_02",
-    "name": "임시 tank special 2",
-    "role": "tank",
-    "element": "water",
-    "rarity": "special",
-    "max_stage": 3,
-    "base_stats": {
-      "hp": 133,
-      "attack": 66,
-      "defense": 119,
-      "agility": 52
-    },
-    "sprite": "assets/tank_special_02.png",
-    "placeholder": true
-  },
-  "tank_special_03": {
-    "id": "tank_special_03",
-    "name": "임시 tank special 3",
+    "name": "물방울고래",
     "role": "tank",
     "element": "water",
     "rarity": "special",
@@ -364,76 +582,146 @@
       "defense": 125,
       "agility": 55
     },
-    "sprite": "assets/tank_special_03.png",
-    "placeholder": true
+    "sprite": "assets/tank_special_01.png",
+    "placeholder": true,
+    "type": "탱커형",
+    "description": "몸으로 물결을 일으켜 동료를 감싼다.",
+    "species": "고래",
+    "stage_names": [
+      "물방울고래",
+      "개울고래",
+      "파도고래"
+    ],
+    "strength": "기준",
+    "stage_sprites": [
+      "assets/sprites/tank_special_01_s1.png",
+      "assets/sprites/tank_special_01_s2.png",
+      "assets/sprites/tank_special_01_s3.png"
+    ]
   },
-  "tank_special_04": {
-    "id": "tank_special_04",
-    "name": "임시 tank special 4",
+  "tank_special_02": {
+    "id": "tank_special_02",
+    "name": "물방울소라게",
     "role": "tank",
     "element": "water",
     "rarity": "special",
     "max_stage": 3,
     "base_stats": {
-      "hp": 147,
-      "attack": 74,
-      "defense": 131,
-      "agility": 58
+      "hp": 133,
+      "attack": 66,
+      "defense": 138,
+      "agility": 55
     },
-    "sprite": "assets/tank_special_04.png",
-    "placeholder": true
+    "sprite": "assets/tank_special_02.png",
+    "placeholder": true,
+    "type": "탱커형",
+    "description": "진화할수록 등에 진 소라껍데기가 커지고 단단해진다.",
+    "species": "소라게",
+    "stage_names": [
+      "물방울소라게",
+      "개울소라게",
+      "파도소라게"
+    ],
+    "strength": "방어 ↑",
+    "stage_sprites": [
+      "assets/sprites/tank_special_02_s1.png",
+      "assets/sprites/tank_special_02_s2.png",
+      "assets/sprites/tank_special_02_s3.png"
+    ]
   },
-  "tank_special_05": {
-    "id": "tank_special_05",
-    "name": "임시 tank special 5",
+  "tank_special_03": {
+    "id": "tank_special_03",
+    "name": "물방울가재",
+    "role": "tank",
+    "element": "water",
+    "rarity": "special",
+    "max_stage": 3,
+    "base_stats": {
+      "hp": 133,
+      "attack": 70,
+      "defense": 119,
+      "agility": 60
+    },
+    "sprite": "assets/tank_special_03.png",
+    "placeholder": true,
+    "type": "탱커형",
+    "description": "단단하면서도 재빠른 집게를 가진 가재.",
+    "species": "가재",
+    "stage_names": [
+      "물방울가재",
+      "개울가재",
+      "파도가재"
+    ],
+    "strength": "민첩 ↑",
+    "stage_sprites": [
+      "assets/sprites/tank_special_03_s1.png",
+      "assets/sprites/tank_special_03_s2.png",
+      "assets/sprites/tank_special_03_s3.png"
+    ]
+  },
+  "tank_special_04": {
+    "id": "tank_special_04",
+    "name": "물방울바다코끼리",
     "role": "tank",
     "element": "water",
     "rarity": "special",
     "max_stage": 3,
     "base_stats": {
       "hp": 154,
+      "attack": 66,
+      "defense": 125,
+      "agility": 52
+    },
+    "sprite": "assets/tank_special_04.png",
+    "placeholder": true,
+    "type": "탱커형",
+    "description": "두꺼운 지방층으로 무엇이든 버틴다.",
+    "species": "바다코끼리",
+    "stage_names": [
+      "물방울바다코끼리",
+      "개울바다코끼리",
+      "파도바다코끼리"
+    ],
+    "strength": "체력 ↑",
+    "stage_sprites": [
+      "assets/sprites/tank_special_04_s1.png",
+      "assets/sprites/tank_special_04_s2.png",
+      "assets/sprites/tank_special_04_s3.png"
+    ]
+  },
+  "tank_special_05": {
+    "id": "tank_special_05",
+    "name": "물방울용",
+    "role": "tank",
+    "element": "water",
+    "rarity": "special",
+    "max_stage": 3,
+    "base_stats": {
+      "hp": 133,
       "attack": 77,
-      "defense": 138,
-      "agility": 61
+      "defense": 125,
+      "agility": 52
     },
     "sprite": "assets/tank_special_05.png",
-    "placeholder": true
+    "placeholder": true,
+    "type": "탱커형",
+    "description": "물의 용. 받은 공격을 물결로 되돌려준다.",
+    "species": "용",
+    "stage_names": [
+      "물방울용",
+      "개울용",
+      "파도용"
+    ],
+    "strength": "공격 ↑",
+    "stage_sprites": [
+      "assets/sprites/tank_special_05_s1.png",
+      "assets/sprites/tank_special_05_s2.png",
+      "assets/sprites/tank_special_05_s3.png"
+    ]
   },
   "healer_special_01": {
     "id": "healer_special_01",
-    "name": "임시 healer special 1",
-    "role": "healer",
-    "element": "wind",
-    "rarity": "special",
-    "max_stage": 3,
-    "base_stats": {
-      "hp": 76,
-      "attack": 76,
-      "defense": 76,
-      "agility": 76
-    },
-    "sprite": "assets/healer_special_01.png",
-    "placeholder": true
-  },
-  "healer_special_02": {
-    "id": "healer_special_02",
-    "name": "임시 healer special 2",
-    "role": "healer",
-    "element": "wind",
-    "rarity": "special",
-    "max_stage": 3,
-    "base_stats": {
-      "hp": 81,
-      "attack": 81,
-      "defense": 81,
-      "agility": 81
-    },
-    "sprite": "assets/healer_special_02.png",
-    "placeholder": true
-  },
-  "healer_special_03": {
-    "id": "healer_special_03",
-    "name": "임시 healer special 3",
+    "name": "산들학",
     "role": "healer",
     "element": "wind",
     "rarity": "special",
@@ -444,39 +732,141 @@
       "defense": 85,
       "agility": 85
     },
-    "sprite": "assets/healer_special_03.png",
-    "placeholder": true
+    "sprite": "assets/healer_special_01.png",
+    "placeholder": true,
+    "type": "힐러형",
+    "description": "깃털이 바람에 흩날리면 상처가 아문다.",
+    "species": "학",
+    "stage_names": [
+      "산들학",
+      "구름학",
+      "하늘학"
+    ],
+    "strength": "기준",
+    "stage_sprites": [
+      "assets/sprites/healer_special_01_s1.png",
+      "assets/sprites/healer_special_01_s2.png",
+      "assets/sprites/healer_special_01_s3.png"
+    ]
   },
-  "healer_special_04": {
-    "id": "healer_special_04",
-    "name": "임시 healer special 4",
+  "healer_special_02": {
+    "id": "healer_special_02",
+    "name": "산들양",
     "role": "healer",
     "element": "wind",
     "rarity": "special",
     "max_stage": 3,
     "base_stats": {
-      "hp": 89,
-      "attack": 89,
-      "defense": 89,
-      "agility": 89
+      "hp": 81,
+      "attack": 85,
+      "defense": 81,
+      "agility": 94
     },
-    "sprite": "assets/healer_special_04.png",
-    "placeholder": true
+    "sprite": "assets/healer_special_02.png",
+    "placeholder": true,
+    "type": "힐러형",
+    "description": "폭신한 털로 바람을 타고 둥실둥실 떠다닌다.",
+    "species": "양",
+    "stage_names": [
+      "산들양",
+      "구름양",
+      "하늘양"
+    ],
+    "strength": "민첩 ↑",
+    "stage_sprites": [
+      "assets/sprites/healer_special_02_s1.png",
+      "assets/sprites/healer_special_02_s2.png",
+      "assets/sprites/healer_special_02_s3.png"
+    ]
   },
-  "healer_special_05": {
-    "id": "healer_special_05",
-    "name": "임시 healer special 5",
+  "healer_special_03": {
+    "id": "healer_special_03",
+    "name": "산들올빼미",
     "role": "healer",
     "element": "wind",
     "rarity": "special",
     "max_stage": 3,
     "base_stats": {
       "hp": 94,
+      "attack": 81,
+      "defense": 85,
+      "agility": 81
+    },
+    "sprite": "assets/healer_special_03.png",
+    "placeholder": true,
+    "type": "힐러형",
+    "description": "밤바람을 날개에 담은 올빼미.",
+    "species": "올빼미",
+    "stage_names": [
+      "산들올빼미",
+      "구름올빼미",
+      "하늘올빼미"
+    ],
+    "strength": "체력 ↑",
+    "stage_sprites": [
+      "assets/sprites/healer_special_03_s1.png",
+      "assets/sprites/healer_special_03_s2.png",
+      "assets/sprites/healer_special_03_s3.png"
+    ]
+  },
+  "healer_special_04": {
+    "id": "healer_special_04",
+    "name": "산들공작",
+    "role": "healer",
+    "element": "wind",
+    "rarity": "special",
+    "max_stage": 3,
+    "base_stats": {
+      "hp": 81,
       "attack": 94,
+      "defense": 85,
+      "agility": 81
+    },
+    "sprite": "assets/healer_special_04.png",
+    "placeholder": true,
+    "type": "힐러형",
+    "description": "화려한 깃을 펼쳐 치유하고 적을 현혹한다.",
+    "species": "공작",
+    "stage_names": [
+      "산들공작",
+      "구름공작",
+      "하늘공작"
+    ],
+    "strength": "공격 ↑",
+    "stage_sprites": [
+      "assets/sprites/healer_special_04_s1.png",
+      "assets/sprites/healer_special_04_s2.png",
+      "assets/sprites/healer_special_04_s3.png"
+    ]
+  },
+  "healer_special_05": {
+    "id": "healer_special_05",
+    "name": "산들기린",
+    "role": "healer",
+    "element": "wind",
+    "rarity": "special",
+    "max_stage": 3,
+    "base_stats": {
+      "hp": 81,
+      "attack": 81,
       "defense": 94,
-      "agility": 94
+      "agility": 85
     },
     "sprite": "assets/healer_special_05.png",
-    "placeholder": true
+    "placeholder": true,
+    "type": "힐러형",
+    "description": "높은 곳에서 바람을 읽으며 동료를 지켜본다.",
+    "species": "기린",
+    "stage_names": [
+      "산들기린",
+      "구름기린",
+      "하늘기린"
+    ],
+    "strength": "방어 ↑",
+    "stage_sprites": [
+      "assets/sprites/healer_special_05_s1.png",
+      "assets/sprites/healer_special_05_s2.png",
+      "assets/sprites/healer_special_05_s3.png"
+    ]
   }
 }

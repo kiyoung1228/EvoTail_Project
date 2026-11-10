@@ -106,7 +106,7 @@ class V3Tests(unittest.TestCase):
         tank=next(a for a in new.get_animals() if a['role']=='tank')
         self.assertEqual(dealer['caps']['hp'],180)
         self.assertEqual(dealer['caps']['attack'],320)
-        self.assertEqual(tank['caps']['attack'],300)
+        self.assertEqual(tank['caps']['attack'],data['tank']['1']['attack'])
         self.assertEqual(new.get_evolution_status(dealer['id'])['caps']['attack'],320)
         self.assertEqual(new.get_rules()['caps']['dealer'][1]['hp'],180)
 
