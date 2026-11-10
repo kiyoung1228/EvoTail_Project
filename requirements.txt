@@ -1,2 +1,3 @@
-# Backend uses Python 3.10+ standard library only.
-# Pygame is installed separately by the GUI developer: pygame>=2.5
+# Backend (roc/) uses Python 3.10+ standard library only.
+# GUI (gui/, run_gui.py):
+pygame>=2.5
