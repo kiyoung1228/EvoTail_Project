@@ -244,3 +244,101 @@ if __name__ == '__main__':
     hunt_A(out / 'hunt_A1_send.png', 'ranch'); hunt_A(out / 'hunt_A2_ready.png', 'pig_pen'); hunt_A(out / 'hunt_A3_running.png', 'chicken_coop')
     hunt_B(out / 'hunt_B_cards.png')
     print('ok')
+
+
+# ================= 사냥 중 / 귀환 칸 v2 (풍경 무대 + 연출) =================
+def stage_box(base, key, x, y, w, h, dim=1.0):
+    z = Z2.zone(key, 208, 140)
+    cx = {'rabbit_hill': 40, 'chicken_coop': 30, 'pig_pen': 20, 'ranch': 30}[key]
+    crop = z.crop((cx, 140 - h - 18, cx + w, 140 - 18))
+    if dim != 1.0: crop = ImageEnhance.Brightness(crop).enhance(dim)
+    d = ImageDraw.Draw(base); d.rectangle((x - 1, y - 1, x + w, y + h), outline=INK)
+    paste(base, crop, (x, y))
+
+
+def dust(d, x, y):
+    for dx, dy, r in ((0, 0, 3), (-6, 2, 2), (-11, 1, 1)):
+        d.ellipse((x + dx - r, y + dy - r, x + dx + r, y + dy + r), fill=(250, 244, 230), outline=(200, 186, 160))
+
+
+def panel_running2(base, key='rabbit_hill', aid='healer_normal_01', name='산들오리', rem=2400, dur=3600, item='lucky_rabbit', iname='행운의 토끼고기'):
+    label = dict((a[0], a[1]) for a in AREAS)[key]
+    K.draw_text(base, (456, 76), label, K.F_BIG(), K.TEXT, 'lm')
+    chip(base, 456 + int(ImageDraw.Draw(Image.new('L', (1, 1))).textlength(label, font=K.F_BIG())) + 6, 68, '사냥 중', 'brown')
+    stage_box(base, key, 457, 92, 162, 84)
+    d = ImageDraw.Draw(base)
+    paste(base, critter(key, 2), (546, 118))                                         # 도망가는 사냥감
+    for i in range(3): d.line((542 - i * 3, 132 + i * 5, 536 - i * 3, 132 + i * 5), fill=(255, 255, 255))
+    paste(base, B.spr(aid, 1, 2).transpose(Image.FLIP_LEFT_RIGHT), (476, 118))       # 쫓아가는 내 동물
+    dust(d, 482, 170)
+    B.card(base, 498, 98, 22, 20); text_mid(base, 509, 108, '!', K.F_TITLE(), RED)    # 느낌표 말풍선
+    # 진행 길: 출발 깃발 → 발자국 → 내 동물 → 도착(고기)
+    K.draw_text(base, (456, 192), f'{name} 사냥 중', K.F_TITLE(), K.TEXT, 'lm')
+    y = 214; x0, x1 = 462, 600
+    d.line((x0, y, x1, y), fill=K.WOOD[1], width=3)
+    p = (dur - rem) / dur; px = int(x0 + (x1 - x0) * p)
+    for fx in range(x0 + 6, px - 8, 9): d.point([(fx, y - 4), (fx + 2, y - 5)], fill=K.WOOD[0])          # 발자국
+    d.rectangle((x0 - 3, y - 10, x0 - 2, y + 1), fill=INK); d.polygon([(x0 - 2, y - 10), (x0 + 5, y - 8), (x0 - 2, y - 6)], fill=GREEN)
+    paste(base, meat(item), (x1 - 2, y - 14))
+    paste(base, B.spr(aid, 1, 1).transpose(Image.FLIP_LEFT_RIGHT).crop((2, 2, 26, 26)), (px - 12, y - 22))
+    K.draw_text(base, (456, 236), '남은 시간', K.F_SMALL(), K.TEXT_SOFT, 'lm')
+    K.draw_text(base, (620, 236), mmss(rem), K.F_BIG(), K.TEXT, 'rm')
+    paste(base, meat(item), (456, 252)); K.draw_text(base, (476, 260), f'다녀오면 {iname} ×3', K.F_SMALL(), K.TEXT, 'lm')
+    K.draw_text(base, (456, 280), '다녀오면 피로도 +35 · 질병 30%', K.F_SMALL(), RED, 'lm')
+    button(base, 456, 302, 164, 40, '불러오기', 'brown', icon='back', sub='보상 없음')
+
+
+def panel_ready2(base, key='rabbit_hill', aid='healer_normal_01', name='산들오리', item='lucky_rabbit', iname='행운의 토끼고기', sick=False):
+    label = dict((a[0], a[1]) for a in AREAS)[key]
+    K.draw_text(base, (456, 76), label, K.F_BIG(), K.TEXT, 'lm')
+    chip(base, 456 + int(ImageDraw.Draw(Image.new('L', (1, 1))).textlength(label, font=K.F_BIG())) + 6, 68, '사냥 완료', 'green')
+    stage_box(base, key, 457, 92, 162, 84)
+    st = Image.new('RGBA', (W, H)); rays_c = (255, 240, 170)
+    sd = ImageDraw.Draw(st)
+    for i in range(12):
+        a = i * math.pi / 6
+        sd.polygon([(538, 150), (538 + 120 * math.cos(a), 150 + 120 * math.sin(a)), (538 + 120 * math.cos(a + .2), 150 + 120 * math.sin(a + .2))], fill=rays_c + (70,))
+    m = Image.new('L', (W, H)); ImageDraw.Draw(m).rectangle((457, 92, 618, 175), fill=255)
+    sc = Image.new('RGBA', (W, H)); sc.paste(st, (0, 0), m); base.alpha_composite(sc)
+    d = ImageDraw.Draw(base)
+    # 바구니 + 고기 3개
+    for i, (dx, dy) in enumerate(((0, 0), (14, -6), (28, 0))):
+        paste(base, meat(item).resize((32, 32), Image.NEAREST), (532 + dx, 128 + dy))
+    d.rounded_rectangle((534, 152, 592, 170), 3, fill=(206, 152, 88), outline=INK)                  # 바구니
+    for xx in range(540, 590, 6): d.line((xx, 153, xx, 169), fill=(170, 116, 60))
+    d.line((535, 156, 591, 156), fill=(232, 186, 120))
+    paste(base, B.spr(aid, 1, 2), (474, 118))
+    for sx, sy in ((470, 112), (528, 104), (604, 110), (600, 140)):
+        d.line((sx - 3, sy, sx + 3, sy), fill=(255, 236, 120)); d.line((sx, sy - 3, sx, sy + 3), fill=(255, 236, 120)); d.point((sx, sy), fill=(255, 255, 255))
+    ribbon(base, 474, 86, 64, '귀환!', 'green')
+    K.draw_text(base, (456, 192), f'{name} 귀환', K.F_TITLE(), K.TEXT, 'lm')
+    K.draw_text(base, (456, 208), f'{iname} ×3', K.F_SMALL(), K.TEXT, 'lm')
+    K.draw_text(base, (620, 208), '가방 1 → 4', K.F_SMALL(), GREEN, 'rm')
+    K.draw_text(base, (456, 226), '다녀온 결과', K.F_SMALL(), K.TEXT_SOFT, 'lm')
+    cx = 456
+    for t, c in (('피로도 +35', 'orange'), ('포만감 -20', 'orange')):
+        cx += chip(base, cx, 234, t, c) + 3
+    cx = 456 + chip(base, 456, 254, '기분 -10', 'orange') + 3
+    if sick: chip(base, cx, 254, '아픔 · 병원 치료', 'red')
+    else: chip(base, cx, 254, '건강함', 'green')
+    K.draw_text(base, (456, 286), '지금 피로도 35 보통', K.F_SMALL(), K.TEXT_SOFT, 'lm')
+    button(base, 456, 302, 164, 40, '보상 받기', 'orange', icon='heart', sub=f'{iname} 3개')
+
+
+def hunt_v2(out_run, out_ready, out_sick):
+    global STATE
+    keep = STATE
+    STATE = {'rabbit_hill': ('healer_normal_01', 2400, 3600)}
+    base = hunt_bg(); top(base)
+    t = '사냥터마다 1마리씩'; tw = int(ImageDraw.Draw(Image.new('L', (1, 1))).textlength(t, font=K.F_BODY()))
+    B.card(base, 168, 32, tw + 30, 22); paste(base, K.icon('heart'), (174, 37)); text_mid(base, 190 + tw / 2, 43, t, K.F_BODY(), K.TEXT)
+    pos = [(10, 60), (226, 60), (10, 210), (226, 210)]
+    for (key, *_), (x, y) in zip(AREAS, pos): zone_tile(base, key, x, y, 212, 144, key == 'rabbit_hill')
+    B.panel(base, 444, 58, 188, 298); panel_running2(base); save(base, out_run)
+    STATE = {'rabbit_hill': ('healer_normal_01', 0, 3600)}
+    for out, sick in ((out_ready, False), (out_sick, True)):
+        base = hunt_bg(); top(base)
+        B.card(base, 168, 32, tw + 30, 22); paste(base, K.icon('heart'), (174, 37)); text_mid(base, 190 + tw / 2, 43, t, K.F_BODY(), K.TEXT)
+        for (key, *_), (x, y) in zip(AREAS, pos): zone_tile(base, key, x, y, 212, 144, key == 'rabbit_hill')
+        B.panel(base, 444, 58, 188, 298); panel_ready2(base, sick=sick); save(base, out)
+    STATE = keep

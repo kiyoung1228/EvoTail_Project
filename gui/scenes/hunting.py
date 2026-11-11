@@ -17,7 +17,8 @@ from .. import widgets as W
 from .. import items as I
 from ..app import Scene
 from ..widgets import (text, text_in, glyph_box, fit_width, panel, card, card_inner, ribbon, chip, chip_width, icon,
-                       gauge, select_frame, nine, record, wrap2, Button, BUTTON_H)
+                       gauge, select_frame, nine, record, wrap2, wrap_lines, Button, BUTTON_H)
+from .hatch import rays
 from .settings import ConfirmOverlay
 from .farm import mmss
 
@@ -33,6 +34,10 @@ with open(os.path.join(HUNT_DIR, 'spots.json'), encoding='utf-8') as _f:
 ZONE = (10, 60, 212, 144, 4, 6)          # 첫 칸 x, y, 칸 폭, 칸 높이, 가로 사이, 세로 사이 (2×2)
 PANEL = pygame.Rect(444, 58, 188, 298)
 ART = pygame.Rect(PANEL.x + 12, 96, PANEL.w - 24, 80)
+STAGE = pygame.Rect(PANEL.x + 13, 92, 162, 84)           # 오른쪽 칸 무대 (사냥 중·완료)
+# 무대 = 풍경 그림(208×140)에서 자를 자리: 가로 시작 x, 아래 울타리 위 18px (tools/hunt_mock.py stage_box()와 같음)
+STAGE_CROP_X = {'rabbit_hill': 40, 'chicken_coop': 30, 'pig_pen': 20, 'ranch': 30}
+STAGE_CROP_BOTTOM = 18
 ROW_H, ROW_STEP, ROWS = 32, 33, 3
 LIST_Y = 198
 ACTIVITY_LABEL = {'training': '훈련 중'}
@@ -289,45 +294,143 @@ class HuntScene(Scene):
             return
         a = self.app.animal(job['animal'])
         name = a['name'] if a else self.app.name_of(job['animal'])
-        card(surface, ART)
         if job.get('ready'):
             self._title(surface, spec['label'], '사냥 완료', 'green')
-            if a:
-                img = self.app.sprites.get(a['sprite'], 56)
-                surface.blit(img, img.get_rect(midleft=(ART.x + 8, ART.centery)))
-            for k in range(spec['count']):
-                surface.blit(self.icons.get(spec['item'], 2), (ART.x + 74 + k * 24, ART.centery - 22 + (k % 2) * 10))
-            text(surface, f"{name} 귀환", (x, 184), 'title')
-            have = self.have(spec['item'])
-            got = f"{meat} ×{spec['count']} · 가방 보유 {have} → {have + spec['count']}"
-            if glyph_box(got, 'small').w > right - x:     # 칸 폭을 넘으면 두 줄 (고기 이름 / 가방 보유)
-                got_lines = [f"{meat} ×{spec['count']}", f"가방 보유 {have} → {have + spec['count']}"]
-            else:
-                got_lines = [got]
-            for k, line in enumerate(got_lines):
-                self._line(surface, line, (x, 201 + k * 12), 'small', T.TEXT, right)
-            dy = 12 * (len(got_lines) - 1)                 # 두 줄이면 아래 상태 게이지를 한 줄만큼 내림
-            if a:
-                text(surface, '지금 상태', (x, 218 + dy), 'small', T.TEXT_SOFT)
-                y = 230 + dy
-                for kind, lab in (('fatigue', '피로도'), ('fullness', '포만감')):
-                    lv = T.level(a, kind)
-                    text(surface, lab, (x, y), 'body')
-                    text(surface, f"{a[kind]} {lv}", (right, y), 'body', T.shade(T.LEVEL_KIT[lv], 1), anchor='topright')
-                    gauge(surface, (x, y + 14, right - x, 8), a[kind], 100, T.LEVEL_KIT[lv])
-                    y += 28
+            self._draw_return(surface, area, spec, a, name, meat, x, right)
         else:
             self._title(surface, spec['label'], '사냥 중', 'brown')
-            if a:
-                img = self.app.sprites.get(a['sprite'], 56)
-                surface.blit(img, img.get_rect(center=ART.center))
-            text(surface, f"{name} 사냥 중", (x, 184), 'title')
-            rem = self.remaining(job)
-            text(surface, '남은 시간', (x, 202), 'small', T.TEXT_SOFT)
-            text(surface, mmss(rem), (x, 214), 'big')
-            gauge(surface, (x, 236, right - x, 10), spec['duration'] - rem, spec['duration'], 'green')
-            surface.blit(self.icons.get(spec['item'], 1), (x, 256))
-            self._line(surface, f"다녀오면 {meat} ×{spec['count']}", (x + 20, 258), 'small', T.TEXT, right)
+            self._draw_running(surface, area, spec, job, a, name, meat, x, right)
+
+    # ---------- 오른쪽 칸 무대 (목업 hunt_A4_running_v2 / hunt_A5_return_v2) ----------
+    def stage_bg(self, area):
+        """무대 배경 = 그 사냥터 풍경의 아래쪽(울타리 위)을 무대 크기로 자른 것 (tools/hunt_mock.py stage_box()와 같은 자리)."""
+        key = ('stage', area)
+        if key not in self._img:
+            z = self.image('zones', area)
+            cx = STAGE_CROP_X.get(area, 30)
+            y0 = z.get_height() - STAGE.h - STAGE_CROP_BOTTOM
+            self._img[key] = z.subsurface((cx, y0, STAGE.w, STAGE.h)).copy()
+        return self._img[key]
+
+    def _flipped(self, path, size):
+        key = ('flip', path, size)
+        if key not in self._img:
+            self._img[key] = pygame.transform.flip(self.app.sprites.get(path, size), True, False)
+        return self._img[key]
+
+    def _stage(self, surface, area):
+        surface.blit(self.stage_bg(area), STAGE)
+        pygame.draw.rect(surface, T.INK, STAGE.inflate(2, 2), 1)
+
+    def _draw_running(self, surface, area, spec, job, a, name, meat, x, right):
+        t = time.time()
+        bob, bob2 = int(t * 6) % 2, int(t * 6 + 1) % 2        # 1px씩 통통
+        self._stage(surface, area)
+        clip = surface.get_clip()
+        surface.set_clip(STAGE)
+        surface.blit(self.image('animals', area, 2), (STAGE.x + 89, STAGE.y + 26 - bob2))     # 도망가는 사냥감
+        for i in range(3):                                                                 # 흰 속도선 3줄
+            yy = STAGE.y + 40 + i * 5
+            pygame.draw.line(surface, T.WHITE, (STAGE.x + 85 - i * 3, yy), (STAGE.x + 79 - i * 3, yy))
+        if a:                                                                              # 쫓아가는 내 동물 (오른쪽 보게)
+            surface.blit(self._flipped(a['sprite'], 56), (STAGE.x + 19, STAGE.y + 26 - bob))
+        phase = (t * 3) % 1                                                                # 흙먼지: 뒤로 흩어짐
+        for dx, dy, r in ((0, 0, 3), (-6, 2, 2), (-11, 1, 1)):
+            px, py = STAGE.x + 25 + dx - int(phase * 4), STAGE.y + 78 + dy
+            pygame.draw.circle(surface, (250, 244, 230), (px, py), r)
+            pygame.draw.circle(surface, (200, 186, 160), (px, py), r, 1)
+        surface.set_clip(clip)
+        bubble = pygame.Rect(STAGE.x + 41, STAGE.y + 6, 22, 20)                            # "!" 말풍선
+        card(surface, bubble)
+        text_in(surface, '!', card_inner(bubble), 'title', T.BAD, tag='hunt')
+        # 이름 + 진행 길 (출발 깃발 → 발자국 → 동물 얼굴 → 고기)
+        y = 192 + self._text_lines(surface, f"{name} 사냥 중", x, 192, 'title', T.TEXT, right, 13)
+        dur = spec['duration']
+        rem = self.remaining(job)
+        py_, x0, x1 = y + 22, x + 6, right - 20
+        pygame.draw.line(surface, T.WOOD[1], (x0, py_), (x1, py_), 3)
+        p = max(0.0, min(1.0, 1 - rem / dur)) if dur else 1.0
+        px = int(x0 + (x1 - x0) * p)
+        for fx in range(x0 + 6, px - 8, 9):                                                # 지나온 자리 발자국
+            surface.set_at((fx, py_ - 4), T.WOOD[0])
+            surface.set_at((fx + 2, py_ - 5), T.WOOD[0])
+        pygame.draw.rect(surface, T.INK, (x0 - 3, py_ - 10, 2, 12))                         # 출발 깃발
+        pygame.draw.polygon(surface, T.shade('green', 2), [(x0 - 2, py_ - 10), (x0 + 5, py_ - 8), (x0 - 2, py_ - 6)])
+        surface.blit(self.icons.get(spec['item'], 1), (x1 - 2, py_ - 14))                  # 도착 = 고기
+        if a:
+            face = self._flipped(a['sprite'], 28).subsurface((2, 2, 24, 24))
+            surface.blit(face, (px - 12, py_ - 22))
+        y = py_ + 22
+        text(surface, '남은 시간', (x, y), 'small', T.TEXT_SOFT, anchor='midleft')
+        text(surface, mmss(rem), (right, y), 'big', anchor='midright')
+        surface.blit(self.icons.get(spec['item'], 1), (x, y + 16))
+        y += 24 + self._text_lines(surface, f"다녀오면 {meat} ×{spec['count']}", x + 20, y + 24, 'small', T.TEXT,
+                                   right, 12)
+        after = HUNT_DISPLAY['after'].get(dur, {})
+        self._text_lines(surface, f"다녀오면 피로도 {after.get('fatigue', 0):+d} · 질병 "
+                                  f"{round(HUNT_DISPLAY['disease'] * 100)}%", x, y + 20, 'small', T.BAD, right, 12)
+
+    def _draw_return(self, surface, area, spec, a, name, meat, x, right):
+        t = time.time()
+        self._stage(surface, area)
+        rays(surface, STAGE, (STAGE.x + 81, STAGE.y + 58), t * 0.3, (255, 240, 170), 70, n=12, width=0.76)
+        for dx, dy in ((0, 0), (14, -6), (28, 0)):                                        # 바구니 속 고기 3개
+            surface.blit(self.icons.get(spec['item'], 2), (STAGE.x + 75 + dx, STAGE.y + 36 + dy))
+        basket = pygame.Rect(STAGE.x + 77, STAGE.y + 60, 58, 18)
+        pygame.draw.rect(surface, (206, 152, 88), basket)
+        for xx in range(basket.x + 6, basket.right - 2, 6):
+            pygame.draw.line(surface, (170, 116, 60), (xx, basket.y + 1), (xx, basket.bottom - 2))
+        pygame.draw.line(surface, (232, 186, 120), (basket.x + 1, basket.y + 4), (basket.right - 2, basket.y + 4))
+        pygame.draw.rect(surface, T.INK, basket, 1)
+        if a:
+            surface.blit(self.app.sprites.get(a['sprite'], 56), (STAGE.x + 17, STAGE.y + 26))
+        for k, (sx, sy) in enumerate(((13, 20), (71, 12), (147, 18), (143, 48))):         # 반짝이 깜빡임
+            if int(t * 2 + k) % 3:
+                sx, sy = STAGE.x + sx, STAGE.y + sy
+                pygame.draw.line(surface, (255, 236, 120), (sx - 3, sy), (sx + 3, sy))
+                pygame.draw.line(surface, (255, 236, 120), (sx, sy - 3), (sx, sy + 3))
+                surface.set_at((sx, sy), T.WHITE)
+        ribbon(surface, (STAGE.x + 17, STAGE.y - 6, 64, 18), '귀환!', 'green')
+        y = 192 + self._text_lines(surface, f"{name} 귀환", x, 192, 'title', T.TEXT, right, 13)
+        # "행운의 토끼고기 ×3" (왼쪽) + 초록 "가방 1 → 4" (오른쪽). 한 줄에 안 들어가면 두 줄
+        have = self.have(spec['item'])
+        left, bag = f"{meat} ×{spec['count']}", f"가방 {have} → {have + spec['count']}"
+        y += 16
+        if glyph_box(left, 'small').w + 8 + glyph_box(bag, 'small').w <= right - x:
+            self._text_lines(surface, left, x, y, 'small', T.TEXT, right, 12)
+        else:
+            y += self._text_lines(surface, left, x, y, 'small', T.TEXT, right, 12) + 12
+        g = text(surface, bag, (right, y), 'small', T.OK, anchor='midright')
+        record(bag, g, pygame.Rect(x - 2, g.y - 2, right - x + 4, g.h + 4), 'hunt-panel')
+        # 다녀온 결과 칩 (HUNT_DISPLAY) + 지금 상태 칩. 칩이 칸 폭을 넘으면 다음 줄로
+        y += 18
+        text(surface, '다녀온 결과', (x, y), 'small', T.TEXT_SOFT, anchor='midleft')
+        after = HUNT_DISPLAY['after'].get(spec['duration'], {})
+        sick = bool(a and a.get('sick'))
+        rows = [[(f"피로도 {after.get('fatigue', 0):+d}", 'orange'), (f"포만감 {after.get('fullness', 0):+d}", 'orange')],
+                [(f"기분 {after.get('mood', 0):+d}", 'orange'),
+                 ('아픔 · 병원 치료', 'red') if sick else ('건강함', 'green')]]
+        cy = y + 8
+        for row in rows:
+            cx = x
+            for label, color in row:
+                if cx > x and cx + chip_width(label) > right:
+                    cx, cy = x, cy + 20
+                r = chip(surface, (cx, cy), label, color)
+                cx = r.right + 3
+            cy += 20
+        if a:
+            lv = T.level(a, 'fatigue')
+            text(surface, f"지금 피로도 {a['fatigue']} {lv}", (x, cy + 12), 'small', T.TEXT_SOFT, anchor='midleft')
+
+    def _text_lines(self, surface, msg, x, y_mid, kind, color, right, step):
+        """글씨를 칸 폭(right까지)에 맞게 띄어쓰기 단위로 줄을 나눠 그림 (첫 줄 가운데 = y_mid, 글자 크기 그대로).
+        늘어난 높이(step × (줄 수 - 1))를 돌려줌 → 아래 줄들을 그만큼 내림. 줄마다 넘침 점검 기록."""
+        lines = wrap_lines(msg, right - x, kind) or ['']
+        for k, line in enumerate(lines):
+            g = text(surface, line, (x, y_mid + k * step), kind, color, anchor='midleft')
+            record(line, g, pygame.Rect(x - 2, g.y - 2, right - x + 4, g.h + 4), 'hunt-panel')
+        return step * (len(lines) - 1)
 
     def _line(self, surface, msg, pos, kind, color, right):
         """오른쪽 칸 안 글씨 한 줄 + 넘침 점검 기록 (칸 오른쪽 끝 right를 넘으면 check_text_fit 위반)."""
