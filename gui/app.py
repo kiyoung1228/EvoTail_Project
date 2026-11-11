@@ -272,8 +272,10 @@ class App:
         clock = self.state.get('clock', {})
         night = bool(clock.get('night'))
         rate = clock.get('rate', 1.0) or 1.0
-        # TODO: 목업의 "1일차 · 14:20"(날짜·게임 시각)은 백엔드 clock에 값이 생기면 추가
-        info = f"{'밤' if night else '낮'} · {'태풍' if clock.get('storm') else '맑음'}"
+        # 목업 순서: "1일차 · 낮 14:20 · 맑음". day·time은 백엔드 clock (PR #6, 1일차 06:00 시작)
+        when = f"{'밤' if night else '낮'} {clock['time']}" if clock.get('time') else ('밤' if night else '낮')
+        day = f"{clock['day']}일차 · " if clock.get('day') else ''
+        info = f"{day}{when} · {'태풍' if clock.get('storm') else '맑음'}"
         if 1 < rate < T.SPEED_DEMO:
             info += f" · {int(rate)}배속"
         # 상단 바의 작은 칸: 안쪽 17 = 글자 11(쉼표 등 아래로 내려오는 글자 13) + 여백 4 → card 21
