@@ -36,6 +36,18 @@ def alive(fighter):
     return fighter['hp']>0
 
 
+def healing_amount(healer, target):
+    """Actual HP a healer special would restore to this target right now."""
+    maximum={1:100,2:300,3:500}[healer['stage']]
+    return min(maximum,max(0,target['stats']['hp']-target['hp']))
+
+
+def battle_item_heal_amount(item_id, target):
+    """Actual HP restored by the supported in-combat healing item."""
+    if item_id!='battle_bandage':raise ValueError('not an in-combat item')
+    return min(C.ITEMS[item_id]['heal'],max(0,target['stats']['hp']-target['hp']))
+
+
 def multiplier(attacker, defender):
     a,b=attacker['element'],defender['element']
     if C.ELEMENT_BEATS.get(a)==b: return C.ELEMENT_ADVANTAGE
@@ -100,7 +112,9 @@ def legal_actions(battle, actor_id):
         if actor['role']=='tank':
             actions.extend({'kind':'special','actor':actor_id,'target':x['id']} for x in teammates)
         elif actor['role']=='healer':
-            actions.extend({'kind':'special','actor':actor_id,'target':x['id']} for x in teammates if x['hp']<x['stats']['hp'])
+            actions.extend({'kind':'special','actor':actor_id,'target':x['id'],
+                            'amount':healing_amount(actor,x)}
+                           for x in teammates if x['hp']<x['stats']['hp'])
     return actions
 
 
@@ -149,8 +163,7 @@ def perform(battle, actor_id, kind, target, rng):
             teammate['shield']=True
             events.append({'type':'shield','actor':actor_id,'target':target})
         elif actor['role']=='healer':
-            amount={1:100,2:300,3:500}[actor['stage']]
-            gain=min(amount,teammate['stats']['hp']-teammate['hp'])
+            gain=healing_amount(actor,teammate)
             teammate['hp']+=gain
             events.append({'type':'heal','actor':actor_id,'target':target,'amount':gain})
         # One own-team-turn lockout AFTER current turn: 2 means at next start -> 1, then next -> 0.
@@ -169,7 +182,7 @@ def use_battle_item(battle, item_id, target_id):
     target=_find(battle['player'],target_id)
     if target is None or not alive(target) or target['hp']>=target['stats']['hp']:
         raise ValueError('target cannot be healed')
-    healed=min(80,target['stats']['hp']-target['hp'])
+    healed=battle_item_heal_amount(item_id,target)
     target['hp']+=healed
     battle['actions']+=1
     return [{'type':'battle_item','item':item_id,'target':target_id,'amount':healed}]
@@ -228,18 +241,23 @@ def _score_action(battle, action):
 AI_PROFILES = {
     'tutorial': {
         'label':'뉴비', 'strategy':'공격 우선 무작위',
+        'summary':'일반 공격만 사용해요',
         'description':'합법적인 일반 공격만 골라 튜토리얼 난이도를 낮춥니다.'},
     'random': {
         'label':'쉬움', 'strategy':'균등 무작위',
+        'summary':'행동을 무작위로 골라요',
         'description':'공격/기본 방어/회복/절대방어 등 합법적인 행동을 무작위 선택합니다.'},
     'rules': {
         'label':'보통', 'strategy':'조건문 우선순위',
+        'summary':'회복·보호를 우선해요',
         'description':'위급한 아군 회복 → 위급한 아군 보호 → 우선 공격 순서로 결정합니다.'},
     'heuristic': {
         'label':'어려움', 'strategy':'행동 기대효용 점수',
+        'summary':'행동의 이득을 계산해요',
         'description':'광역 기대피해/명중/치명타, 회복 낭비, 보호 효용을 비교해 행동합니다.'},
     'lookahead': {
         'label':'극악', 'strategy':'전술 선행탐색',
+        'summary':'다음 반격까지 내다봐요',
         'description':'자기 팀 남은 행동과 플레이어 반격, 다음 AI 행동까지 가상 전투로 비교합니다.'},
 }
 
