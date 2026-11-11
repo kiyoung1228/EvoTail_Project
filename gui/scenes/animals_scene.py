@@ -6,7 +6,8 @@ import pygame
 
 from .. import theme as T
 from ..app import Scene
-from ..widgets import text, text_width, panel, card, ribbon, chip, gauge, icon, tooltip, Button, Kit, mouse_pos
+from ..widgets import (text, text_width, text_in, panel, card, card_inner, ribbon, chip, gauge, icon, tooltip,
+                       Button, Kit, mouse_pos, BUTTON_H)
 
 LIST = pygame.Rect(9, 56, 174, 298)          # 왼쪽 목록 창
 LIST_INNER = LIST.inflate(-18, -18)          # 칸이 놓이는 영역 (창 테두리 안)
@@ -67,7 +68,8 @@ class AnimalsScene(Scene):
     # ---------- 버튼은 상태에 따라 매 프레임 다시 만든다 ----------
     def update(self, dt):
         app, a = self.app, self.app.animal(self.selected)
-        self.buttons = [Button((12, 33, 56, 18), '지도', lambda: app.go('map'), 'brown', icon='back')]
+        self.buttons = [Button((12, 32, max(56, Button.width_for('지도', icon=True)), BUTTON_H), '지도',
+                               lambda: app.go('map'), 'brown', icon='back')]
         if not a:
             return
         key = a['id']
@@ -82,8 +84,8 @@ class AnimalsScene(Scene):
             yard_label = f'마당 가득 {len(yard)}/{yard_max}'
         else:
             yard_label = '마당에 내보내기'
-        bw = text_width(yard_label, 'title') + 26          # 아이콘 14 + 양옆 여백
-        yard_btn = pygame.Rect(DETAIL.right - 13 - bw, DETAIL.y + 11, bw, 18)
+        bw = Button.width_for(yard_label, icon=True)          # 글씨 + 아이콘이 2px 여백을 두고 들어가는 폭
+        yard_btn = pygame.Rect(DETAIL.right - 13 - bw, DETAIL.y + 10, bw, BUTTON_H)
         if key in yard:
             self.buttons.append(Button(yard_btn, yard_label,
                                        lambda: app.act('set_yard_animals', f"{T.josa(app.name_of(key), '을')} 집으로 들였어요",
@@ -112,7 +114,7 @@ class AnimalsScene(Scene):
                                    'purple', enabled=ready and not busy, icon='coin' if cost else None))
         # 훈련
         if busy and a['activity'].get('kind') == 'training':
-            self.buttons.append(Button((516, 281, 102, 30), '훈련 취소',
+            self.buttons.append(Button((516, 280, 102, 32), '훈련 취소',
                                        lambda: app.act('cancel_training', '훈련을 취소했어요', icon='sword', key=key),
                                        'red'))
         else:
@@ -120,7 +122,7 @@ class AnimalsScene(Scene):
             for i, diff in enumerate(('easy', 'medium', 'hard')):
                 dur, gain, _ = self.rules.get('training', {}).get(diff, (0, 0, 0))
                 self.buttons.append(Button(
-                    (300 + i * 108, 281, 102, 30), T.DIFFICULTY_LABEL[diff],
+                    (300 + i * 108, 280, 102, 32), T.DIFFICULTY_LABEL[diff],
                     lambda d=diff, s=stat: app.act('start_training', f"{T.STAT_LABEL[s]} 훈련 시작", icon='sword',
                                                    key=key, stat=s, difficulty=d),
                     'green', sub=f'{dur // 60}분 · +{gain}',
@@ -181,12 +183,17 @@ class AnimalsScene(Scene):
                 continue
             card(surface, r, a['id'] == self.selected)
             surface.blit(self.app.sprites.get(a.get('sprite'), 28), (r.x + 3, r.y + 2))
-            text(surface, a['name'], (r.x + 33, r.y + 3), 'title', T.TEXT)
-            role = T.ROLE_KIT[a['role']]
-            text(surface, f"{T.ROLE_LABEL[a['role']]} · {a['stage']}단계", (r.x + 33, r.y + 17), 'small',
-                 T.shade(role, 1))
+            inner = card_inner(r)
+            right = r.right - 17                                 # 상태 아이콘 자리 앞까지
             if a['id'] in yard:
-                chip(surface, (r.x + 101, r.y + 4), '마당', 'green')
+                right = chip(surface, (r.right - 17 - 2, r.y + 3), '마당', 'green', anchor='topright').x - 2
+            # 이름 줄 15 (글자 11 + 여백 4) + 역할 줄 13 (글자 9 + 여백 4) = card 안쪽 28
+            text_in(surface, a['name'], (r.x + 31, inner.y, right - r.x - 31, 15), 'title', align='left',
+                    tag='list')
+            role = T.ROLE_KIT[a['role']]
+            text_in(surface, f"{T.ROLE_LABEL[a['role']]} · {a['stage']}단계",
+                    (r.x + 31, inner.y + 15, r.right - 17 - r.x - 31, inner.h - 15), 'small', T.shade(role, 1),
+                    align='left', tag='list')
             ic, gray, tip = self._status_icon(a)
             spot = pygame.Rect(r.right - 15, r.bottom - 15, 12, 12)
             surface.blit(self._gray_icon(ic) if gray else Kit.icon(ic), spot)
@@ -225,7 +232,7 @@ class AnimalsScene(Scene):
                              ('특급' if a['rarity'] == 'special' else '일반', 'purple' if a['rarity'] == 'special' else 'gray'),
                              (f"{a['stage']}/{a['max_stage']}단계", 'brown'),
                              (T.NATURE_LABEL.get(a['nature'], a['nature']), 'blue')):
-            cx = chip(surface, (cx, 89), label, color).right + 3
+            cx = chip(surface, (cx, 88), label, color).right + 3
 
         auto = self.app.auto.get(a['id'], {})
         act = a.get('activity')

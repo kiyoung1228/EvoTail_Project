@@ -79,6 +79,78 @@ def text_width(msg, kind='body'):
     return T.font(kind).size(str(msg))[0]
 
 
+_glyph_cache = {}
+LAYOUT_LOG = None     # 점검 스크립트가 []로 바꾸면 text_in이 (글씨, 실제 글자 영역, 칸, 이름)을 모은다
+TEXT_PAD = 2          # 칸 안 글씨의 최소 여백 (논리 px)
+
+
+def glyph_box(msg, kind='body'):
+    """실제 글자 모양이 차지하는 영역 (렌더 이미지 기준). 줄 높이·글자 앞뒤 빈칸은 빼고 잰다."""
+    key = (str(msg), kind)
+    if key not in _glyph_cache:
+        mask = pygame.mask.from_surface(T.font(kind).render(str(msg), False, (0, 0, 0)))
+        rects = mask.get_bounding_rects()
+        _glyph_cache[key] = rects[0].unionall(rects[1:]) if rects else pygame.Rect(0, 0, 0, 0)
+    return _glyph_cache[key]
+
+
+def text_in(surface, msg, box, kind='body', color=T.TEXT, align='center', shadow=None, pad=TEXT_PAD, tag='',
+            check=None, log=True):
+    """칸(box, 테두리 안쪽 영역) 안에 글씨를 실제 글자 모양 기준으로 놓는다.
+
+    세로는 항상 가운데, 가로는 align('center' / 'left' / 'right', left·right는 pad만큼 띄움).
+    shadow가 있으면 1px 그림자(오른쪽 아래)까지 포함해서 가운데를 맞춘다. 실제 글자 영역을 돌려준다.
+    check: 넘침 검사에 쓸 칸 (없으면 box). log=False면 기록하지 않음 (부르는 쪽이 따로 기록).
+    """
+    box = pygame.Rect(box)
+    g = glyph_box(msg, kind)
+    gw, gh = g.w + (1 if shadow else 0), g.h + (1 if shadow else 0)
+    if align == 'left':
+        gx = box.x + pad
+    elif align == 'right':
+        gx = box.right - pad - gw
+    else:
+        gx = box.x + (box.w - gw) // 2
+    gy = box.y + (box.h - gh) // 2
+    dest = (gx - g.x, gy - g.y)
+    f = T.font(kind)
+    if shadow:
+        surface.blit(f.render(str(msg), False, shadow), (dest[0] + 1, dest[1] + 1))
+    surface.blit(f.render(str(msg), False, color), dest)
+    drawn = pygame.Rect(gx, gy, gw, gh)
+    if log:
+        record(str(msg), drawn, check or box, tag)
+    return drawn
+
+
+def record(msg, drawn, box, tag=''):
+    """넘침 점검용 기록 (LAYOUT_LOG가 켜져 있을 때만)."""
+    if LAYOUT_LOG is not None:
+        LAYOUT_LOG.append((msg, pygame.Rect(drawn), pygame.Rect(box), tag))
+
+
+def card_inner(rect):
+    """card 조각의 안쪽 (테두리 2px 제외)."""
+    return pygame.Rect(rect).inflate(-4, -4)
+
+
+def button_face(rect, pressed=False):
+    """버튼 조각의 몸통 (검은 1px 테두리 안, 아래 그림자 2줄 제외). 눌리면 1px 아래."""
+    r = pygame.Rect(rect)
+    return pygame.Rect(r.x + 1, r.y + 1 + (1 if pressed else 0), r.w - 2, r.h - 4)
+
+
+# 칸 높이: 글자 높이(제목·본문 11, 작은 글씨 9) + 그림자 1 + 여백 2×2 + 테두리
+BUTTON_H = 20          # 한 줄 버튼 최소 높이 (몸통 16 = 11 + 1 + 4)
+CHIP_H = 16            # 칩 (안쪽 14 = 9 + 1 + 4)
+CARD_LABEL_H = 20      # card 조각 + 제목 글씨 (안쪽 16)
+
+
+def fit_width(msg, kind='body', extra=0, shadow=False):
+    """글씨가 TEXT_PAD 여백을 두고 들어가는 칸 안쪽 폭 (+extra: 아이콘 등)."""
+    return glyph_box(msg, kind).w + (1 if shadow else 0) + 2 * TEXT_PAD + extra
+
+
 # ---------- 창·칸·리본·칩 ----------
 def panel(surface, rect):
     nine(surface, 'panel', rect)
@@ -91,19 +163,24 @@ def card(surface, rect, selected=False):
 def ribbon(surface, rect, label, color='red'):
     rect = pygame.Rect(rect)
     nine(surface, f'ribbon_{color}', rect)
-    text(surface, label, rect.center, 'title', T.WHITE, 'center', shadow=T.shade(color, 0))
+    # 리본 안쪽: 양 끝 V자 홈(5px)과 위아래 테두리 제외
+    inner = pygame.Rect(rect.x + 5, rect.y + 1, rect.w - 10, rect.h - 2)
+    text_in(surface, label, inner, 'title', T.WHITE, shadow=T.shade(color, 0), tag='ribbon')
 
 
 def chip(surface, pos, label, color, anchor='topleft'):
     """작은 태그: 본색 + 검은 1px 테두리 + 윗줄 밝은색 + 갈무리9 흰 글씨. 그린 rect를 돌려준다."""
-    w = text_width(label, 'small') + 6
-    rect = pygame.Rect(0, 0, w, 12)
+    rect = pygame.Rect(0, 0, chip_width(label), CHIP_H)
     setattr(rect, anchor, pos)
     pygame.draw.rect(surface, T.shade(color, 2), rect)
     pygame.draw.line(surface, T.shade(color, 3), (rect.x + 1, rect.y + 1), (rect.right - 2, rect.y + 1))
     pygame.draw.rect(surface, T.INK, rect, 1)
-    text(surface, label, (rect.centerx, rect.centery), 'small', T.WHITE, 'center', shadow=T.shade(color, 0))
+    text_in(surface, label, rect.inflate(-2, -2), 'small', T.WHITE, shadow=T.shade(color, 0), tag='chip')
     return rect
+
+
+def chip_width(label):
+    return fit_width(label, 'small', shadow=True) + 2      # + 테두리 1px × 2
 
 
 def tooltip(surface, msg, target, side='right', bounds=None):
@@ -113,7 +190,7 @@ def tooltip(surface, msg, target, side='right', bounds=None):
     """
     target = pygame.Rect(target)
     bounds = pygame.Rect(bounds or (0, T.HEADER_H, T.WIDTH, T.HEIGHT - T.HEADER_H))
-    box = pygame.Rect(0, 0, text_width(msg) + 14, 20)
+    box = pygame.Rect(0, 0, fit_width(msg) + 4 + 4, CARD_LABEL_H)     # 글씨 + 여백 + card 테두리 2px×2
 
     def place(s):
         if s == 'right':
@@ -143,7 +220,7 @@ def tooltip(surface, msg, target, side='right', bounds=None):
         pts = [(cx - 3, y), (cx + 3, y), (cx, y + d * 4)]
     pygame.draw.polygon(surface, fill, pts)
     pygame.draw.lines(surface, T.INK, False, [pts[0], pts[2], pts[1]])
-    text(surface, msg, box.center, 'body', T.TEXT, 'center')
+    text_in(surface, msg, card_inner(box), 'body', T.TEXT, tag='tooltip')
     return box
 
 
@@ -212,20 +289,32 @@ class Button:
         if self.color == 'gray':      # 회색은 normal 조각만 있음
             state = 'normal'
         nine(surface, f'button_{color}_{state}', self.rect)
-        # 몸통(아래 2줄 그림자 제외) 가운데에 글씨. 눌리면 1px 아래
-        body = pygame.Rect(self.rect.x, self.rect.y + (1 if state == 'pressed' else 0), self.rect.w, self.rect.h - 2)
+        # 몸통(테두리 안, 아래 그림자 제외) 가운데에 글씨. 실제 글자 모양 기준. 눌리면 1px 아래
+        face = button_face(self.rect, state == 'pressed')
         fg = (226, 220, 210) if state == 'disabled' else T.WHITE
         sh = T.shade('gray', 0) if state == 'disabled' else T.shade(color, 0)
-        if self.sub:
-            text(surface, self.label, (body.centerx, body.centery - 6), 'title', fg, 'center', shadow=sh)
-            text(surface, self.sub, (body.centerx, body.centery + 6), 'small', fg, 'center', shadow=sh)
+        if self.sub:      # 두 줄: 위 굵은 글씨, 아래 작은 글씨. 두 줄을 한 덩어리로 가운데
+            g1, g2 = glyph_box(self.label, 'title'), glyph_box(self.sub, 'small')
+            block = g1.h + 1 + 1 + g2.h + 1                 # 그림자 1 + 줄 사이 1
+            top = face.y + (face.h - block) // 2
+            a = text_in(surface, self.label, (face.x, top, face.w, g1.h + 1), 'title', fg, shadow=sh, log=False)
+            b = text_in(surface, self.sub, (face.x, top + g1.h + 2, face.w, g2.h + 1), 'small', fg, shadow=sh,
+                        log=False)
+            record(f'{self.label}/{self.sub}', a.union(b), face, 'button')
             return
-        w = text_width(self.label, 'title') + (14 if self.icon else 0)
-        x = body.centerx - w // 2
+        g = glyph_box(self.label, 'title')
+        w = g.w + 1 + (14 if self.icon else 0)
+        x = face.x + (face.w - w) // 2
         if self.icon:
-            icon(surface, self.icon, (x, body.centery - 6))
-            x += 14
-        text(surface, self.label, (x, body.centery), 'title', fg, 'midleft', shadow=sh)
+            icon(surface, self.icon, (x, face.y + (face.h - 12) // 2))
+        label = text_in(surface, self.label, (x + (14 if self.icon else 0), face.y, g.w + 1, face.h), 'title', fg,
+                        shadow=sh, log=False)
+        record(self.label, pygame.Rect(x, label.y, w, label.h), face, 'button')
+
+    @staticmethod
+    def width_for(label, icon=False):
+        """글씨(+아이콘)가 여백을 두고 들어가는 버튼 폭."""
+        return fit_width(label, 'title', extra=14 if icon else 0, shadow=True) + 2
 
 
 # ---------- 도트 캐릭터 ----------

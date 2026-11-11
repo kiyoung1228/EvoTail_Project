@@ -18,7 +18,9 @@ from roc import GameService
 from roc.bridge import GameBridge
 from roc.worker import GameWorker
 from . import theme as T
-from .widgets import text, text_width, card, chip, icon, moon_icon, SpriteCache
+from .widgets import (text, text_width, text_in, glyph_box, fit_width, record, card, card_inner, chip, icon,
+                      moon_icon, SpriteCache)
+from .display import setup_window_scale
 
 EVENT_TEXT = {
     'training_complete': lambda e, n: f"{n(e.get('animal'))} 훈련 완료! {T.STAT_LABEL.get(e.get('stat'), '')} +{e.get('gain', '')}",
@@ -59,11 +61,38 @@ class Scene:
         return 'midtop', (T.WIDTH // 2, T.HEADER_H + 4)
 
 
+class Overlay:
+    """화면 위에 뜨는 창 (설정 창, 확인 창 등). 열려 있는 동안 입력은 맨 위 창만 받는다.
+
+    rect 밖을 클릭하거나 ESC를 누르면 닫힌다 (close_outside=False면 밖 클릭은 무시).
+    """
+    close_outside = True
+
+    def __init__(self, app, rect):
+        self.app = app
+        self.rect = pygame.Rect(rect)
+
+    def handle(self, event):
+        """창 안쪽 입력. 처리했으면 True."""
+        return False
+
+    def update(self, dt):
+        pass
+
+    def draw(self, surface):
+        pass
+
+    def close(self):
+        self.app.close_overlay(self)
+
+
 TOAST_SECONDS = 3.5
+DIM = (24, 16, 24, 120)        # 창이 열렸을 때 뒤 화면을 어둡게
 
 
 class App:
     def __init__(self, save_path='saves/game.db'):
+        setup_window_scale()              # DPI 인식 + 창 배율(정수배). pygame 창을 만들기 전에
         pygame.init()
         pygame.display.set_caption('EvoTail')
         self.window = pygame.display.set_mode(T.WINDOW)
@@ -81,7 +110,12 @@ class App:
         self.running = True
         self.scenes = {}
         self.scene = None
+        self.overlays = []        # 화면 위에 뜬 창들 (맨 뒤가 맨 위)
+        self.last_saved = None    # 이번 실행에서 "저장하기"로 저장한 실제 시각 (time.time)
+        self.speed_before_demo = 1  # 시연 모드를 켜기 직전 속도 (끄면 이 속도로 돌아감)
         self._maps = {}
+        self._dim = pygame.Surface((T.WIDTH, T.HEIGHT), pygame.SRCALPHA)
+        self._dim.fill(DIM)
         self.refresh()
         self.last_seq = max([e.get('seq', 0) for e in self.call('recent_events') or []], default=0)
 
@@ -168,14 +202,48 @@ class App:
             setattr(self.scene, k, v)
         self.scene.enter()
 
+    def open_overlay(self, overlay):
+        if hasattr(self.scene, 'hover'):      # 뒤 화면의 마우스 강조·툴팁은 끈다
+            self.scene.hover = None
+        self.overlays.append(overlay)
+
+    def close_overlay(self, overlay=None):
+        if overlay is None and self.overlays:
+            overlay = self.overlays[-1]
+        if overlay in self.overlays:
+            self.overlays.remove(overlay)
+
+    def _handle_overlay(self, event):
+        top = self.overlays[-1]
+        if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+            top.close()
+        elif (event.type == pygame.MOUSEBUTTONDOWN and event.button == 1
+              and not top.rect.collidepoint(event.pos)):
+            if top.close_outside:
+                top.close()
+        else:
+            top.handle(event)
+
     def toggle_speed(self, target):
-        """F5: 보통 ↔ 빠르게(5배), F12: 보통 ↔ 시연 모드(60배)."""
+        """F5: 보통 ↔ 빠르게(5배), F12: 시연 모드(60배) 켜기 ↔ 켜기 직전 속도로 돌아가기.
+
+        설정 창의 속도 버튼·시연 모드 스위치도 이 함수를 쓴다.
+        """
         rate = self.state.get('clock', {}).get('rate', 1) or 1
-        if rate == target:
+        if rate == target:          # 끄기
+            back = self.speed_before_demo if target == T.SPEED_DEMO else 1
+            self._set_speed(back)
+        else:                       # 켜기
+            if target == T.SPEED_DEMO:
+                self.speed_before_demo = rate
+            self._set_speed(target)
+
+    def _set_speed(self, rate):
+        if rate == 1:
             self.act('set_demo_mode', '시간: 보통 속도', icon='sun', enabled=False)
         else:
-            label = '시연 모드 (60배)' if target == T.SPEED_DEMO else f'빠르게 ({target}배)'
-            self.act('set_demo_mode', f'시간: {label}', icon='sun', enabled=True, rate=target)
+            label = '시연 모드 (60배)' if rate == T.SPEED_DEMO else f'빠르게 ({int(rate)}배)'
+            self.act('set_demo_mode', f'시간: {label}', icon='sun', enabled=True, rate=rate)
 
     # ---- loop ----
     def _poll_worker(self):
@@ -210,21 +278,28 @@ class App:
         info = f"{day}{when} · {'태풍' if clock.get('storm') else '맑음'}"
         if 1 < rate < T.SPEED_DEMO:
             info += f" · {int(rate)}배속"
-        box = pygame.Rect(0, 3, max(158, text_width(info) + 30), 19); box.centerx = T.WIDTH // 2
+        # 상단 바의 작은 칸: 안쪽 17 = 글자 11(쉼표 등 아래로 내려오는 글자 13) + 여백 4 → card 21
+        box = pygame.Rect(0, 2, max(158, fit_width(info, extra=14) + 4), 21); box.centerx = T.WIDTH // 2
         card(surface, box)
-        w = 14 + text_width(info)
-        x = box.centerx - w // 2
+        inner = card_inner(box)
+        w = 14 + glyph_box(info).w
+        x = inner.x + (inner.w - w) // 2
         if night:
-            surface.blit(moon_icon(), (x, box.y + 4))
+            surface.blit(moon_icon(), (x, inner.y + 2))
         else:
-            icon(surface, 'sun', (x, box.y + 4))
-        text(surface, info, (x + 14, box.centery), 'body', T.TEXT, 'midleft')
+            icon(surface, 'sun', (x, inner.y + 2))
+        g = text_in(surface, info, (x + 14, inner.y, w - 14, inner.h), 'body', log=False)
+        record(info, pygame.Rect(x, g.y, w, g.h), inner, 'header')
         if rate >= T.SPEED_DEMO:
             chip(surface, (box.right + 6, box.centery), f'시연 모드 {int(rate)}배', 'red', anchor='midleft')
-        coin = pygame.Rect(T.WIDTH - 98, 3, 90, 19)
+        coins = f"{self.state.get('coins', 0):,}"
+        coin = pygame.Rect(0, 2, max(90, fit_width(coins, 'title', extra=16) + 4), 21)
+        coin.right = T.WIDTH - 8
         card(surface, coin)
-        icon(surface, 'coin', (coin.x + 5, coin.y + 4))
-        text(surface, f"{self.state.get('coins', 0):,}", (coin.right - 6, coin.centery), 'title', T.TEXT, 'midright')
+        inner = card_inner(coin)
+        icon(surface, 'coin', (inner.x + 2, inner.y + 2))
+        g = text_in(surface, coins, inner, 'title', align='right', log=False)
+        record(coins, pygame.Rect(inner.x + 2, g.y, g.right - inner.x - 2, g.h), inner, 'header')
 
     def draw_toasts(self, surface):
         """알림 1개: card 조각 + 왼쪽 4px 색 막대 + 아이콘 + 글씨. 자리는 화면이 정한다 (toast_anchor)."""
@@ -233,7 +308,8 @@ class App:
         if not self.toast_item:
             return
         msg, _, kind, icon_name = self.toast_item
-        w = text_width(msg) + 22 + (14 if icon_name else 0)
+        # 카드 테두리 2 + 색 막대 4 + 여백 5 + (아이콘 14) + 글씨 + 여백 + 테두리 2
+        w = 2 + 4 + 5 + (14 if icon_name else 0) + fit_width(msg) - 2 + 2
         box = pygame.Rect(0, 0, w, 20)
         anchor, pos = self.scene.toast_anchor() if self.scene else Scene.toast_anchor(None)
         setattr(box, anchor, pos)
@@ -241,11 +317,14 @@ class App:
         color = TOAST_BAR.get(kind, 'orange')
         pygame.draw.rect(surface, T.shade(color, 2), (box.x + 2, box.y + 2, 4, box.h - 4))
         pygame.draw.line(surface, T.shade(color, 3), (box.x + 2, box.y + 2), (box.x + 5, box.y + 2))
+        inner = card_inner(box)
+        content = pygame.Rect(box.x + 6, inner.y, inner.right - box.x - 6, inner.h)    # 색 막대 오른쪽
         x = box.x + 11
         if icon_name:
-            icon(surface, icon_name, (x, box.y + 4))
-            x += 14
-        text(surface, msg, (x, box.centery), 'body', T.TEXT, 'midleft')
+            icon(surface, icon_name, (x, inner.y + 2))
+        g = text_in(surface, msg, (x + (14 if icon_name else 0), inner.y, glyph_box(msg).w, inner.h), 'body',
+                    log=False)
+        record(msg, pygame.Rect(x, g.y, g.right - x, g.h), content, 'toast')
 
     def _to_logical(self, event):
         if event.type in MOUSE_EVENTS:
@@ -263,12 +342,19 @@ class App:
                 self.running = False
             elif event.type == pygame.KEYDOWN and event.key in (pygame.K_F5, pygame.K_F12):
                 self.toggle_speed(T.SPEED_DEMO if event.key == pygame.K_F12 else T.SPEED_FAST)
+            elif self.overlays:
+                self._handle_overlay(self._to_logical(event))
             else:
                 self.scene.handle(self._to_logical(event))
         self._poll_worker()
         self.scene.update(dt)
+        for overlay in list(self.overlays):
+            overlay.update(dt)
         self.scene.draw(self.screen)
         self.draw_header(self.screen)
+        for overlay in self.overlays:         # 창마다 뒤를 한 번씩 어둡게 (위에 뜬 창이 잘 보이게)
+            self.screen.blit(self._dim, (0, 0))
+            overlay.draw(self.screen)
         self.draw_toasts(self.screen)
         pygame.transform.scale(self.screen, T.WINDOW, self.window)
         pygame.display.flip()

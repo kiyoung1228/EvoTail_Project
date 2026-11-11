@@ -1,14 +1,15 @@
 """아직 만들지 않은 화면. 다음 단계에서 하나씩 실제 화면으로 바꾼다. (키트: docs/UI_KIT.md)"""
 from .. import theme as T
 from ..app import Scene
-from ..widgets import text, text_width, panel, ribbon, Button
+from ..widgets import text, text_width, panel, ribbon, Button, BUTTON_H
 
 
 class PlaceholderScene(Scene):
     def __init__(self, app, title):
         super().__init__(app)
         self.title = title
-        self.back = Button((12, 33, 56, 18), '지도', lambda: app.go('map'), 'brown', icon='back')
+        self.back = Button((12, 32, max(56, Button.width_for('지도', icon=True)), BUTTON_H), '지도', lambda: app.go('map'),
+                           'brown', icon='back')
 
     def handle(self, event):
         self.back.handle(event)
