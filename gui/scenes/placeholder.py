@@ -21,4 +21,4 @@ class PlaceholderScene(Scene):
         box = (T.WIDTH // 2 - 130, 140, 260, 80)
         panel(surface, box)
         text(surface, self.title, (T.WIDTH // 2, 168), 'big', T.TEXT, 'center')
-        text(surface, '준비 중이에요 · 다음 단계에서 만들 화면', (T.WIDTH // 2, 192), 'body', T.TEXT_SOFT, 'center')
+        text(surface, '준비 중 · 다음 단계에서 만들 화면', (T.WIDTH // 2, 192), 'body', T.TEXT_SOFT, 'center')

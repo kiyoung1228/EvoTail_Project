@@ -73,18 +73,18 @@ class SettingsOverlay(Overlay):
         self.app.toggle_speed(T.SPEED_DEMO)      # F12와 같은 함수
 
     def save(self):
-        self.app.act('save_game', '저장했어요', icon='home')
+        self.app.act('save_game', '저장 완료', icon='home')
 
     def ask_load(self):
         self.app.open_overlay(ConfirmOverlay(
-            self.app, '불러올까요?', '마지막으로 저장된 상태를 다시 불러와요', '불러오기', 'purple', self.load))
+            self.app, '불러올까?', '마지막으로 저장된 상태를 다시 불러옴', '불러오기', 'purple', self.load))
 
     def load(self):
         if self.app.call('load_game') is not None:
             self.app.refresh()
             events = self.app.call('recent_events') or []
             self.app.last_seq = max([e.get('seq', 0) for e in events], default=0)
-            self.app.toast('저장된 게임을 불러왔어요', 'ok', 'home')
+            self.app.toast('저장된 게임을 불러왔다', 'ok', 'home')
 
     def quit(self):
         """게임 종료. App.run이 끝나면서 save_game을 한 번 더 부른다 (자동 저장)."""
@@ -168,7 +168,7 @@ class SettingsOverlay(Overlay):
         last = self.app.state.get('last_saved')
         saved = f"마지막 저장: {clock_text(last)} (자동 저장 켜짐)" if last else '자동 저장 켜짐'
         text(surface, saved, (P.centerx, P.bottom - 26), 'small', T.TEXT_SOFT, 'center')
-        text(surface, 'ESC · 창 밖을 누르면 닫혀요', (P.centerx, P.bottom - 14), 'small', T.TEXT_SOFT, 'center')
+        text(surface, 'ESC · 창 밖 클릭 시 닫힘', (P.centerx, P.bottom - 14), 'small', T.TEXT_SOFT, 'center')
 
 
 class ConfirmOverlay(Overlay):

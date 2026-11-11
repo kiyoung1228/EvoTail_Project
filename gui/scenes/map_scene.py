@@ -469,7 +469,7 @@ class MapScene(Scene):
 
     def _animal_tip_text(self, a, night):
         if a.get('sick'):
-            what = '아파요 · 병원에서 치료'
+            what = '아픔 · 병원에서 치료'
         else:
             act = (a.get('activity') or {}).get('kind')
             what = {'hunting': '사냥 중', 'training': '훈련 중'}.get(act) or self._label(a, night)

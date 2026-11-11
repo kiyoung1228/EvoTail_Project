@@ -24,11 +24,11 @@ from .display import setup_window_scale
 
 EVENT_TEXT = {
     'training_complete': lambda e, n: f"{n(e.get('animal'))} 훈련 완료! {T.STAT_LABEL.get(e.get('stat'), '')} +{e.get('gain', '')}",
-    'hunt_complete': lambda e, n: f"{n(e.get('animal'))} 사냥 완료! 사냥터에서 보상을 받으세요",
-    'disease': lambda e, n: f"{T.josa(n(e.get('animal')), '이')} 아파요. 병원에 데려가 주세요",
-    'evolve': lambda e, n: f"{T.josa(n(e.get('animal')), '으로')} 진화했어요!",
-    'hatch': lambda e, n: f"알에서 {T.josa(n(e.get('animal')), '이')} 태어났어요!",
-    'crop_ready': lambda e, n: "밭의 작물을 수확할 수 있어요",
+    'hunt_complete': lambda e, n: f"{n(e.get('animal'))} 사냥 완료! 사냥터에서 보상 받기",
+    'disease': lambda e, n: f"{T.josa(n(e.get('animal')), '이')} 아프다 · 병원에서 치료 필요",
+    'evolve': lambda e, n: f"{T.josa(n(e.get('animal')), '으로')} 진화했다!",
+    'hatch': lambda e, n: f"알에서 {T.josa(n(e.get('animal')), '이')} 태어났다!",
+    'crop_ready': lambda e, n: "밭의 작물 수확 가능",
     'random_bonus': lambda e, n: f"행운 이벤트! 코인 +{e.get('coins', e.get('amount', ''))}",
     'battle_end': lambda e, n: "전투 승리!" if e.get('win') else "전투 패배...",
 }

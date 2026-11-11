@@ -43,7 +43,7 @@ assets/              1단계 이미지 30장, assets/sprites/<ID>_s<단계>.png 
   map/               섬 마을 지도 낮·밤 + 클릭 영역 map.json
   ui/                메뉴 아이콘. ui/kit/ = 도트 UI 키트 조각·아이콘 (docs/UI_KIT.md)
   fonts/             갈무리 글꼴 (OFL)
-docs/mockups/        확정된 화면 목업 (메인 낮·밤, 설정 창, 내 동물 animals_v2, battle/ 전투장, home/ 주방, shop/ 상점·부화, hospital/ 병원)
+docs/mockups/        확정된 화면 목업 (메인 낮·밤, 설정 창, 내 동물 animals_v2, battle/ 전투장, home/ 주방, shop/ 상점·부화, hospital/ 병원, farm/ 밭)
 docs/UI_KIT.md       도트 UI 키트 규칙 (모든 화면이 따름). 조각 다시 만들기: tools/uikit.py
 gui/                 Pygame 화면 (아래 GUI 규칙)
 CHARACTERS.md        캐릭터 목록 · GUI.md 화면 구조 설명
@@ -70,6 +70,7 @@ CHARACTERS.md        캐릭터 목록 · GUI.md 화면 구조 설명
 - 화면을 바꾸면 `python tools/check_text_fit.py`로 모든 칸 글씨가 사방 2px 여백 안에 있는지 확인 (`shots`를 붙이면 실제 창 크기 스크린샷)
 - 알림은 `app.toast(문구, 'ok'|'bad'|'info', 아이콘)`, `app.act(..., icon='home')`처럼 아이콘을 줄 수 있다. **한 번에 1개**(새 알림이 바꿔 낌), 3.5초 뒤 사라짐, **화면을 바꾸면 지움**(`App.go`). 자리는 화면의 `toast_anchor()`: 기본 오른쪽 위(◀ 버튼·제목 리본 피함), 지도 왼쪽 아래, 전투 명령창 바로 위, 결과 왼쪽 위
 - 이름 뒤 조사는 `T.josa(이름, '을'|'이'|'은'|'으로'|'과')`로 받침에 맞게. `을(를)`처럼 쓰지 않는다
+- **화면 문구·알림은 게임 말투** ("~요" 금지): "재료 부족", "출전 불가", "보유 2", "감자를 심었다", "누구에게 줄까?" 처럼 명사형·"~다"·"~까?"
 - 상태 단계(좋음·보통·나쁨)는 백엔드가 동물 행마다 주는 `status`(`{'fullness','mood','fatigue'}` → `'good'/'normal'/'bad'`)를 `T.level(a, kind)`, `T.any_bad(a)`로 읽는다. GUI에서 기준값으로 다시 계산하지 않는다
 - 남은 시간·진행 게이지는 `app.now()`(스냅샷 시각 + 그 뒤 흐른 시간 × 배속)로 계산
 - 설명 말풍선은 `widgets.tooltip`, 선택 강조는 `widgets.select_frame(색)` (키트 스타일). 말풍선은 화면 가장자리에서 4px 안쪽(`TIP_INSET`), `avoid`(예: 다른 동물 체력바)와 겹치면 반대쪽
@@ -194,18 +195,20 @@ CHARACTERS.md        캐릭터 목록 · GUI.md 화면 구조 설명
 ## 집 · 주방 (목업 `docs/mockups/home/`, `gui/scenes/home_kitchen.py` `KitchenScene`)
 지도 "집" 건물 → 주방. 배경 `assets/home/kitchen.png`(1280×720 = 논리 640×360의 2배 → ½로 그대로). 왼쪽 위 ◀ 지도 + 빨간 리본(집 · 주방 / 요리 중 / 요리 완성), 오른쪽 위 요리 레벨 칸(누적 경험치 / 다음 레벨 기준, `get_recipes`의 level·xp, `get_rules()['cooking']['level_thresholds']`)
 - **레시피 북** (home_1_book): 책(panel) 위 책갈피 탭 "레시피"(빨강) / "음식 주기"(초록). 왼쪽 쪽 = 레시피 칸(그림·이름·별), 재료가 모자라면 회색. 오른쪽 쪽 = 큰 그림(×4)·이름·별·한 줄 설명·재료(가진 수/필요 수)·먹으면 효과(`get_shop_catalog()[regular_item]['effects']`)·"대성공이면 N배 · 경험치 +N"(`perfect_multiplier`, `xp_per_star`)·요리 시작
-  - 재료 부족 (home_1b_missing): 그림은 색 그대로, "N가지 부족" 빨강, 모자란 재료 칸 빨간 테두리·빨간 숫자 + "구하기: 밭/사냥터/상점", 충분하면 초록 숫자 + "충분함!", 버튼은 회색 "재료가 부족해요"
+  - 재료 부족 (home_1b_missing): 그림은 색 그대로, "N가지 부족" 빨강, 모자란 재료 칸 빨간 테두리·빨간 숫자 + "구하기: 밭/사냥터/상점", 충분하면 초록 숫자 + "충분함!", 버튼은 회색 "재료 부족"
   - 구하는 곳은 백엔드 값으로: 상점 목록 kind `crop` = 밭, `get_hunts` 사냥터 보상 item = 사냥터, `buy`가 있으면 상점
   - 한 줄 설명만 GUI 표시 문구 (`gui/food.py` `DESCRIPTION`, 백엔드에 설명 없음)
 - **미니게임** (home_2_bar): 난로 위 프라이팬 + 재료 그림, 위에 이름·별, 오른쪽 위 남은 시간. 아래 막대: 커서가 끝→끝 `travel_seconds`(레시피) 동안 왕복, 목표 중심은 `target_center_min~max` 무작위, 중심 ± `good_half_width` = Good(주황), ± `perfect_half_width` = Perfect(노랑). Space(또는 막대 클릭) 한 번에 판정 → `cook(recipe, judgment)`. `timeout_seconds` 안에 안 누르면 miss. ESC는 그만두기(cook 전이라 재료 그대로). 숫자는 전부 `get_rules()['cooking']['timing']`
 - **결과** (home_3_result): outcome별 `great` 대성공(초록 리본·빛줄기·PERFECT·효과 1.5배) / `success` 성공 / `rescued` "아슬아슬 성공! (경험치 없음)"(갈색) / `burnt` 탄 요리(빨강, MISS). 요리 그림·이름·효과(결과 `effects`), 레벨 게이지(이번에 오른 부분은 밝게, `xp`·`total_xp`), 레벨 업 칩. 버튼 "한 번 더"(재료 없으면 꺼짐) / "동물에게 주기"(음식 주기 탭에 방금 요리를 골라 둠)
-- **음식 주기** (home_4_feed): 왼쪽 = 가진 요리(`food_*`, `food_perfect_*`, `burned_food`) + 개수, 대성공은 별 배지. 오른쪽 = 고른 요리 효과 + 동물 목록(포만감 게이지, 고른 동물은 먹은 뒤 포만감을 연두색으로 미리보기 "42→87", 포만감 나쁨이면 "배고파요" 칩, 활동 중(훈련·사냥·전투)이면 흐리게 + 이유, 4줄 넘으면 휠). "○○에게 주기" = `use_item(item, key)`. 탄 요리는 "반쯤은 안 먹어요", `refused`면 알림
+- **음식 주기** (home_4_feed): 왼쪽 = 가진 요리(`food_*`, `food_perfect_*`, `burned_food`) + 개수, 대성공은 별 배지. 오른쪽 = 고른 요리 효과 + 동물 목록(포만감 게이지, 고른 동물은 먹은 뒤 포만감을 연두색으로 미리보기 "42→87", "누구에게 줄까?", 포만감 나쁨이면 "배고픔" 칩, 활동 중(훈련·사냥·전투)이면 흐리게 + 이유, 4줄 넘으면 휠). "○○에게 주기" = `use_item(item, key)`. 탄 요리는 "탄 요리는 절반 확률로 거절", `refused`면 알림
 
 **음식 그림** (`assets/food/`, `gui/food.py`)
 - 원본 16×16, 파일은 4배(64). `FoodIcons.get(item, n)`으로 원본 × n (화면에서는 ×1~×4 정수배만)
 - 파일 이름 = 백엔드 id (재료 `potato.png`, 레시피 `butter_potato.png`). `food_<id>`, `food_perfect_<id>`는 레시피 그림을 쓰고 대성공은 그림을 가리지 않는 작은 별 배지(`star_badge`). 대성공 요리 이름은 "대성공 감자버터구이"
 - 이름: 재료는 백엔드 상점 목록 label (없으면 `assets/food/food_icons.json` name). 그림이 없는 재료(돼지고기·양배추)는 키트 아이콘으로 대신
 - 다시 만들기: `tools/food_icons.py`(음식 그림), `tools/home_mock.py`(주방 목업·배경)
+  - **감자·양파·밀 재료 아이콘**(`potato.png`·`onion.png`·`wheat.png`, 밭 그림과 같은 모양)은 `tools/crops_v8.py`의 `potato_icon()`·`onion_icon()`·`wheat_icon()`, 쌀은 `tools/farm_icons.py`의 `rice_icon()`으로 만든다 (`tools/food_icons.py`의 같은 이름 그림은 옛 그림)
+  - **쌀 재료 그림**(`assets/food/rice.png`, 삼베 자루 + 흰 쌀)은 `tools/farm_icons.py`의 `rice_icon()`으로 만든다. `tools/food_icons.py`의 `rice()`는 옛 그림이라 쓰지 않음. 다 자란 벼(`rice_ripe.png`, 고개 숙인 벼)도 `farm_icons.py`의 `ripe_rice()` v4
 
 ## 상점 · 알 부화 (목업 `docs/mockups/shop/`, `gui/scenes/shop.py` `ShopScene`, `gui/scenes/hatch.py`)
 지도 "상점" 건물 → 상점. 배경 `assets/shop/shop.png`(1280×720, ½로 그대로, 위 26px 투명 = 상단 바 자리)
@@ -225,7 +228,23 @@ CHARACTERS.md        캐릭터 목록 · GUI.md 화면 구조 설명
 - 아래 쟁반: "치료할 포션 선택", 기본/고급 회복 포션 카드("치료 50% · 피로도 -10" = 상점 목록 chance·fatigue, 보유 N, 0이면 빨강), "치료하기"(아래 "○○ 1개 사용"), "포션 사러 가기 ▶ 상점"(상점 회복·포션 탭)
 - 치료 = `use_item(item, key)` → `CureResult`(Overlay): success면 빛줄기·"○○ 회복!"·피로도 전→후(전 = 호출 직전 스냅샷, 후 = 응답 fatigue)·다음 환자/닫기, 아니면 회색·"○○ 아직 아픔"·"포션 1개 소모"·다시 치료/닫기
 
-**아이템 그림** (`assets/items/`, `gui/items.py` `ItemIcons`): 원본 16×16, 파일 4배(64). 화면에선 ×1~×3 정수배만. `seed_*`는 전부 `seed.png`. 그림이 없으면 `assets/food` 그림, 그것도 없으면 키트 아이콘. 다시 만들기: `tools/shop_icons.py`, 목업 `tools/shop_mock.py`·`shop_mock2.py`, 병원 배경 `tools/hosp_room.py`
+**아이템 그림** (`assets/items/`, `gui/items.py` `ItemIcons`): 원본 16×16, 파일 4배(64). 화면에선 ×1~×3 정수배만. 씨앗은 작물별 봉투 `seed_<작물>.png`, 없을 때만 `seed.png`. 그림이 없으면 `assets/food` 그림, 그것도 없으면 키트 아이콘. 다시 만들기: `tools/shop_icons.py`, 목업 `tools/shop_mock.py`·`shop_mock2.py`, 병원 배경 `tools/hosp_room.py`
+
+## 밭 (목업 `docs/mockups/farm/`, `gui/scenes/farm.py` `FarmScene`, A안)
+지도 "밭" 건물 → 밭. 배경 `assets/farm/farm.png`(1280×720, ½로 그대로, 위 26px 투명)
+- 위: ◀ 지도 + 리본 "밭" + 정보 칸 "심고 10분 · 수확 3개". 다 자란 밭이 하나라도 있으면 그 자리에 주황 "모두 수확" → ready인 밭마다 `harvest_crop(index)`을 차례로, 끝나면 짧은 알림 한 번 "6칸 수확 · 작물 18개"(칸 수·개수는 실제 수확 결과). 한 칸 수확은 "토마토 +3"
+- 왼쪽 텃밭 6칸(3열 × 2줄, 나무 틀 + 흙 점무늬는 코드로 그림 `soil_tile`, tools/farm_mock.py soil()과 같음). 상태는 스냅샷 `plots`(index, crop, ready, end, remaining_seconds), 남은 시간은 `end - app.now()`로 계속 줄어듦
+  - 자라는 중: 왼쪽 위 갈색 칩 "4:12" + 아래 초록 진행 게이지 / 다 자람: 초록 칩 "수확!" + 천천히 깜빡이는 반짝이 / 빈 밭: "빈 밭" + 고른 칸에 고른 씨앗 새싹 반투명 미리보기(씨앗이 있을 때)
+  - 안 산 칸: 풀밭 + 팻말. 바로 다음 칸만 밝은 팻말 "밭 넓히기 + 코인"(`get_rules()['plot_costs'][칸 번호]`, 최대 칸 수 = plot_costs 길이), 그 뒤는 어두운 팻말 "잠김". 고른 칸은 노란 꺾쇠(`select_frame`)
+- 오른쪽 칸: 빈 밭 = 씨앗 카드 2열 × 3줄(봉투 ×2, 이름, "보유 N", 0이면 빨강 + 반투명), "씨앗 1개 → 감자 3개", "씨앗은 상점에서 N코인"(상점 목록 buy), "감자 심기"(아래 "10분 뒤 수확", 씨앗 0이면 회색 "씨앗 없음") = `plant_crop(index, crop)` / 자라는 중 = 큰 그림 ×3, 남은 시간 + 게이지, "다 자라면 감자 ×3" / 다 자람 = "수확 가능" 칩, 큰 그림, "받는 것: 토마토 ×3", "가방 보유 2 → 5", "수확하기" = `harvest_crop(index)` / 안 산 칸 = 팻말 + 가격 + "밭 넓히기" → 확인 창 → `expand_plot`(코인 부족 등은 백엔드 알림)
+- 수확하면 그 칸에서 작물 아이콘 3개가 위로 톡 튀었다 사라짐(0.6초, 그동안 "빈 밭" 글씨·새싹 미리보기 숨김) + "토마토 +3" 알림
+- **작물 그림** `assets/farm/plants/`: seeded / sprout / growing / `<작물>_ripe` (원본 24×24, 파일 4배 96). 밭 칸 ×2(48), 오른쪽 ×3(72). 단계는 진행 = 1 - 남은 시간 / 자라는 시간 → `plants.json`의 구간(0~20% seeded, 20~55% sprout, 55~100% growing, ready면 ripe)
+  - **한 칸 = 한 포기 그림(×2) 6번**: 위치는 `plants.json`의 `plot_fill.positions`(칸 132×108 기준, 칸 왼쪽 위에서 48px 그림의 왼쪽 위, 순서대로 = 뒷줄 먼저), `flip_odd`면 홀수 번째(1·3·5)는 좌우 뒤집기, 칸이 132보다 넓으면 가운데 맞춤. 위치 숫자는 코드에 적지 않고 json에서 읽음 (`FarmScene._fill`). 빈 밭 새싹 미리보기도 6포기. 칩·게이지·반짝이는 작물 위에. 오른쪽 상세 칸은 한 포기 ×3
+  - 수확 연출이 시작되면 그 칸의 6포기는 바로 사라짐 (백엔드에서 빈 밭이 됨)
+  - 다시 만들기: 감자·양파·밀 다 자란 그림은 `tools/crops_v8.py`, 나머지(토마토·쌀·양배추 다 자람, 성장 단계, 씨앗 봉투)는 `tools/farm_icons.py`
+- **GUI 표시값** (`farm.FARM_DISPLAY`): 자라는 시간 600초, 수확 개수 3개. 백엔드 `config.CROP_DURATION`·`CROP_YIELD`인데 `get_rules`·스냅샷에 안 나와서 GUI에 둠. 백엔드 값을 바꾸면 같이 바꿀 것 (기영님께 `get_rules`에 넣어 달라고 요청 가능). 밭 가격은 `get_rules()['plot_costs']` 백엔드 값
+- 작물·씨앗 이름은 상점 목록 label. 양배추 재료 그림 `assets/food/cabbage.png`(food_icons.json에 추가)
+- 다시 만들기: `tools/farm_icons.py`(작물·성장 단계·씨앗 봉투), `tools/crops_v8.py`(감자·양파·밀 다 자람), `tools/farm_mock.py`(목업·배경)
 
 ## 진행 상황
 - 완료: 백엔드 1차(기영), 캐릭터 30종 데이터, 역할별 MAX, 도트 75장 (PR #1 merge됨)
@@ -238,12 +257,13 @@ CHARACTERS.md        캐릭터 목록 · GUI.md 화면 구조 설명
 - 완료 (merge됨): 도트 UI 키트(640×360 논리 화면, 갈무리 글꼴), 내 동물 화면 animals_v2, 지도 메뉴·간판·알림, 설정 창, 전투장(PR #10, 스테이지 고르기·출전 준비·전투·결과), 전투 아이템(PR #11)
 - 완료 (PR #12 merge됨, 기영): 적 몬스터 enemies.json 연결, 전투 행동 회복량 `amount`, 스테이지 `ai_description`
 - 완료 (PR #13 merge됨): 집·주방 (레시피 북·재료 부족·요리 미니게임·결과·음식 주기), 전투 다음 동물 자동 선택
-- 진행 중 (브랜치 `shop-hospital`): 상점(탭 6개·구매·판매)·알 부화 연출·병원·내 동물 장비 장착, 키트 금색(gold)
+- 완료 (PR #14 merge됨): 상점(탭 6개·구매·판매)·알 부화 연출·병원·내 동물 장비 장착, 키트 금색(gold)
+- 진행 중 (브랜치 `farm`): 밭(텃밭 6칸·씨앗 심기·수확·모두 수확·밭 넓히기), 작물별 씨앗 봉투, 양배추 그림
 
 ## 다음 할 일 (순서대로)
 1. **메인 화면을 목업대로**: `map_scene.py`의 텍스트 카드를 지도 이미지 + 간판 + 오른쪽 메뉴로 교체. 마당 동물은 `map.json`의 `yard` 안에서 움직이게. 지금의 "집" 화면(AnimalsScene)은 메뉴 "내 동물"로 연결
 2. **설정 창** (시간 속도, 시연 모드, 저장·불러오기, 게임 종료)
 3. **전투장**: 스테이지 선택(적 미리보기 `preview_stage`), 팀 3마리 + 전투 전 포션 선택, 전투 화면(체력바, 행동 버튼은 `get_battle_actions`로), 결과 화면
-4. ~~상점(구매·판매·알 부화)~~, ~~병원(치료)~~ (완료, 브랜치 `shop-hospital`), 밭, 사냥터, 도감(없는 동물은 실루엣), 가방. (집 주방 + 타이밍 미니게임 = 완료, PR #13)
+4. ~~상점(구매·판매·알 부화)~~, ~~병원(치료)~~ (완료, PR #14), ~~밭~~ (완료, 브랜치 `farm`), 사냥터, 도감(없는 동물은 실루엣), 가방. (집 주방 + 타이밍 미니게임 = 완료, PR #13)
 5. 마이룸(여유 있으면)
 6. 실행 파일(PyInstaller), 보고서, **시연 영상(F12 시연 모드)**
