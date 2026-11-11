@@ -1,0 +1,417 @@
+{
+ "scale_note": "1배 픽셀 조각. 화면에서는 2배로 키워 쓴다 (nearest).",
+ "nine_slice": {
+  "panel": {
+   "size": [
+    32,
+    32
+   ],
+   "margin": 8
+  },
+  "card": {
+   "size": [
+    24,
+    24
+   ],
+   "margin": 6
+  },
+  "card_selected": {
+   "size": [
+    24,
+    24
+   ],
+   "margin": 6
+  },
+  "button_green_normal": {
+   "size": [
+    24,
+    16
+   ],
+   "margin": 5
+  },
+  "button_green_hover": {
+   "size": [
+    24,
+    16
+   ],
+   "margin": 5
+  },
+  "button_green_pressed": {
+   "size": [
+    24,
+    16
+   ],
+   "margin": 5
+  },
+  "button_green_disabled": {
+   "size": [
+    24,
+    16
+   ],
+   "margin": 5
+  },
+  "button_orange_normal": {
+   "size": [
+    24,
+    16
+   ],
+   "margin": 5
+  },
+  "button_orange_hover": {
+   "size": [
+    24,
+    16
+   ],
+   "margin": 5
+  },
+  "button_orange_pressed": {
+   "size": [
+    24,
+    16
+   ],
+   "margin": 5
+  },
+  "button_orange_disabled": {
+   "size": [
+    24,
+    16
+   ],
+   "margin": 5
+  },
+  "button_purple_normal": {
+   "size": [
+    24,
+    16
+   ],
+   "margin": 5
+  },
+  "button_purple_hover": {
+   "size": [
+    24,
+    16
+   ],
+   "margin": 5
+  },
+  "button_purple_pressed": {
+   "size": [
+    24,
+    16
+   ],
+   "margin": 5
+  },
+  "button_purple_disabled": {
+   "size": [
+    24,
+    16
+   ],
+   "margin": 5
+  },
+  "button_red_normal": {
+   "size": [
+    24,
+    16
+   ],
+   "margin": 5
+  },
+  "button_red_hover": {
+   "size": [
+    24,
+    16
+   ],
+   "margin": 5
+  },
+  "button_red_pressed": {
+   "size": [
+    24,
+    16
+   ],
+   "margin": 5
+  },
+  "button_red_disabled": {
+   "size": [
+    24,
+    16
+   ],
+   "margin": 5
+  },
+  "button_brown_normal": {
+   "size": [
+    24,
+    16
+   ],
+   "margin": 5
+  },
+  "button_brown_hover": {
+   "size": [
+    24,
+    16
+   ],
+   "margin": 5
+  },
+  "button_brown_pressed": {
+   "size": [
+    24,
+    16
+   ],
+   "margin": 5
+  },
+  "button_brown_disabled": {
+   "size": [
+    24,
+    16
+   ],
+   "margin": 5
+  },
+  "button_gray_normal": {
+   "size": [
+    24,
+    16
+   ],
+   "margin": 5
+  },
+  "button_blue_normal": {
+   "size": [
+    24,
+    16
+   ],
+   "margin": 5
+  },
+  "button_blue_hover": {
+   "size": [
+    24,
+    16
+   ],
+   "margin": 5
+  },
+  "button_blue_pressed": {
+   "size": [
+    24,
+    16
+   ],
+   "margin": 5
+  },
+  "button_blue_disabled": {
+   "size": [
+    24,
+    16
+   ],
+   "margin": 5
+  },
+  "gauge_frame": {
+   "size": [
+    16,
+    8
+   ],
+   "margin": 3
+  },
+  "ribbon_red": {
+   "size": [
+    40,
+    16
+   ],
+   "margin": 9
+  },
+  "ribbon_brown": {
+   "size": [
+    40,
+    16
+   ],
+   "margin": 9
+  },
+  "ribbon_green": {
+   "size": [
+    40,
+    16
+   ],
+   "margin": 9
+  }
+ },
+ "icons": [
+  "back",
+  "coin",
+  "frown",
+  "heart",
+  "home",
+  "meat",
+  "shield",
+  "smile",
+  "snack",
+  "sun",
+  "sword",
+  "wing",
+  "zzz"
+ ],
+ "colors": {
+  "text": [
+   70,
+   46,
+   34
+  ],
+  "text_soft": [
+   138,
+   108,
+   82
+  ],
+  "ink": [
+   46,
+   32,
+   38
+  ],
+  "gauge_fill": {
+   "green": [
+    [
+     40,
+     92,
+     52
+    ],
+    [
+     70,
+     140,
+     76
+    ],
+    [
+     98,
+     176,
+     98
+    ],
+    [
+     140,
+     206,
+     120
+    ]
+   ],
+   "orange": [
+    [
+     120,
+     56,
+     28
+    ],
+    [
+     196,
+     104,
+     52
+    ],
+    [
+     236,
+     146,
+     72
+    ],
+    [
+     255,
+     190,
+     112
+    ]
+   ],
+   "purple": [
+    [
+     60,
+     40,
+     104
+    ],
+    [
+     104,
+     76,
+     168
+    ],
+    [
+     140,
+     108,
+     208
+    ],
+    [
+     184,
+     156,
+     236
+    ]
+   ],
+   "red": [
+    [
+     110,
+     34,
+     36
+    ],
+    [
+     180,
+     64,
+     60
+    ],
+    [
+     220,
+     92,
+     80
+    ],
+    [
+     250,
+     140,
+     120
+    ]
+   ],
+   "brown": [
+    [
+     70,
+     44,
+     30
+    ],
+    [
+     120,
+     80,
+     50
+    ],
+    [
+     162,
+     112,
+     70
+    ],
+    [
+     204,
+     154,
+     100
+    ]
+   ],
+   "gray": [
+    [
+     96,
+     90,
+     86
+    ],
+    [
+     150,
+     142,
+     134
+    ],
+    [
+     184,
+     176,
+     166
+    ],
+    [
+     214,
+     208,
+     198
+    ]
+   ],
+   "blue": [
+    [
+     30,
+     60,
+     110
+    ],
+    [
+     60,
+     110,
+     180
+    ],
+    [
+     90,
+     150,
+     220
+    ],
+    [
+     150,
+     196,
+     245
+    ]
+   ]
+  }
+ }
+}

@@ -1,22 +1,23 @@
-"""아직 만들지 않은 화면. 다음 단계에서 하나씩 실제 화면으로 바꾼다."""
+"""아직 만들지 않은 화면. 다음 단계에서 하나씩 실제 화면으로 바꾼다. (키트: docs/UI_KIT.md)"""
 from .. import theme as T
 from ..app import Scene
-from ..widgets import text, panel, Button
+from ..widgets import text, text_width, panel, ribbon, Button
 
 
 class PlaceholderScene(Scene):
     def __init__(self, app, title):
         super().__init__(app)
         self.title = title
-        self.back = Button((40, 72, 120, 44), '‹ 지도', lambda: app.go('map'), color=T.INK_SOFT)
+        self.back = Button((12, 33, 56, 18), '지도', lambda: app.go('map'), 'brown', icon='back')
 
     def handle(self, event):
         self.back.handle(event)
 
     def draw(self, surface):
-        surface.fill(T.BG)
+        self.app.backdrop(surface)
         self.back.draw(surface)
-        box = (T.WIDTH // 2 - 260, 260, 520, 180)
+        ribbon(surface, (78, 33, max(92, text_width(self.title, 'title') + 30), 18), self.title, 'red')
+        box = (T.WIDTH // 2 - 130, 140, 260, 80)
         panel(surface, box)
-        text(surface, self.title, (T.WIDTH // 2, 315), 30, T.INK, bold=True, anchor='center')
-        text(surface, '다음 단계에서 만들 화면이에요', (T.WIDTH // 2, 370), 18, T.INK_SOFT, anchor='center')
+        text(surface, self.title, (T.WIDTH // 2, 168), 'big', T.TEXT, 'center')
+        text(surface, '준비 중이에요 · 다음 단계에서 만들 화면', (T.WIDTH // 2, 192), 'body', T.TEXT_SOFT, 'center')
