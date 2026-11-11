@@ -467,7 +467,8 @@ class GameService:
                            max_stage=info['max_stage'],
                            caps=copy.deepcopy(self.caps[info['role']][a['stage']]),
                            effective_stats=B.stats_for(a,a['equip']),
-                           participation=ok,participation_reason=reason)
+                           participation=ok,participation_reason=reason,
+                           status={k:self._status_label(a,k) for k in ('fullness','mood','fatigue')})
                 if a['activity']:
                     row['remaining_seconds']=max(0,a['activity']['end']-now)
                 animals.append(row)
@@ -511,7 +512,8 @@ class GameService:
                             'rarity':info['rarity'],'max_stage':info['max_stage'],
                             'caps':copy.deepcopy(self.caps[info['role']][a['stage']]),
                             'effective_stats':B.stats_for(a,a['equip']),
-                            'participation':self._available(s,key)[0]})
+                            'participation':self._available(s,key)[0],
+                            'status':{k:self._status_label(a,k) for k in ('fullness','mood','fatigue')}})
                 rows.append(row)
             return rows
         return self._read(read)

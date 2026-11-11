@@ -52,6 +52,16 @@ class DisplayInfoTests(unittest.TestCase):
             self.assertIn('name', fighter)
             self.assertIn('sprite', fighter)
 
+    def test_snapshot_has_status_levels(self):
+        """GUI shows lying down / frown from the backend's three-level status, not its own thresholds."""
+        def make_hungry(s):
+            s['animals']['dealer_normal_01']['fullness'] = 10
+            s['animals']['dealer_normal_01']['fatigue'] = 40
+        self.g._mutate(make_hungry)
+        for rows in (self.g.get_snapshot()['animals'], self.g.get_animals()):
+            row = next(a for a in rows if a['id'] == 'dealer_normal_01')
+            self.assertEqual(row['status'], {'fullness': 'bad', 'mood': 'good', 'fatigue': 'normal'})
+
 
 if __name__ == '__main__':
     unittest.main()
