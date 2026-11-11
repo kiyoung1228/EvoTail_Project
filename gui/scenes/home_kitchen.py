@@ -23,14 +23,15 @@ from ..widgets import (text, text_in, glyph_box, fit_width, panel, card, card_in
 from .battle_fight import shorten
 
 BOOK = pygame.Rect(14, 62, 612, 292)
-LEFT = pygame.Rect(24, 70, 288, 276)          # 왼쪽 쪽 (책 panel 안)
-RIGHT = pygame.Rect(328, 70, 288, 276)        # 오른쪽 쪽
+LEFT = pygame.Rect(24, 70, 300, 276)          # 왼쪽 쪽 (책 panel 안)
+RIGHT = pygame.Rect(340, 70, 276, 276)        # 오른쪽 쪽
 LEVEL = pygame.Rect(420, 31, 212, 22)         # 요리 레벨 칸 (오른쪽 위)
-CELL = (64, 76)                               # 레시피·요리 칸
-GRID = (LEFT.x + 10, 92, 68, 82)              # 시작 x, y, 가로 간격, 세로 간격 (4열)
-COLS = 4
-ING = (RIGHT.x + 12, 166, 130, 32, 134, 35)   # 재료 칸 x, y, w, h, 가로 간격, 세로 간격 (2열)
-LIST = pygame.Rect(RIGHT.x + 12, 150, 266, 32)   # 동물 줄 (첫 줄)
+CELL = (72, 83)                               # 레시피·요리 칸 (이름 두 줄까지: 그림 32 + 글씨 15×2 + 별/개수)
+GRID = (LEFT.x + 3, 89, 74, 86)               # 시작 x, y, 가로 간격, 세로 간격 (4열 × 3줄)
+COLS, GRID_ROWS = 4, 3
+NAME_Y = 36                                   # 칸 안 이름 첫 줄 (두 줄 = 36~66)
+ING = (RIGHT.x + 12, 166, 126, 32, 130, 35)   # 재료 칸 x, y, w, h, 가로 간격, 세로 간격 (2열)
+LIST = pygame.Rect(RIGHT.x + 12, 150, 256, 32)   # 동물 줄 (첫 줄)
 LIST_STEP, LIST_ROWS = 34, 4
 BAR = pygame.Rect(120, 264, 400, 22)          # 미니게임 막대
 BAR_PANEL = pygame.Rect(105, 246, 430, 70)
@@ -51,6 +52,26 @@ RESULT = {   # outcome → 리본 글씨, 리본 색, 큰 글씨, 아래 설명
     'burnt': ('탄 요리...', 'red', 'MISS', '재료가 타 버렸어요 (경험치 없음)'),
 }
 ACTIVITY_LABEL = {'training': '훈련 중', 'hunting': '사냥 중'}
+
+
+def wrap2(msg, width, kind='body'):
+    """칸 폭(width, 글자 모양 기준)에 맞게 최대 두 줄로. 한 줄에 들어가면 그대로.
+    띄어쓰기에서 먼저 나눠 보고(두 줄 다 들어가는 곳 중 가장 고르게), 안 되면 글자 수 반쯤에서 나눈다.
+    그래도 안 들어가면 줄마다 끝을 …으로 (글자 크기는 줄이지 않는다)."""
+    gw = lambda m: glyph_box(m, kind).w
+    if gw(msg) <= width:
+        return [msg]
+    splits = [(msg[:i].strip(), msg[i + 1:].strip()) for i, c in enumerate(msg) if c == ' ']
+    fit = [p for p in splits if p[0] and p[1] and max(gw(p[0]), gw(p[1])) <= width]
+    if fit:
+        return list(min(fit, key=lambda p: max(gw(p[0]), gw(p[1]))))
+    n = len(msg)
+    for i in sorted(range(1, n), key=lambda i: (abs(i - n / 2), -i)):       # 반에 가까운 곳부터 (같으면 앞줄을 길게)
+        a, b = msg[:i].strip(), msg[i:].strip()
+        if a and b and gw(a) <= width and gw(b) <= width:
+            return [a, b]
+    a, b = msg[:(n + 1) // 2].strip(), msg[(n + 1) // 2:].strip()
+    return [shorten(a, width, kind), shorten(b, width, kind)]
 
 
 def effect_parts(effects):
@@ -98,6 +119,7 @@ class KitchenScene(Scene):
         self.dish = None            # 음식 주기: 고른 요리 아이템 id
         self.target = None          # 음식 주기: 고른 동물 id
         self.scroll = 0
+        self.dish_scroll = 0        # 음식 주기: 요리 칸 줄 넘김 (3줄 넘을 때)
         self.info = {'level': 1, 'xp': 0, 'recipes': {}}
         self.rules = {}
         self.catalog = {}
@@ -180,6 +202,12 @@ class KitchenScene(Scene):
             out.append(F.BURNED)
         return out
 
+    def visible_dishes(self):
+        dishes = self.dishes()
+        rows = (len(dishes) + COLS - 1) // COLS
+        self.dish_scroll = max(0, min(self.dish_scroll, rows - GRID_ROWS))
+        return dishes[self.dish_scroll * COLS:(self.dish_scroll + GRID_ROWS) * COLS]
+
     def animals(self):
         return self.app.state.get('animals', [])
 
@@ -245,6 +273,9 @@ class KitchenScene(Scene):
             n = len(self.animals())
             if pygame.Rect(LIST.x, LIST.y, LIST.w, LIST_STEP * LIST_ROWS).collidepoint(W.mouse_pos()):
                 self.scroll = max(0, min(max(0, n - LIST_ROWS), self.scroll - event.y))
+            elif LEFT.collidepoint(W.mouse_pos()):
+                rows = (len(self.dishes()) + COLS - 1) // COLS
+                self.dish_scroll = max(0, min(max(0, rows - GRID_ROWS), self.dish_scroll - event.y))
             return
         if event.type != pygame.MOUSEBUTTONDOWN or event.button != 1:
             return
@@ -259,7 +290,7 @@ class KitchenScene(Scene):
                     self.recipe = key
                     return
         else:
-            for i, item in enumerate(self.dishes()):
+            for i, item in enumerate(self.visible_dishes()):
                 if self.cell_rect(i).collidepoint(event.pos):
                     self.dish = item
                     return
@@ -454,18 +485,22 @@ class KitchenScene(Scene):
         r = self.cell_rect(i)
         card(surface, r, selected=selected)
         img = self.icons.get(item, 2, gray)
-        surface.blit(img, img.get_rect(midtop=(r.centerx, r.y + 6)))
+        surface.blit(img, img.get_rect(midtop=(r.centerx, r.y + 4)))
         if F.is_perfect(item):
             F.star_badge(surface, (r.x + 4, r.y + 4))
-        box = pygame.Rect(r.x + 2, r.y + 40, r.w - 4, 15)
-        short = shorten(name, box.w - 4, 'body')
-        text_in(surface, short, box, 'body', T.TEXT_SOFT if gray else T.TEXT, tag='kitchen')
+        # 이름: 칸에 안 들어가면 두 줄 (한 줄이면 두 줄 자리의 가운데)
+        lines = wrap2(name, r.w - 4 - 4, 'body')
+        top = r.y + NAME_Y + (15 if len(lines) == 1 else 0) // 2
+        for k, line in enumerate(lines):
+            text_in(surface, line, (r.x + 2, top + k * 15, r.w - 4, 15), 'body', T.TEXT_SOFT if gray else T.TEXT,
+                    tag='kitchen')
+        bottom = r.y + NAME_Y + 30
         if stars_n is not None:
-            F.stars(surface, (r.centerx - F.STARS_W // 2, r.y + 60), stars_n)
+            F.stars(surface, (r.centerx - F.STARS_W // 2, bottom + 2), stars_n)
         if sub:
-            text_in(surface, sub, (r.x + 2, r.y + 56, r.w - 4, 15), 'title', tag='kitchen')
-        if r.collidepoint(W.mouse_pos()) and short != name:
-            self.hover = (name, r)
+            text_in(surface, sub, (r.x + 2, bottom, r.w - 4, 15), 'title', tag='kitchen')
+        if r.collidepoint(W.mouse_pos()) and ''.join(lines).replace(' ', '') != name.replace(' ', '').replace('…', ''):
+            self.hover = (name, r)          # 두 줄로도 안 들어가 줄였을 때만 전체 이름
 
     def _draw_recipes(self, surface):
         text_in(surface, '레시피', (LEFT.x, LEFT.y + 2, LEFT.w, 16), 'title', tag='kitchen')
@@ -524,13 +559,17 @@ class KitchenScene(Scene):
     def _draw_dishes(self, surface):
         text_in(surface, '만든 요리', (LEFT.x, LEFT.y + 2, LEFT.w, 16), 'title', tag='kitchen')
         dishes = self.dishes()
-        for i, item in enumerate(dishes[:COLS * 3]):
+        for i, item in enumerate(self.visible_dishes()):
             self._draw_cell(surface, i, item, F.dish_name(item, self.catalog, self.recipes).replace('대성공 ', ''),
                             item == self.dish, sub=f'×{self.have(item)}')
         if not dishes:
             text(surface, '아직 만든 요리가 없어요', (LEFT.centerx, LEFT.y + 110), 'title', T.TEXT_SOFT, 'center')
             text(surface, '레시피 탭에서 요리해 보세요', (LEFT.centerx, LEFT.y + 128), 'body', T.TEXT_SOFT, 'center')
-        if F.BURNED in dishes:
+        if len(dishes) > COLS * GRID_ROWS:       # 휠로 넘기기 표시
+            rows = (len(dishes) + COLS - 1) // COLS
+            more = f'{self.dish_scroll + 1}-{self.dish_scroll + GRID_ROWS} / {rows}줄 · 휠'
+            text(surface, more, (LEFT.right - 6, LEFT.y + 4), 'small', T.TEXT_SOFT, anchor='topright')
+        elif F.BURNED in dishes and len(dishes) <= COLS * (GRID_ROWS - 1):     # 셋째 줄이 비어 있을 때만
             text(surface, '탄 요리는 반쯤은 안 먹어요', (LEFT.x + 10, LEFT.bottom - 16), 'body', T.TEXT_SOFT)
 
     def _draw_feed_detail(self, surface):
