@@ -229,6 +229,8 @@ class Button:
 
 
 # ---------- 도트 캐릭터 ----------
+LYING_ROWS = 20         # 엎드린 모습: 원본 28줄 중 20줄만 남김
+
 class SpriteCache:
     """assets/sprites(112×112 = 원본 28×28의 4배)를 원본 28로 줄인 뒤 정수배로만 키운다."""
 
@@ -259,16 +261,30 @@ class SpriteCache:
         return self._scaled[key]
 
     def lying(self, rel_path, size):
-        """누운(쉬는) 모습. 따로 그린 그림 <이름>_lying.png(예: dealer_normal_01_s1_lying.png)가 있으면 그걸,
-        없으면 서 있는 도트를 90° 돌려서 쓴다. 누운 도트를 새로 그리면 파일만 넣으면 바뀐다."""
+        """엎드린(쉬는) 모습. 따로 그린 그림 <이름>_lying.png(예: dealer_normal_01_s1_lying.png)가 있으면 그걸,
+        없으면 서 있는 도트를 세로로만 납작하게(원본 28줄 → 20줄) 만들어 쓴다.
+        누운 도트를 새로 그리면 파일만 넣으면 바뀐다."""
         key = (rel_path, size, 'lying')
         if key not in self._scaled:
             drawn = rel_path[:-4] + '_lying.png' if rel_path and rel_path.endswith('.png') else None
             if drawn and os.path.exists(os.path.join(T.ROOT, drawn)):
                 self._scaled[key] = self.get(drawn, size)
             else:
-                self._scaled[key] = pygame.transform.rotate(self.get(rel_path, size), 90)
+                flat = self._flatten(self._load(rel_path), LYING_ROWS)
+                n = max(1, size // 28)
+                self._scaled[key] = pygame.transform.scale(flat, (flat.get_width() * n, flat.get_height() * n))
         return self._scaled[key]
+
+    @staticmethod
+    def _flatten(base, rows):
+        """원본 도트에서 줄을 고르게 빼서 세로 rows줄로 (가로·픽셀은 그대로). 크기는 원본과 같고 바닥에 붙인다."""
+        w, h = base.get_size()
+        out = pygame.Surface((w, h), pygame.SRCALPHA)
+        top = h - rows
+        for i in range(rows):
+            src = i * h // rows               # 28줄 중 고르게 고른 줄 (8줄이 빠짐)
+            out.blit(base, (0, top + i), (0, src, w, 1))
+        return out
 
     def silhouette(self, rel_path, size):
         """도감에서 아직 없는 동물: 어두운 실루엣."""

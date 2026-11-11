@@ -48,7 +48,10 @@ PLACE_SIZE = 28        # 장소 앞에 작게: 원본 그대로
 FEET = 4               # 스프라이트 상자 바닥과 발 사이 여백 (투명 영역)
 
 BUBBLE_EDGE = T.INK
-MIN_GAP = 26           # 마당 동물 발 사이 최소 거리 (논리 px). 그림 폭 ≈ 32라 말풍선이 안 겹침
+NIGHT_TINT = (196, 200, 228, 255)   # 밤 동물 도트 (약 80%)
+DIM_DAY = (200, 196, 196, 255)      # 상태 나쁨 (낮)
+DIM_NIGHT = (228, 224, 224, 255)    # 상태 나쁨 (밤에는 덜 어둡게)
+MIN_GAP = 26          # 마당 동물 발 사이 최소 거리 (논리 px). 그림 폭 ≈ 32라 말풍선이 안 겹침
 
 # 마우스를 올렸을 때 글씨 말풍선 (밤에는 문구만 바꾼다. 표시 문구, 규칙 아님)
 NIGHT_LABEL = {'rest': '잠자는 중 zZ', 'idle': '꾸벅꾸벅…', 'play': '밤 산책', 'eat': '야식 찾는 중'}
@@ -342,14 +345,17 @@ class MapScene(Scene):
         text(surface, PLACES[key][0], r.center, 'title', T.TEXT, 'center')
 
     def _tint(self, img, night, sick=False, dim=False):
-        """밤: 푸르게 어둡게 / 아픔: 푸르스름하게 / dim(상태 나쁨): 살짝 어둡게."""
+        """밤: 살짝 푸르게 어둡게(약 80%, 지도보다 덜 어둡게 해서 동물이 잘 보이게) / 아픔: 푸르스름하게 /
+        dim(상태 나쁨): 살짝 어둡게. 밤에 겹치면 덜 어둡게 해서 밤 + 나쁨도 약 70%."""
         if not (night or sick or dim):
             return img
         img = img.copy()
-        if night or sick:
-            img.fill((150, 156, 196, 255) if night else (180, 200, 255, 255), special_flags=pygame.BLEND_RGBA_MULT)
+        if night:
+            img.fill(NIGHT_TINT, special_flags=pygame.BLEND_RGBA_MULT)
+        elif sick:
+            img.fill((180, 200, 255, 255), special_flags=pygame.BLEND_RGBA_MULT)
         if dim:
-            img.fill((200, 196, 196, 255), special_flags=pygame.BLEND_RGBA_MULT)
+            img.fill(DIM_NIGHT if night else DIM_DAY, special_flags=pygame.BLEND_RGBA_MULT)
         return img
 
     @staticmethod
