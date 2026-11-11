@@ -10,7 +10,8 @@
 - 규칙 원본은 팀 규칙 문서 `LEVEL3.pdf`. 과제 원문은 `2026 기초프로젝트-레벨3.pdf`
 
 ## 작업 방식 (꼭 지킬 것)
-- master에 직접 커밋하지 않는다. 작업마다 **새 브랜치 → 커밋 → push → PR**. 합치는 건 상대 팀원(기영)이 확인 후.
+- master에 직접 커밋하지 않는다. 작업마다 **새 브랜치 → 커밋 → push → PR**.
+- **merge 규칙 (팀 확정)**: `roc/`를 건드리지 않은 GUI PR은 재은이 직접 merge하고 단톡에 알린다. `roc/`를 건드리거나 게임 규칙이 바뀌는 PR은 기영 확인 후 merge
 - 시작 전에 `git pull`로 최신 master를 받는다.
 - 새 브랜치는 upstream을 걸지 않고 만든다: `git fetch` 후 `git switch -c 이름 --no-track origin/master`. upstream이 `origin/master`로 걸리면 GitHub Desktop에 Publish가 안 뜸 (이미 걸렸으면 `git branch --unset-upstream 이름`)
 - PR 전에 테스트를 돌린다: `python -m unittest discover -s tests` 와 `python test_integrated_flow.py`
@@ -63,7 +64,7 @@ CHARACTERS.md        캐릭터 목록 · GUI.md 화면 구조 설명
 - 지도가 아닌 화면의 배경은 `app.backdrop(surface)`(어둡게 깐 지도), 왼쪽 위 `◀ 지도` 갈색 버튼 + 빨간 리본 제목
 - 도트 이미지는 정수배로만 (`SpriteCache.get(path, size)`, size = 28의 배수: 28 원본, 56 = 2배, 84 = 3배). smoothscale 금지
 - **적 몬스터** (`assets/enemies`, `data/enemies.json`): 졸개 12종 원본 28×28, 보스 9종(스테이지마다 1) 원본 46×46, 파일은 4배. 화면에서는 둘 다 원본 ×2 (`SpriteCache.scaled(path, 2)` → 졸개 56, 보스 92). 보스 여부는 백엔드 `boss` 값, 없으면 그림 크기(`SpriteCache.is_boss`). 칸이 정해진 곳은 `SpriteCache.fit(path, w, h)` (들어가는 정수배, 안 들어가는 보스는 위쪽을 잘라 초상). 표시 정보(스테이지별 보스)는 `gui/enemies.py`
-  - 기영님이 백엔드 적 name/sprite/boss를 enemies.json 기준으로 바꿔 줄 예정. 그 전에는 백엔드가 주는 sprite(동물 그림)를 그대로 그림
+  - 백엔드 적 name/sprite/boss는 enemies.json 기준 (PR #12, 기영). 스테이지마다 보스 1 + 졸개 2
 - 글꼴: 갈무리(`assets/fonts/`, OFL, `Galmuri_LICENSE.txt` 같이 배포). `T.font('title'|'body'|'small'|'big')`로만 쓴다 (크기 12/12/10/15 고정 = 획이 픽셀에 딱 맞는 크기, `tests/test_fonts.py`, 안티에일리어싱 끔)
 - **칸 안 글씨**(버튼·간판·메뉴·칩·리본·알림·툴팁 등)는 `widgets.text_in(surface, 글씨, 칸, ...)`: 실제 글자 모양(줄 높이 아님) 기준 정렬. 칸 크기는 글씨에 맞춰 넓힌다(`fit_width`, `Button.width_for`, `BUTTON_H` 20, `CHIP_H` 16, `CARD_LABEL_H` 20). **글자 크기를 줄여서 맞추지 않는다**
 - 화면을 바꾸면 `python tools/check_text_fit.py`로 모든 칸 글씨가 사방 2px 여백 안에 있는지 확인 (`shots`를 붙이면 실제 창 크기 스크린샷)
@@ -182,12 +183,29 @@ CHARACTERS.md        캐릭터 목록 · GUI.md 화면 구조 설명
   - 대상 고르기: 위 안내 띠 + 꺾쇠(적 빨강·아군 초록·마우스 올린 대상 노랑), ESC·오른쪽 클릭 취소. 회복은 체력바에 회복 뒤 체력 미리보기
   - 백엔드는 한 번 호출에 내 행동 + 적 차례까지 처리 → 응답의 전투 기록(events)을 재생: 내 행동은 바로, 적 차례는 0.6초 간격. 체력바·숫자는 기록 값(피해·회복)으로만 움직이고 끝나면 백엔드 체력으로 맞춤
   - 전투 기록: 작은 칸, 마우스를 올리면 위로 펼침(라운드·"적" 칩). 도망가기 = `forfeit_battle`(확인 창)
-  - 회복량 미리보기만 GUI 표(`HEAL_PREVIEW`, 1/2/3단계 100/300/500)를 씀 → 기영님께 `get_battle_actions`에 회복량(amount)을 넣어 달라고 요청할 것. 실제 회복은 백엔드 값
+  - 회복 미리보기 = `get_battle_actions`의 행동마다 `amount`(PR #12, 그 대상에게 실제로 회복될 양). `HEAL_PREVIEW` 표는 amount가 없을 때만 + 회복 버튼 글씨(최대 회복량)
+  - 한 마리가 행동하면 **아직 행동 안 한 아군을 자동으로 고른다** (없으면 고른 동물 그대로)
   - **전투 아이템**: 명령창 "아이템 N" 버튼(가방에 전투 아이템이 있을 때만 켜짐) → 버튼 위 목록(이름 ×개수 · 회복량 · 팀 행동 1번 사용) → 고르면 아군 대상 고르기(초록 꺾쇠, 회복 뒤 체력 미리보기). `get_battle_actions(actor='battle_bandage')`의 `battle_item` 행동만 씀 → `battle_action(actor='battle_bandage', kind='battle_item', target)`
     - 백엔드 동작: 붕대는 팀 행동 1번(한 턴 2번 중)을 쓰지만 동물 한 마리의 "행동 완료"로 치지 않음. 회복량 = min(80, 모자란 체력), 기록 이벤트 `battle_item`의 `amount`
-    - 미리보기 회복량은 상점 목록(`get_shop_catalog`)의 `heal`(백엔드 ITEMS). 기영님이 actions에 amount를 넣어 주면 그 값으로 바꿀 것
+    - 미리보기 회복량은 `battle_item` 행동의 `amount` (없을 때만 상점 목록 `heal`)
 - **결과** (`BattleResultScene`): 승/패, 보상 코인(`battle_result.reward`), 첫 대회 우승/처음 깸(`first_clear`) + "다음 단계 열림"(get_stages의 다음 order), 팀 피로도 전→후(출전 직전 스냅샷과 지금 스냅샷, 둘 다 백엔드 값), 아픔 표시
 - 전투장 배경(관중석·벽·깃발·모래)은 그림 파일이 없어 코드로 그린 도트 (`arena_surface`)
+
+## 집 · 주방 (목업 `docs/mockups/home/`, `gui/scenes/home_kitchen.py` `KitchenScene`)
+지도 "집" 건물 → 주방. 배경 `assets/home/kitchen.png`(1280×720 = 논리 640×360의 2배 → ½로 그대로). 왼쪽 위 ◀ 지도 + 빨간 리본(집 · 주방 / 요리 중 / 요리 완성), 오른쪽 위 요리 레벨 칸(누적 경험치 / 다음 레벨 기준, `get_recipes`의 level·xp, `get_rules()['cooking']['level_thresholds']`)
+- **레시피 북** (home_1_book): 책(panel) 위 책갈피 탭 "레시피"(빨강) / "음식 주기"(초록). 왼쪽 쪽 = 레시피 칸(그림·이름·별), 재료가 모자라면 회색. 오른쪽 쪽 = 큰 그림(×4)·이름·별·한 줄 설명·재료(가진 수/필요 수)·먹으면 효과(`get_shop_catalog()[regular_item]['effects']`)·"대성공이면 N배 · 경험치 +N"(`perfect_multiplier`, `xp_per_star`)·요리 시작
+  - 재료 부족 (home_1b_missing): 그림은 색 그대로, "N가지 부족" 빨강, 모자란 재료 칸 빨간 테두리·빨간 숫자 + "구하기: 밭/사냥터/상점", 충분하면 초록 숫자 + "충분함!", 버튼은 회색 "재료가 부족해요"
+  - 구하는 곳은 백엔드 값으로: 상점 목록 kind `crop` = 밭, `get_hunts` 사냥터 보상 item = 사냥터, `buy`가 있으면 상점
+  - 한 줄 설명만 GUI 표시 문구 (`gui/food.py` `DESCRIPTION`, 백엔드에 설명 없음)
+- **미니게임** (home_2_bar): 난로 위 프라이팬 + 재료 그림, 위에 이름·별, 오른쪽 위 남은 시간. 아래 막대: 커서가 끝→끝 `travel_seconds`(레시피) 동안 왕복, 목표 중심은 `target_center_min~max` 무작위, 중심 ± `good_half_width` = Good(주황), ± `perfect_half_width` = Perfect(노랑). Space(또는 막대 클릭) 한 번에 판정 → `cook(recipe, judgment)`. `timeout_seconds` 안에 안 누르면 miss. ESC는 그만두기(cook 전이라 재료 그대로). 숫자는 전부 `get_rules()['cooking']['timing']`
+- **결과** (home_3_result): outcome별 `great` 대성공(초록 리본·빛줄기·PERFECT·효과 1.5배) / `success` 성공 / `rescued` "아슬아슬 성공! (경험치 없음)"(갈색) / `burnt` 탄 요리(빨강, MISS). 요리 그림·이름·효과(결과 `effects`), 레벨 게이지(이번에 오른 부분은 밝게, `xp`·`total_xp`), 레벨 업 칩. 버튼 "한 번 더"(재료 없으면 꺼짐) / "동물에게 주기"(음식 주기 탭에 방금 요리를 골라 둠)
+- **음식 주기** (home_4_feed): 왼쪽 = 가진 요리(`food_*`, `food_perfect_*`, `burned_food`) + 개수, 대성공은 별 배지. 오른쪽 = 고른 요리 효과 + 동물 목록(포만감 게이지, 고른 동물은 먹은 뒤 포만감을 연두색으로 미리보기 "42→87", 포만감 나쁨이면 "배고파요" 칩, 활동 중(훈련·사냥·전투)이면 흐리게 + 이유, 4줄 넘으면 휠). "○○에게 주기" = `use_item(item, key)`. 탄 요리는 "반쯤은 안 먹어요", `refused`면 알림
+
+**음식 그림** (`assets/food/`, `gui/food.py`)
+- 원본 16×16, 파일은 4배(64). `FoodIcons.get(item, n)`으로 원본 × n (화면에서는 ×1~×4 정수배만)
+- 파일 이름 = 백엔드 id (재료 `potato.png`, 레시피 `butter_potato.png`). `food_<id>`, `food_perfect_<id>`는 레시피 그림을 쓰고 대성공은 그림을 가리지 않는 작은 별 배지(`star_badge`). 대성공 요리 이름은 "대성공 감자버터구이"
+- 이름: 재료는 백엔드 상점 목록 label (없으면 `assets/food/food_icons.json` name). 그림이 없는 재료(돼지고기·양배추)는 키트 아이콘으로 대신
+- 다시 만들기: `tools/food_icons.py`(음식 그림), `tools/home_mock.py`(주방 목업·배경)
 
 ## 진행 상황
 - 완료: 백엔드 1차(기영), 캐릭터 30종 데이터, 역할별 MAX, 도트 75장 (PR #1 merge됨)
@@ -197,14 +215,14 @@ CHARACTERS.md        캐릭터 목록 · GUI.md 화면 구조 설명
 - 완료 (PR #5 merge됨): 메인 화면 섬 마을 지도, 마당 백엔드 연결, 내 동물 화면 "마당에 내보내기/들여보내기"
 - 완료 (PR #6 merge됨, 기영): 강제 휴식(피로도 80 초과), 게임 시계 day/time, 동물 status
 - 완료 (PR #9 merge됨, 기영): 스냅샷 `last_team`(마지막 출전 팀 ID 3개, `start_battle` 때 저장), `last_saved`(실제 시각, 자동 저장 포함)
-- 진행 중 (브랜치 `ui-kit`): 도트 UI 키트 적용 (640×360 논리 화면, 갈무리 글꼴), 내 동물 화면 animals_v2, 지도 메뉴·간판·알림
-- 진행 중 (브랜치 `settings`, ui-kit에서 만듦): 설정 창 (속도·시연 모드·저장·불러오기·도움말·종료)
-- 진행 중 (브랜치 `battle`): PR #9 반영, 적 몬스터 그림, 전투장(스테이지 고르기·출전 준비·전투·결과)
+- 완료 (merge됨): 도트 UI 키트(640×360 논리 화면, 갈무리 글꼴), 내 동물 화면 animals_v2, 지도 메뉴·간판·알림, 설정 창, 전투장(PR #10, 스테이지 고르기·출전 준비·전투·결과), 전투 아이템(PR #11)
+- 완료 (PR #12 merge됨, 기영): 적 몬스터 enemies.json 연결, 전투 행동 회복량 `amount`, 스테이지 `ai_description`
+- 진행 중 (브랜치 `home-kitchen`): 집·주방 (레시피 북·재료 부족·요리 미니게임·결과·음식 주기), 전투 다음 동물 자동 선택
 
 ## 다음 할 일 (순서대로)
 1. **메인 화면을 목업대로**: `map_scene.py`의 텍스트 카드를 지도 이미지 + 간판 + 오른쪽 메뉴로 교체. 마당 동물은 `map.json`의 `yard` 안에서 움직이게. 지금의 "집" 화면(AnimalsScene)은 메뉴 "내 동물"로 연결
 2. **설정 창** (시간 속도, 시연 모드, 저장·불러오기, 게임 종료)
 3. **전투장**: 스테이지 선택(적 미리보기 `preview_stage`), 팀 3마리 + 전투 전 포션 선택, 전투 화면(체력바, 행동 버튼은 `get_battle_actions`로), 결과 화면
-4. 상점(구매·판매·알 부화), 병원(치료), 집(요리 + **타이밍 미니게임** = 확장 문제), 밭, 사냥터, 도감(없는 동물은 실루엣), 가방
+4. 상점(구매·판매·알 부화), 병원(치료), 밭, 사냥터, 도감(없는 동물은 실루엣), 가방. (집 주방 + 타이밍 미니게임 = 브랜치 `home-kitchen`)
 5. 마이룸(여유 있으면)
 6. 실행 파일(PyInstaller), 보고서, **시연 영상(F12 시연 모드)**

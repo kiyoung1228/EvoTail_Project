@@ -73,7 +73,7 @@ class Spr:
                 edge = rim and any(not (0 <= x + dx < self.n and 0 <= y + dy < self.n and mp[x + dx, y + dy]) for dx, dy in ((1, 0), (0, 1)))
                 if edge: t += .22
                 # 동물 도트처럼 3단(밝음·본색·그림자), 디더 없음
-                i = 0 if t < .3 else (1 if t < .66 else 2)
+                i = 0 if t < BANDS[0] else (1 if t < BANDS[1] else 2)
                 if len(P) >= 4: i += 1 if i else 0          # 본색·그림자는 한 단 진하게
                 i = max(0, min(lvl, i))
                 px[x, y] = P[i] + (255,)
@@ -169,6 +169,7 @@ class Spr:
 
 
 OFF = [0]
+BANDS = [.3, .66]          # 밝음/그림자 경계 (아이콘은 좁게)
 SC = [1.0, 0.0, 0.0]          # 졸개 축소: (배율, x이동, y이동)
 MINI = [0.72, 13.5 - 13.5 * 0.72, 25.6 - 26 * 0.72]   # 동물 도트 크기(약 16~18칸)에 맞춤
 def TX(x, y):
