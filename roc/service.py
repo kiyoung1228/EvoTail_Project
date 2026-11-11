@@ -138,10 +138,10 @@ class GameService:
         owned={key:self._new_animal(key,now) for key in starter.values()}
         inv={'snack':3}
         return {'schema':2,'event_seq':0,'created':now,'clock':{'virtual':now,'last_real':now,'rate':1.0},
-                'coins':300,'animals':owned,'yard':[],
+                'coins':300,'animals':owned,'yard':[], 'last_saved':now,
                 'inventory':inv,'toy_instances':[],
                 'plots':[{'crop':None,'end':None,'ready':False}], 'hunts':{}, 'jobs':{},
-                'battle':None,'battle_result':None,'battle_attempts':{},'last_team_roles':[],
+                'battle':None,'battle_result':None,'battle_attempts':{},'last_team_roles':[], 'last_team':[],
                 'progress':-1,'cleared':[], 'rank':'none',
                 'claimed_ranks':[],'cook_xp':0,'last_bonus_slot':int(now//C.BONUS_EVENT_EVERY),
                 'events':[], 'achievements':[], 'counters':{}}
@@ -157,9 +157,11 @@ class GameService:
             s['_new_events'].append(event)
         s['events']=s['events'][-80:]
 
-    def _mutate(self, fn):
+    def _mutate(self, fn, *, force_save=False):
         with self._lock:
             candidate=copy.deepcopy(self.state)
+            # Older saves have no remembered team; roles alone cannot recover IDs.
+            candidate.setdefault('last_team',[])
             # Old saves without a selection start empty; GUI fills empty slots.
             # Previous releases allowed six selections. Keep the first five
             # in display order without deleting any owned animal.
@@ -178,10 +180,14 @@ class GameService:
             candidate['schema']=2
             candidate['_new_events']=[]  # never serialized; the UI ring buffer is capped at 80
             self._sync(candidate)
+            # Wall-clock Unix seconds, including autosaves (never the accelerated
+            # virtual clock). Stage before building API responses so they match
+            # the persisted snapshot; failed operations/commits discard it.
+            candidate['last_saved']=float(self._now())
             result=fn(candidate)
             candidate['events']=candidate['events'][-80:]
             new_events=candidate.pop('_new_events')
-            if candidate==self.state and not new_events:
+            if not force_save and candidate==self.state and not new_events:
                 return copy.deepcopy(result)
             try:
                 revision=self.store.commit(candidate,new_events,expected_revision=self._revision)
@@ -449,7 +455,8 @@ class GameService:
 
     def save_game(self):
         """Explicit save button API; all other write operations are already auto-saved."""
-        return self._mutate(lambda s:{'saved':True,'timestamp':s['clock']['virtual']})
+        return self._mutate(lambda s:{'saved':True,'timestamp':s['clock']['virtual'],
+                                      'last_saved':s['last_saved']}, force_save=True)
 
     def load_game(self):
         """Load the persisted SQLite snapshot, then reconcile offline time."""
@@ -469,6 +476,7 @@ class GameService:
                     'clock':self._clock_view(s,now),
                     'progress':s['progress'],'rank':s['rank'],
                     'yard':list(s['yard']), 'yard_max':C.YARD_MAX_ANIMALS,
+                    'last_team':list(s['last_team']), 'last_saved':s['last_saved'],
                     'cook_xp':s['cook_xp'],
                     'cook_level':self._cook_level(s),'in_battle':s['battle'] is not None,
                     'plots_owned':len(s['plots']), 'recent_events':s['events'][-10:]}
@@ -515,6 +523,7 @@ class GameService:
                     'progress':s['progress'],'rank':s['rank'],
                     'animals':animals,'owned_count':len(animals),
                     'yard':list(s['yard']), 'yard_max':C.YARD_MAX_ANIMALS,
+                    'last_team':list(s['last_team']), 'last_saved':s['last_saved'],
                     'inventory':{'stackable':dict(s['inventory']),
                                  'toys':copy.deepcopy(s['toy_instances'])},
                     'plots':plots,'hunts':hunts,'stages':stages,
@@ -1014,6 +1023,7 @@ class GameService:
                    for e in preview['enemy']]
             s.setdefault('battle_attempts',{})[stage]=s.get('battle_attempts',{}).get(stage,0)+1
             s['last_team_roles']=[self.characters[key]['role'] for key in team]
+            s['last_team']=list(team)
             s['battle']={'stage':stage,'ai':spec['ai'],'player':player,'enemy':enemy,
                          'current':'player','actions':0,'round':1,'winner':None, 'log':[],
                          'consumed_potions':dict(potions),'started':s['clock']['virtual']}
