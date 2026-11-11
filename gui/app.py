@@ -141,16 +141,37 @@ class App:
         pygame.draw.line(surface, T.PANEL_EDGE, (0, 52), (T.WIDTH, 52), 2)
         text(surface, 'EvoTail', (20, 12), 24, T.ACCENT_DARK, bold=True)
         clock = self.state.get('clock', {})
-        when = '밤' if clock.get('night') else '낮'
+        night = bool(clock.get('night'))
+        when = '밤' if night else '낮'
         weather = '태풍' if clock.get('storm') else '맑음'
         rate = clock.get('rate', 1.0) or 1.0
+        # TODO: 목업의 "1일차 · 14:20"(날짜·게임 시각)은 백엔드 clock에 값이 생기면 추가
         info = f"{when} · {weather}" + (f" · {int(rate)}배속" if 1 < rate < T.SPEED_DEMO else '')
-        text(surface, info, (T.WIDTH // 2, 26), 18, T.INK_SOFT, anchor='center')
+        pill = pygame.Rect(0, 0, 290, 36); pill.center = (T.WIDTH // 2, 27)
+        pygame.draw.rect(surface, (44, 48, 92) if night else (255, 252, 244), pill, border_radius=18)
+        pygame.draw.rect(surface, (30, 32, 64) if night else T.PANEL_EDGE, pill, 2, border_radius=18)
+        icon = (pill.x + 26, pill.centery)
+        if night:   # 초승달
+            pygame.draw.circle(surface, (255, 236, 160), icon, 11)
+            pygame.draw.circle(surface, (44, 48, 92), (icon[0] + 6, icon[1] - 4), 10)
+        else:       # 해
+            pygame.draw.circle(surface, (255, 200, 64), icon, 11)
+            pygame.draw.circle(surface, (226, 160, 40), icon, 11, 2)
+        text(surface, info, (pill.centerx + 10, pill.centery), 17,
+             (255, 255, 255) if night else T.INK, bold=True, anchor='center')
         if rate >= T.SPEED_DEMO:
-            badge = pygame.Rect(0, 0, 150, 30); badge.midleft = (T.WIDTH // 2 + 120, 26)
+            badge = pygame.Rect(0, 0, 150, 30); badge.midleft = (pill.right + 14, 27)
             pygame.draw.rect(surface, T.BAD, badge, border_radius=15)
             text(surface, f'시연 모드 {int(rate)}배', badge.center, 15, (255, 255, 255), bold=True, anchor='center')
-        text(surface, f"코인 {self.state.get('coins', 0):,}", (T.WIDTH - 20, 26), 20, T.INK, bold=True, anchor='midright')
+        coin = pygame.Rect(T.WIDTH - 192, 9, 175, 36)
+        pygame.draw.rect(surface, (255, 252, 244), coin, border_radius=18)
+        pygame.draw.rect(surface, T.PANEL_EDGE, coin, 2, border_radius=18)
+        c = (coin.x + 22, coin.centery)
+        pygame.draw.circle(surface, (250, 196, 64), c, 12)
+        pygame.draw.circle(surface, (196, 132, 28), c, 12, 2)
+        text(surface, 'C', c, 14, (150, 96, 20), bold=True, anchor='center')
+        text(surface, f"{self.state.get('coins', 0):,}", (coin.right - 14, coin.centery), 20, T.INK,
+             bold=True, anchor='midright')
 
     def draw_toasts(self, surface):
         now = time.time()

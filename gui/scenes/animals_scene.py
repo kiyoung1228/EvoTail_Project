@@ -55,6 +55,21 @@ class AnimalsScene(Scene):
         if not a:
             return
         key = a['id']
+        # 마당에 내보내기 / 들여보내기 (세이브에 저장되는 마당 목록)
+        yard = list(app.state.get('yard', []))
+        yard_max = app.state.get('yard_max') or 0
+        if key in yard:
+            self.buttons.append(Button((DETAIL.right - 224, DETAIL.y + 16, 200, 40), '마당에서 들여보내기',
+                                       lambda: app.act('set_yard_animals', f"{app.name_of(key)}을(를) 들여보냈어요",
+                                                       keys=[k for k in yard if k != key]),
+                                       size=16, color=(140, 120, 100)))
+        else:
+            full = len(yard) >= yard_max
+            self.buttons.append(Button((DETAIL.right - 224, DETAIL.y + 16, 200, 40),
+                                       f'마당이 가득 찼어요 ({len(yard)}/{yard_max})' if full else '마당에 내보내기',
+                                       lambda: app.act('set_yard_animals', f"{app.name_of(key)}을(를) 마당에 내보냈어요",
+                                                       keys=yard + [key]),
+                                       size=16 if not full else 14, color=(96, 168, 90), enabled=not full))
         y = DETAIL.bottom - 70
         snacks = app.state.get('inventory', {}).get('stackable', {}).get('snack', 0)
         busy = a.get('activity') is not None
@@ -97,7 +112,7 @@ class AnimalsScene(Scene):
     # ---------- 그리기 ----------
     def draw(self, surface):
         surface.fill(T.BG)
-        text(surface, '집 · 내 동물', (180, 94), 22, T.INK, bold=True, anchor='midleft')
+        text(surface, '내 동물', (180, 94), 22, T.INK, bold=True, anchor='midleft')
         self._draw_list(surface)
         panel(surface, DETAIL)
         a = self.app.animal(self.selected)
@@ -122,6 +137,10 @@ class AnimalsScene(Scene):
             text(surface, a['name'], (r.x + 68, r.y + 10), 17, T.INK, bold=True)
             role = T.ROLE_LABEL[a['role']]
             text(surface, f"{role} · {a['stage']}단계", (r.x + 68, r.y + 34), 14, T.ROLE_COLOR[a['role']])
+            if a['id'] in self.app.state.get('yard', []):
+                tag = pygame.Rect(r.right - 70, r.centery - 11, 42, 22)
+                pygame.draw.rect(surface, (214, 236, 200), tag, border_radius=11)
+                text(surface, '마당', tag.center, 13, (64, 120, 56), bold=True, anchor='center')
             dot = T.OK if a.get('participation') else (T.BAD if a.get('sick') else T.WARN)
             pygame.draw.circle(surface, dot, (r.right - 16, r.centery), 6)
         surface.set_clip(clip)

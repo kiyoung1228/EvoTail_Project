@@ -20,9 +20,9 @@ gui/
   theme.py              색, 폰트, 한글 라벨, 상태 3단계 기준
   widgets.py            버튼, 게이지, 패널, 도트 이미지 캐시
   scenes/
-    map_scene.py        메인 지도 + 마당(자율행동 보여주기)
-    animals_scene.py    집: 동물 목록·상세, 간식, 훈련, 진화
-    placeholder.py      아직 안 만든 화면 (밭, 상점, 병원, 주방, 사냥터, 전투장, 도감)
+    map_scene.py        메인 화면: 섬 마을 지도(낮·밤), 건물 간판, 오른쪽 메뉴, 마당 동물
+    animals_scene.py    내 동물: 동물 목록·상세, 간식, 훈련, 진화 (메뉴 "내 동물")
+    placeholder.py      아직 안 만든 화면 (집, 상점, 병원, 밭, 전투장, 사냥터, 도감, 가방, 마이룸, 설정)
 ```
 
 ### 규칙
@@ -39,7 +39,7 @@ gui/
 ## 새 화면 추가하는 법
 1. `gui/scenes/`에 `Scene`을 상속한 클래스 만들기 (`handle` → `update` → `draw`)
 2. `run_gui.py`에서 `PlaceholderScene` 대신 등록
-3. 지도 카드는 `map_scene.py`의 `PLACES`에 이미 연결돼 있어요
+3. 지도 건물은 `map_scene.py`의 `PLACES`(키 = `assets/map/map.json`의 `places`), 오른쪽 메뉴는 `MENU`에 화면 이름이 이미 연결돼 있어요
 
 ## 폰트
 `assets/fonts/`에 ttf를 넣으면 그걸 쓰고, 없으면 시스템 한글 폰트(윈도우: 맑은 고딕, 맥: 애플 SD 고딕)를 찾아요.
