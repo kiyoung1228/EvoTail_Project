@@ -32,6 +32,13 @@ DESCRIPTION = {
     'rabbit_stew': '행운이 깃든 귀한 스튜',
 }
 
+# 레시피·요리 칸 안에서만 쓰는 줄바꿈 (레시피 id → 두 줄). 상세 쪽·알림은 전체 이름 그대로.
+# 여기 없는 이름은 home_kitchen.wrap2 규칙 (띄어쓰기 우선, 없으면 글자 수 반)
+CELL_LINES = {
+    'butter_potato': ('감자버터', '구이'),
+    'rabbit_stew': ('토끼고기', '스튜'),      # 칸에서는 "행운의" 생략
+}
+
 PERFECT_PREFIX = 'food_perfect_'
 REGULAR_PREFIX = 'food_'
 BURNED = 'burned_food'

@@ -489,7 +489,8 @@ class KitchenScene(Scene):
         if F.is_perfect(item):
             F.star_badge(surface, (r.x + 4, r.y + 4))
         # 이름: 칸에 안 들어가면 두 줄 (한 줄이면 두 줄 자리의 가운데)
-        lines = wrap2(name, r.w - 4 - 4, 'body')
+        fixed = F.CELL_LINES.get(F.recipe_of(item)) if item != F.BURNED else None
+        lines = list(fixed) if fixed else wrap2(name, r.w - 4 - 4, 'body')
         top = r.y + NAME_Y + (15 if len(lines) == 1 else 0) // 2
         for k, line in enumerate(lines):
             text_in(surface, line, (r.x + 2, top + k * 15, r.w - 4, 15), 'body', T.TEXT_SOFT if gray else T.TEXT,
@@ -500,7 +501,7 @@ class KitchenScene(Scene):
         if sub:
             text_in(surface, sub, (r.x + 2, bottom, r.w - 4, 15), 'title', tag='kitchen')
         if r.collidepoint(W.mouse_pos()) and ''.join(lines).replace(' ', '') != name.replace(' ', '').replace('…', ''):
-            self.hover = (name, r)          # 두 줄로도 안 들어가 줄였을 때만 전체 이름
+            self.hover = (name, r)          # 칸에서 줄이거나 뺀 글자가 있을 때만 전체 이름
 
     def _draw_recipes(self, surface):
         text_in(surface, '레시피', (LEFT.x, LEFT.y + 2, LEFT.w, 16), 'title', tag='kitchen')
