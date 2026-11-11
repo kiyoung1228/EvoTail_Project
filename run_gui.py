@@ -9,14 +9,16 @@ from gui.scenes.animals_scene import AnimalsScene
 from gui.scenes.placeholder import PlaceholderScene
 from gui.scenes.battle_stage import StagePickScene, TeamPrepScene
 from gui.scenes.battle_fight import BattleScene, BattleResultScene
+from gui.scenes.home_kitchen import KitchenScene
 
 
 def main(save_path='saves/game.db'):
     app = App(save_path)
     app.register('map', MapScene(app))
     app.register('animals', AnimalsScene(app))
-    # 아직 만들지 않은 화면 (지도 건물 6개 + 오른쪽 메뉴). 설정은 지도 위 창 (gui/scenes/settings.py)
-    for name, title in (('home', '집 · 요리 · 휴식'), ('shop', '상점'), ('hospital', '병원'), ('farm', '밭'),
+    # 아직 만들지 않은 화면 (지도 건물 + 오른쪽 메뉴). 설정은 지도 위 창 (gui/scenes/settings.py)
+    app.register('home', KitchenScene(app))      # 집: 주방 (레시피 북·요리 미니게임·음식 주기)
+    for name, title in (('shop', '상점'), ('hospital', '병원'), ('farm', '밭'),
                         ('hunting', '사냥터'),
                         ('pokedex', '도감'), ('bag', '가방'), ('my_room', '마이룸')):
         app.register(name, PlaceholderScene(app, title))

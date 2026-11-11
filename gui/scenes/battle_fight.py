@@ -168,13 +168,16 @@ class BattleScene(Scene):
         return bool(self.queue) or self.result is not None
 
     def _pick_next_actor(self):
+        """고른 동물이 이미 행동했으면 아직 행동 안 한 아군으로 자동으로 넘긴다. 없으면 그대로 (쓰러졌으면 첫 아군)."""
         mine = [f for f in (self.view or {}).get('player', []) if f['hp'] > 0]
         cur = self._fighter(self.selected)
-        if cur and cur['team'] == 'player' and cur['hp'] > 0 and not cur.get('acted'):
-            pass
-        else:
-            nxt = next((f for f in mine if not f.get('acted')), mine[0] if mine else None)
-            self.selected = nxt['id'] if nxt else None
+        alive = bool(cur and cur['team'] == 'player' and cur['hp'] > 0)
+        if not (alive and not cur.get('acted')):
+            nxt = next((f for f in mine if not f.get('acted')), None)
+            if nxt:
+                self.selected = nxt['id']
+            elif not alive:
+                self.selected = mine[0]['id'] if mine else None
         self._load_actions()
 
     def _load_actions(self):
@@ -316,7 +319,6 @@ class BattleScene(Scene):
             self.app.go('battle_result', result=self.result, before=getattr(self.app, 'battle_before', {}))
             return
         self.disp_hp = {f['id']: f['hp'] for f in self._fighters()}      # 백엔드 값으로 맞추기
-        self.selected = None
         self._pick_next_actor()
 
     def do_attack(self):
@@ -390,12 +392,18 @@ class BattleScene(Scene):
         return [a['target'] for a in self.actions if a['kind'] == self.mode and a['target']]
 
     def _heal_preview(self, target):
-        """회복 대상 미리보기 양 (실제 회복은 백엔드 기록 값). 아이템은 상점 목록의 heal(백엔드 ITEMS),
-        힐러는 HEAL_PREVIEW. 백엔드가 actions에 amount를 주면 그 값으로 바꿀 것."""
+        """회복 대상 미리보기 양 = 백엔드 행동 목록의 amount (PR #12, 실제 회복은 백엔드 기록 값).
+        amount가 없는 예전 백엔드일 때만 상점 목록 heal / HEAL_PREVIEW."""
         if self.mode == 'item':
+            act = next((a for a in self.item_actions if a.get('target') == target), None)
+            if act and act.get('amount') is not None:
+                return act['amount']
             return self.items.get(self.item_id, {}).get('heal', 0)
         healer = self._fighter(self.selected)
         if self.mode == 'special' and healer and healer['role'] == 'healer':
+            act = next((a for a in self.actions if a['kind'] == 'special' and a.get('target') == target), None)
+            if act and act.get('amount') is not None:
+                return act['amount']
             return HEAL_PREVIEW.get(healer.get('stage', 1), 0)
         return 0
 
@@ -483,6 +491,8 @@ class BattleScene(Scene):
             self._apply(e, side)
             if not self.queue:
                 self._done_at = now
+                if self.banner is None and self.result is None:     # 내 행동만 끝남 → 다음 아군 자동 선택
+                    self._pick_next_actor()
         if not self.queue and (self.banner is not None or self.result is not None) and \
                 now - getattr(self, '_done_at', 0) > 0.5:
             self._after_queue()

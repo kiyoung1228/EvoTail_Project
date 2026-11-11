@@ -1,0 +1,89 @@
+{
+ "note": "원본 16x16, 파일 4배(64). 키 = 백엔드 아이템/레시피 id. 요리 아이템 food_<id>, food_perfect_<id>는 같은 그림 + GUI가 대성공 표시",
+ "icons": {
+  "egg_food": {
+   "name": "달걀",
+   "kind": "ingredient"
+  },
+  "potato": {
+   "name": "감자",
+   "kind": "ingredient"
+  },
+  "tomato": {
+   "name": "토마토",
+   "kind": "ingredient"
+  },
+  "onion": {
+   "name": "양파",
+   "kind": "ingredient"
+  },
+  "milk": {
+   "name": "우유",
+   "kind": "ingredient"
+  },
+  "salt": {
+   "name": "소금",
+   "kind": "ingredient"
+  },
+  "butter": {
+   "name": "버터",
+   "kind": "ingredient"
+  },
+  "wheat": {
+   "name": "밀",
+   "kind": "ingredient"
+  },
+  "chicken": {
+   "name": "닭고기",
+   "kind": "ingredient"
+  },
+  "beef": {
+   "name": "소고기",
+   "kind": "ingredient"
+  },
+  "rice": {
+   "name": "쌀",
+   "kind": "ingredient"
+  },
+  "lucky_rabbit": {
+   "name": "행운의 토끼고기",
+   "kind": "ingredient"
+  },
+  "boiled_egg": {
+   "kind": "dish"
+  },
+  "steamed_potato": {
+   "kind": "dish"
+  },
+  "egg_roll": {
+   "kind": "dish"
+  },
+  "tomato_soup": {
+   "kind": "dish"
+  },
+  "butter_potato": {
+   "kind": "dish"
+  },
+  "chicken_burger": {
+   "kind": "dish"
+  },
+  "beef_burger": {
+   "kind": "dish"
+  },
+  "fried_chicken": {
+   "kind": "dish"
+  },
+  "carbonara": {
+   "kind": "dish"
+  },
+  "omelette_rice": {
+   "kind": "dish"
+  },
+  "rabbit_stew": {
+   "kind": "dish"
+  },
+  "burned_food": {
+   "kind": "dish"
+  }
+ }
+}

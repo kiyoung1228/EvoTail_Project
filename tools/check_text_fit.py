@@ -1,6 +1,6 @@
 """글씨 넘침 점검: 칸 안 글씨(widgets.text_in / record)가 칸 안쪽에 사방 2px(TEXT_PAD) 이상 여백을 두는지.
 
-실제 창을 임시 세이브로 띄워 지도·내 동물(모든 동물)·준비 중·설정·확인·도움말 화면을 돌며 기록을 모은다.
+실제 창을 임시 세이브로 띄워 지도·내 동물(모든 동물)·준비 중·설정·확인·도움말·집 주방·전투장 화면을 돌며 기록을 모은다.
     python tools/check_text_fit.py            # 검사만
     python tools/check_text_fit.py shots      # + 실제 창 크기 스크린샷 (saves/screenshots/, 깃 제외)
 위반이 있으면 종료 코드 1. 넘치면 글자를 줄이지 말고 칸을 넓힌다.
@@ -18,6 +18,7 @@ from gui.app import App
 from gui import theme as T
 from gui import widgets as W
 from gui.scenes.settings import SettingsOverlay, ConfirmOverlay, HelpOverlay
+from gui.scenes.home_kitchen import LIST_ROWS as LIST_ROWS_KITCHEN
 
 save = os.path.join(tempfile.mkdtemp(), 'layout.db')
 
@@ -96,6 +97,43 @@ def scripted_run(self):
                                          lambda: None)); frames(2)
         self.close_overlay(); self.open_overlay(HelpOverlay(self)); frames(2)
         self.close_overlay(); self.close_overlay(); frames(1)
+        # 집·주방: 레시피(모든 레시피, 재료 있음·부족) → 미니게임 → 결과 4종 → 음식 주기(모든 요리)
+        def kitchen_fixture(s):    # test fixture only (temp save)
+            for item in ('egg_food', 'potato', 'salt', 'onion', 'tomato', 'milk', 'butter', 'wheat', 'chicken',
+                         'beef', 'rice', 'lucky_rabbit'):
+                s['inventory'][item] = 3
+            s['inventory'].update(egg_food=9, food_perfect_rabbit_stew=1, food_omelette_rice=12, burned_food=2)
+            s['cook_xp'] = 90
+            return True
+        g._mutate(kitchen_fixture); self.refresh()
+        self.go('home'); frames(2)
+        ks = self.scene
+        for key in ks.recipes:
+            ks.recipe = key; frames(1)
+            move(ks.cell_rect(list(ks.recipes).index(key)).center)
+        self.act('cook', None, recipe='fried_chicken', judgment='good')       # 닭고기 부족 상태도
+        ks.enter(); ks.recipe = 'fried_chicken'; frames(2)
+        ks.recipe = 'chicken_burger'; frames(2)
+        shot('real_kitchen.png')
+        ks.start_cooking('boiled_egg'); frames(10)
+        orig = g.rng.random
+        for judgment, rnd in (('perfect', None), ('good', None), ('miss', 0.0), ('miss', 0.99)):
+            if ks.mode != 'cook':
+                ks.start_cooking('boiled_egg'); frames(2)
+            if rnd is not None:
+                g.rng.random = lambda: rnd
+            ks._judge(judgment); frames(2)
+            g.rng.random = orig
+            frames(30)
+        shot('real_kitchen_result.png')
+        ks.feed_result(); frames(2)
+        for item in ks.dishes():
+            ks.dish = item; frames(1)
+            move(ks.cell_rect(ks.dishes().index(item)).center)
+        for a in self.state['animals'][:LIST_ROWS_KITCHEN]:
+            ks.target = a['id']; frames(1)
+        ks.scroll = max(0, len(self.state['animals']) - LIST_ROWS_KITCHEN); frames(2)
+        shot('real_kitchen_feed.png')
         # 전투장: 스테이지 고르기(모든 단계) → 출전 준비 → 전투(대상 고르기·기록 펼침) → 결과
         self.go('battle'); frames(2)
         sp = self.scene
