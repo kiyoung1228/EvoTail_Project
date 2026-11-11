@@ -167,6 +167,19 @@ CHARACTERS.md        캐릭터 목록 · GUI.md 화면 구조 설명
   - 언제 눕는지는 GUI가 정하지 않고 백엔드 값(`action`, 동물 행의 `status`)만 읽는다
   - 누운 그림은 `SpriteCache.lying()` 하나에서 만든다. 지금은 "엎드리기": 서 있는 도트를 세로만 원본 28줄 → 20줄로 고르게 줄 빼서 납작하게, 바닥에 붙임 (90° 회전은 쓰러진 것처럼 보여서 안 씀). `assets/sprites/<ID>_s<단계>_lying.png`를 그려 넣으면 자동으로 그 그림을 씀
 
+## 전투장 (목업 `docs/mockups/battle/`, 팀 결정 = 스테이지 2화면 + 전투 A안 + A2_1~3)
+- **스테이지 고르기** (`gui/scenes/battle_stage.py` `StagePickScene`, stage_pick.png): 9단계를 뱀 모양 길로 잇고 동그라미 안에 보스 얼굴(`gui/enemies.py` → data/enemies.json). 깬 곳 초록 체크, 잠긴 곳 자물쇠(못 고름), 대회는 메달 색 테두리. 오른쪽에 보스 그림·대회·전투력·보상·상대 성향, "팀 정하기"
+- **출전 준비** (`TeamPrepScene`, stage_team_prep.png): 상대(`preview_stage`) vs 내 팀(`last_team`으로 미리 채움, ✕로 빼기). 다른 동물은 스냅샷 `participation`/`participation_reason`(백엔드 `_available`, `can_participate`와 같음)으로 출전 불가면 흐리게 + 이유. 전투 전 포션은 카드를 누를 때마다 팀원에게 차례로(한 마리에 하나). 출전 = `start_battle(stage, team, prebattle_potions)`
+- **전투** (`gui/scenes/battle_fight.py` `BattleScene`): 아군 왼쪽·적 오른쪽, 머리 위엔 체력바만(이름은 마우스), 보스는 원본 46 ×2. 명령창 = 고른 동물 정보 + 공격/특수기/방어/턴 넘기기, `get_battle_actions`가 준 행동만 켬
+  - 딜러의 공격은 백엔드에서 **적 전체 공격**이라 대상 고르기 없음. 딜러는 특수기 버튼이 없음 (탱커 = 절대방어, 힐러 = 회복)
+  - 대상 고르기: 위 안내 띠 + 꺾쇠(적 빨강·아군 초록·마우스 올린 대상 노랑), ESC·오른쪽 클릭 취소. 회복은 체력바에 회복 뒤 체력 미리보기
+  - 백엔드는 한 번 호출에 내 행동 + 적 차례까지 처리 → 응답의 전투 기록(events)을 재생: 내 행동은 바로, 적 차례는 0.6초 간격. 체력바·숫자는 기록 값(피해·회복)으로만 움직이고 끝나면 백엔드 체력으로 맞춤
+  - 전투 기록: 작은 칸, 마우스를 올리면 위로 펼침(라운드·"적" 칩). 도망가기 = `forfeit_battle`(확인 창)
+  - 회복량 미리보기만 GUI 표(`HEAL_PREVIEW`, 1/2/3단계 100/300/500)를 씀 → 기영님께 `get_battle_actions`에 회복량(amount)을 넣어 달라고 요청할 것. 실제 회복은 백엔드 값
+  - 전투 중 아이템(`battle_bandage`)은 화면에 없음
+- **결과** (`BattleResultScene`): 승/패, 보상 코인(`battle_result.reward`), 첫 대회 우승/처음 깸(`first_clear`), 팀 피로도 전→후(출전 직전 스냅샷과 지금 스냅샷, 둘 다 백엔드 값), 아픔 표시
+- 전투장 배경(관중석·벽·깃발·모래)은 그림 파일이 없어 코드로 그린 도트 (`arena_surface`)
+
 ## 진행 상황
 - 완료: 백엔드 1차(기영), 캐릭터 30종 데이터, 역할별 MAX, 도트 75장 (PR #1 merge됨)
 - 완료 (PR #2 merge됨): 진화 단계별 이름·이미지를 백엔드가 반환, GUI 뼈대, 텍스트 카드 지도(임시), 집 화면(상태·능력치·간식·훈련·진화), 시간 속도 F5/F12
@@ -177,6 +190,7 @@ CHARACTERS.md        캐릭터 목록 · GUI.md 화면 구조 설명
 - 완료 (PR #9 merge됨, 기영): 스냅샷 `last_team`(마지막 출전 팀 ID 3개, `start_battle` 때 저장), `last_saved`(실제 시각, 자동 저장 포함)
 - 진행 중 (브랜치 `ui-kit`): 도트 UI 키트 적용 (640×360 논리 화면, 갈무리 글꼴), 내 동물 화면 animals_v2, 지도 메뉴·간판·알림
 - 진행 중 (브랜치 `settings`, ui-kit에서 만듦): 설정 창 (속도·시연 모드·저장·불러오기·도움말·종료)
+- 진행 중 (브랜치 `battle`): PR #9 반영, 적 몬스터 그림, 전투장(스테이지 고르기·출전 준비·전투·결과)
 
 ## 다음 할 일 (순서대로)
 1. **메인 화면을 목업대로**: `map_scene.py`의 텍스트 카드를 지도 이미지 + 간판 + 오른쪽 메뉴로 교체. 마당 동물은 `map.json`의 `yard` 안에서 움직이게. 지금의 "집" 화면(AnimalsScene)은 메뉴 "내 동물"로 연결

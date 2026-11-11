@@ -94,6 +94,31 @@ def scripted_run(self):
         self.open_overlay(ConfirmOverlay(self, '불러올까요?', '마지막으로 저장된 상태를 다시 불러와요', '불러오기', 'purple',
                                          lambda: None)); frames(2)
         self.close_overlay(); self.open_overlay(HelpOverlay(self)); frames(2)
+        self.close_overlay(); self.close_overlay(); frames(1)
+        # 전투장: 스테이지 고르기(모든 단계) → 출전 준비 → 전투(대상 고르기·기록 펼침) → 결과
+        self.go('battle'); frames(2)
+        sp = self.scene
+        for st in sp.stages:
+            sp.selected = st['id']; frames(1)
+        sp.selected = sp.stages[0]['id']; frames(1)
+        self.go('battle_prep', stage_id=sp.selected); frames(2)
+        tp = self.scene
+        ready = [a['id'] for a in self.state['animals'] if a.get('participation')][:3]
+        tp.team = ready; frames(2)
+        for k in range(len(tp._potion_keys())):
+            tp.cycle_potion(tp._potion_keys()[k]); frames(1)
+        shot('real_prep.png')
+        if len(ready) == 3:
+            tp.start(); frames(3)
+            bs = self.scene
+            for f in bs.view['player']:
+                bs.selected = f['id']; bs._load_actions(); frames(2)
+                if any(a['kind'] == 'attack' and a['target'] for a in bs.actions):
+                    bs.mode = 'attack'; frames(2); bs.mode = None
+            move((550, 320)); frames(2)
+            shot('real_battle.png')
+            res = self.call('forfeit_battle'); self.refresh()
+            self.go('battle_result', result=res, before={k: 0 for k in ready}); frames(2)
     finally:
         pygame.quit()
     # ---- 검사 ----

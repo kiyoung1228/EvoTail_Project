@@ -224,10 +224,12 @@ def tooltip(surface, msg, target, side='right', bounds=None):
     return box
 
 
-def select_frame(surface, rect):
-    """선택·강조 표시: 네 모서리에 도트 꺾쇠 (검은 테두리 + 노란 안쪽)."""
+def select_frame(surface, rect, color=None):
+    """선택·강조 표시: 네 모서리에 도트 꺾쇠 (검은 테두리 + 색 안쪽, 기본 노랑).
+    color: 키트 색 이름(red, green, ...)이면 그 밝은색."""
     r = pygame.Rect(rect)
-    gold, ink, n = T.shade('orange', 3), T.INK, 6
+    gold = T.shade(color, 3) if color else T.shade('orange', 3)
+    ink, n = T.INK, 6
     for (x, y, dx, dy) in ((r.left, r.top, 1, 1), (r.right - 1, r.top, -1, 1),
                            (r.left, r.bottom - 1, 1, -1), (r.right - 1, r.bottom - 1, -1, -1)):
         for off, col in ((0, ink), (1, gold), (2, ink)):
