@@ -64,6 +64,21 @@ def status_level(kind, value):
 
 
 LEVEL_KIT = {'좋음': 'green', '보통': 'orange', '나쁨': 'red'}
+_LEVEL_KO = {'good': '좋음', 'normal': '보통', 'bad': '나쁨'}
+
+
+def level(animal, kind):
+    """동물의 상태 단계 '좋음'/'보통'/'나쁨'. 백엔드가 준 animal['status'][kind]를 읽는다.
+
+    (예전 세이브·다른 명령 결과처럼 status가 없을 때만 status_level로 계산)
+    """
+    st = (animal.get('status') or {}).get(kind)
+    return _LEVEL_KO[st] if st in _LEVEL_KO else status_level(kind, animal[kind])
+
+
+def any_bad(animal):
+    """포만감·기분·피로도 중 하나라도 '나쁨'인지 (백엔드 상태 단계 기준)."""
+    return any(level(animal, k) == '나쁨' for k in ('fullness', 'mood', 'fatigue'))
 
 # ---- 한국어 조사 ----
 _JOSA = {'을': ('을', '를'), '를': ('을', '를'), '이': ('이', '가'), '가': ('이', '가'),

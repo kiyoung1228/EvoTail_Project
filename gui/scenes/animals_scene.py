@@ -149,7 +149,7 @@ class AnimalsScene(Scene):
         """목록 오른쪽 상태 아이콘 (아이콘, 회색 여부, 설명). 표시만, 규칙 아님. 지도 말풍선과 같은 뜻.
 
         아픔 회색 heart / 훈련 중 sword / 사냥 중 wing / 배고픔 meat / 피곤함 zzz /
-        기분 나쁨 회색 smile / 그 밖에 쉬어야 함 회색 heart / 건강 heart
+        기분 나쁨 frown(회색 찡그린 얼굴) / 그 밖에 쉬어야 함 회색 heart / 건강 heart
         """
         act = a.get('activity') or {}
         left = fmt_time(act.get('end', 0) - self.app.now()) if act else ''
@@ -159,12 +159,12 @@ class AnimalsScene(Scene):
             return 'sword', False, f"훈련 중 · 남은 시간 {left}"
         if act.get('kind') == 'hunting':
             return 'wing', False, f"사냥 나감 · 남은 시간 {left}"
-        if T.status_level('fullness', a['fullness']) == '나쁨':
+        if T.level(a, 'fullness') == '나쁨':
             return 'meat', False, f"배고파요 · 포만감 {a['fullness']}"
-        if T.status_level('fatigue', a['fatigue']) == '나쁨':
+        if T.level(a, 'fatigue') == '나쁨':
             return 'zzz', False, f"피곤해요 · 피로도 {a['fatigue']}"
-        if T.status_level('mood', a['mood']) == '나쁨':
-            return 'smile', True, f"기분이 나빠요 · 기분 {a['mood']}"
+        if T.level(a, 'mood') == '나쁨':
+            return 'frown', False, f"기분이 나빠요 · 기분 {a['mood']}"
         if not a.get('participation'):
             return 'heart', True, f"쉬어야 해요 · {a.get('participation_reason') or '상태 확인'}"
         return 'heart', False, '건강해요 · 훈련·전투 가능'
@@ -251,7 +251,7 @@ class AnimalsScene(Scene):
                                                ('fatigue', '피로도', 'zzz'))):
             y = 136 + i * 12
             value = a[kind]
-            level = T.status_level(kind, value)
+            level = T.level(a, kind)
             icon(surface, ic, (x, y - 1))
             text(surface, label, (x + 14, y + 4), 'small', T.TEXT, 'midleft')
             gauge(surface, (364, y, 190, 9), value, 100, T.LEVEL_KIT[level])

@@ -121,7 +121,7 @@ class MapScene(Scene):
 
         def needs_care(key):
             a = by_id[key]
-            return T.status_level('fullness', a['fullness']) == '나쁨' or T.status_level('mood', a['mood']) == '나쁨'
+            return T.level(a, 'fullness') == '나쁨' or T.level(a, 'mood') == '나쁨'
         recent = list(reversed(free))                       # 목록 뒤쪽이 최근에 얻은 동물
         fill = team + [k for k in recent if needs_care(k)] + recent
         shown = list(chosen)
@@ -188,7 +188,10 @@ class MapScene(Scene):
             keep.add(key)
             w = self._walker(key, i, len(yard))
             action = self.app.auto.get(key, {}).get('action', 'idle')
-            speed = 0 if action == 'rest' or night and action != 'play' else (20 if action == 'eat' else 11)
+            if self._is_lying(a):                 # 누워 있는 동안은 돌아다니지 않음
+                w['target'] = list(w['pos'])
+                continue
+            speed = 0 if night and action != 'play' else (20 if action == 'eat' else 11)
             px, py = w['pos']
             tx, ty = w['target']
             dist = math.hypot(tx - px, ty - py)
@@ -221,11 +224,28 @@ class MapScene(Scene):
         box.midbottom = (int(x), int(y) + FEET)
         return box
 
+    def _is_lying(self, a):
+        """드러눕기 표시 여부 (팀 결정, 임시). 규칙은 백엔드 값만 읽는다:
+        자율행동 action이 'rest'이거나, 상태 단계(status) 중 하나라도 '나쁨'."""
+        return self.app.auto.get(a['id'], {}).get('action') == 'rest' or T.any_bad(a)
+
+    def _pose(self, a):
+        """(그림, 왼쪽 위 좌표). 서 있으면 발 위치에 상자 바닥, 누우면 누운 그림의 바닥을 발 위치에 붙인다."""
+        key = a['id']
+        if self._is_lying(a):
+            img = self.app.sprites.lying(a.get('sprite'), YARD_SIZE)
+            x, y = self.walkers[key]['pos']
+            art = img.get_bounding_rect()
+            return img, (int(x) - art.centerx, int(y) - art.bottom)
+        return self.app.sprites.get(a.get('sprite'), YARD_SIZE), self._sprite_box(key).topleft
+
     def _animal_rect(self, key):
         """실제 그림이 있는 영역 (클릭·말풍선 기준)."""
-        a = self.app.animal(key) or {}
-        art = self.app.sprites.get(a.get('sprite'), YARD_SIZE).get_bounding_rect()
-        return art.move(self._sprite_box(key).topleft)
+        a = self.app.animal(key)
+        if not a:
+            return pygame.Rect(0, 0, 0, 0)
+        img, topleft = self._pose(a)
+        return img.get_bounding_rect().move(topleft)
 
     def _place_animal_rects(self, at_place):
         """장소 앞 작은 동물: 간판 오른쪽에 나란히. 반환 [(동물, 스프라이트 상자)]."""
@@ -321,29 +341,47 @@ class MapScene(Scene):
         card(surface, r, hot)
         text(surface, PLACES[key][0], r.center, 'title', T.TEXT, 'center')
 
-    def _tint(self, img, night, sick=False):
-        if not (night or sick):
+    def _tint(self, img, night, sick=False, dim=False):
+        """밤: 푸르게 어둡게 / 아픔: 푸르스름하게 / dim(상태 나쁨): 살짝 어둡게."""
+        if not (night or sick or dim):
             return img
         img = img.copy()
-        img.fill((150, 156, 196, 255) if night else (180, 200, 255, 255), special_flags=pygame.BLEND_RGBA_MULT)
+        if night or sick:
+            img.fill((150, 156, 196, 255) if night else (180, 200, 255, 255), special_flags=pygame.BLEND_RGBA_MULT)
+        if dim:
+            img.fill((200, 196, 196, 255), special_flags=pygame.BLEND_RGBA_MULT)
         return img
+
+    @staticmethod
+    def _blit_breathing(surface, img, pos, inhale):
+        """누운 도트 숨쉬기. 들이쉴 때 그림 윗부분을 1px 올리고 가운데 줄을 한 번 더 그려 몸이 부푼 것처럼."""
+        x, y = pos
+        if not inhale:
+            surface.blit(img, pos)
+            return
+        art = img.get_bounding_rect()
+        split = art.top + art.h // 2
+        w, h = img.get_size()
+        surface.blit(img.subsurface((0, split, w, h - split)), (x, y + split))
+        surface.blit(img.subsurface((0, 0, w, split)), (x, y - 1))
+        surface.blit(img.subsurface((0, split, w, 1)), (x, y + split - 1))
 
     # ---------- 마당 말풍선: 12×12 키트 아이콘 ----------
     def _mood_icon(self, a, night):
         """동물 머리 위 아이콘 (이름, 회색 여부) 또는 None. 표시만, 규칙 아님.
 
-        배고픔(포만감 나쁨·먹이 찾기) meat / 피곤함·휴식·밤잠 zzz / 기분 나쁨 회색 smile /
-        혼자 놀기 heart / 아픔 회색 heart. 평소 자유 행동은 말풍선 없음.
+        아픔 회색 heart / 상태 하나라도 나쁨 → 회색 찡그린 얼굴 frown / 휴식·밤잠 zzz /
+        먹이 찾기 meat / 혼자 놀기 heart. 평소 자유 행동은 말풍선 없음.
         """
         if a.get('sick'):
             return 'heart', True
+        if T.any_bad(a):
+            return 'frown', False        # 아이콘 자체가 회색
         action = self.app.auto.get(a['id'], {}).get('action', 'idle')
-        if T.status_level('fullness', a['fullness']) == '나쁨' or action == 'eat':
-            return 'meat', False
-        if T.status_level('fatigue', a['fatigue']) == '나쁨' or action == 'rest' or (night and action == 'idle'):
+        if action == 'rest' or (night and action == 'idle'):
             return 'zzz', False
-        if T.status_level('mood', a['mood']) == '나쁨':
-            return 'smile', True
+        if action == 'eat':
+            return 'meat', False
         if action == 'play':
             return 'heart', False
         return None
@@ -380,18 +418,22 @@ class MapScene(Scene):
         drawn.sort(key=lambda a: self.walkers[a['id']]['pos'][1])     # 뒤(위)에 있는 동물부터
         for i, a in enumerate(drawn):
             key = a['id']
-            box = self._sprite_box(key)
+            img, (x, y) = self._pose(a)
+            img = self._tint(img, night, dim=T.any_bad(a))
+            if self._is_lying(a):
+                # 숨쉬기: 2.4초마다 몸 윗부분만 1px 올라갔다 내려옴 (바닥은 그대로)
+                self._blit_breathing(surface, img, (x, y), (t + i * 0.7) % 2.4 < 1.2)
+                continue
             action = self.app.auto.get(key, {}).get('action', 'idle')
-            if night or action == 'rest':
+            if night:
                 dy = 0
             elif action == 'play':
                 dy = -abs(math.sin(t * 6 + i)) * 5
             else:
                 dy = round(math.sin(t * 2 + i))
-            img = self._tint(self.app.sprites.get(a.get('sprite'), YARD_SIZE), night)
             if self.walkers[key]['target'][0] < self.walkers[key]['pos'][0] - 1:
                 img = pygame.transform.flip(img, True, False)
-            surface.blit(img, box.move(0, int(dy)))
+            surface.blit(img, (x, y + int(dy)))
         # 아이콘 말풍선은 동물을 다 그린 뒤에. 마우스를 올린 동물은 글씨 설명(툴팁)으로 대신
         placed = []
         if self.hover and self.hover[0] == 'animal':

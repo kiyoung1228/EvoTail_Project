@@ -69,7 +69,7 @@ def nine_slice(img, margin, w, h):
 코드로 그림: 본색 사각형 + 검은 1px 테두리 + 윗줄 밝은색 + 갈무리9 흰 글씨. 역할(딜러 orange, 탱커 blue, 힐러 green), 속성, 등급, 단계, 성격, "마당" 표시에 사용.
 
 ## 아이콘 (`assets/ui/kit/icons/`, 12×12)
-heart(체력·출전 가능), sword(공격), shield(방어), wing(민첩), meat(포만감), smile(기분), zzz(피로도·잠), coin(코인·가격), sun(낮), snack(간식), home(집·마당), back(뒤로)
+heart(체력·출전 가능), sword(공격), shield(방어), wing(민첩), meat(포만감), smile(기분), frown(기분 나쁨·상태 나쁨, 회색 찡그린 얼굴), zzz(피로도·잠), coin(코인·가격), sun(낮), snack(간식), home(집·마당), back(뒤로)
 
 ## 화면 공통 배치
 - **배경**: 각 화면은 지도 그림(`assets/map/map_day.png` / `map_night.png`)을 어둡게(밝기 55%, 채도 70%) 깔고 그 위에 창을 띄운다. 단색 배경 금지.

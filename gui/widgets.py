@@ -258,6 +258,18 @@ class SpriteCache:
             self._scaled[key] = pygame.transform.scale(base, (base.get_width() * n, base.get_height() * n))
         return self._scaled[key]
 
+    def lying(self, rel_path, size):
+        """누운(쉬는) 모습. 따로 그린 그림 <이름>_lying.png(예: dealer_normal_01_s1_lying.png)가 있으면 그걸,
+        없으면 서 있는 도트를 90° 돌려서 쓴다. 누운 도트를 새로 그리면 파일만 넣으면 바뀐다."""
+        key = (rel_path, size, 'lying')
+        if key not in self._scaled:
+            drawn = rel_path[:-4] + '_lying.png' if rel_path and rel_path.endswith('.png') else None
+            if drawn and os.path.exists(os.path.join(T.ROOT, drawn)):
+                self._scaled[key] = self.get(drawn, size)
+            else:
+                self._scaled[key] = pygame.transform.rotate(self.get(rel_path, size), 90)
+        return self._scaled[key]
+
     def silhouette(self, rel_path, size):
         """도감에서 아직 없는 동물: 어두운 실루엣."""
         key = (rel_path, size, 'sil')
