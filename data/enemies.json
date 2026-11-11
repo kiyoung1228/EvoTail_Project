@@ -1,0 +1,172 @@
+{
+ "note": "졸개 28x28, 보스 46x46 원본을 4배로 저장. 화면에서는 원본 크기 x2 (졸개 56, 보스 92 논리 픽셀)",
+ "minions": [
+  {
+   "id": "m_fire_pup",
+   "name": "불씨 몽이",
+   "role": "dealer",
+   "element": "fire",
+   "sprite": "assets/enemies/m_fire_pup.png"
+  },
+  {
+   "id": "m_fire_slime",
+   "name": "불꽃 슬라임",
+   "role": "dealer",
+   "element": "fire",
+   "sprite": "assets/enemies/m_fire_slime.png"
+  },
+  {
+   "id": "m_fire_wisp",
+   "name": "도깨비불",
+   "role": "dealer",
+   "element": "fire",
+   "sprite": "assets/enemies/m_fire_wisp.png"
+  },
+  {
+   "id": "m_fire_shroom",
+   "name": "화산 버섯",
+   "role": "dealer",
+   "element": "fire",
+   "sprite": "assets/enemies/m_fire_shroom.png"
+  },
+  {
+   "id": "m_water_jelly",
+   "name": "방울 젤리",
+   "role": "tank",
+   "element": "water",
+   "sprite": "assets/enemies/m_water_jelly.png"
+  },
+  {
+   "id": "m_water_clam",
+   "name": "조개 기사",
+   "role": "tank",
+   "element": "water",
+   "sprite": "assets/enemies/m_water_clam.png"
+  },
+  {
+   "id": "m_water_pebble",
+   "name": "이끼 돌멩이",
+   "role": "tank",
+   "element": "water",
+   "sprite": "assets/enemies/m_water_pebble.png"
+  },
+  {
+   "id": "m_water_coral",
+   "name": "꼬마 산호",
+   "role": "tank",
+   "element": "water",
+   "sprite": "assets/enemies/m_water_coral.png"
+  },
+  {
+   "id": "m_wind_puff",
+   "name": "민들레 솜털",
+   "role": "healer",
+   "element": "wind",
+   "sprite": "assets/enemies/m_wind_puff.png"
+  },
+  {
+   "id": "m_wind_cloud",
+   "name": "구름 꼬마",
+   "role": "healer",
+   "element": "wind",
+   "sprite": "assets/enemies/m_wind_cloud.png"
+  },
+  {
+   "id": "m_wind_leaf",
+   "name": "잎사귀 요정",
+   "role": "healer",
+   "element": "wind",
+   "sprite": "assets/enemies/m_wind_leaf.png"
+  },
+  {
+   "id": "m_wind_pinwheel",
+   "name": "바람개비",
+   "role": "healer",
+   "element": "wind",
+   "sprite": "assets/enemies/m_wind_pinwheel.png"
+  }
+ ],
+ "bosses": [
+  {
+   "id": "boss_tutorial",
+   "name": "말랑대장",
+   "stage": "tutorial",
+   "role": "tank",
+   "element": "water",
+   "boss": true,
+   "sprite": "assets/enemies/boss_tutorial.png"
+  },
+  {
+   "id": "boss_easy",
+   "name": "도깨비 장군",
+   "stage": "easy",
+   "role": "dealer",
+   "element": "fire",
+   "boss": true,
+   "sprite": "assets/enemies/boss_easy.png"
+  },
+  {
+   "id": "boss_bronze",
+   "name": "청동 기사 골렘",
+   "stage": "bronze",
+   "role": "tank",
+   "element": "water",
+   "boss": true,
+   "sprite": "assets/enemies/boss_bronze.png"
+  },
+  {
+   "id": "boss_normal",
+   "name": "바람 요정 여왕",
+   "stage": "normal",
+   "role": "healer",
+   "element": "wind",
+   "boss": true,
+   "sprite": "assets/enemies/boss_normal.png"
+  },
+  {
+   "id": "boss_silver",
+   "name": "은빛 기사",
+   "stage": "silver",
+   "role": "dealer",
+   "element": "fire",
+   "boss": true,
+   "sprite": "assets/enemies/boss_silver.png"
+  },
+  {
+   "id": "boss_hard",
+   "name": "용암 거인",
+   "stage": "hard",
+   "role": "dealer",
+   "element": "fire",
+   "boss": true,
+   "sprite": "assets/enemies/boss_hard.png"
+  },
+  {
+   "id": "boss_gold",
+   "name": "황금 해파리 여왕",
+   "stage": "gold",
+   "role": "tank",
+   "element": "water",
+   "boss": true,
+   "sprite": "assets/enemies/boss_gold.png"
+  },
+  {
+   "id": "boss_extreme",
+   "name": "흑염 마왕",
+   "stage": "extreme",
+   "role": "dealer",
+   "element": "fire",
+   "boss": true,
+   "sprite": "assets/enemies/boss_extreme.png"
+  },
+  {
+   "id": "boss_diamond",
+   "name": "수정 용왕",
+   "stage": "diamond",
+   "role": "tank",
+   "element": "water",
+   "boss": true,
+   "sprite": "assets/enemies/boss_diamond.png"
+  }
+ ]
+}

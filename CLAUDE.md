@@ -41,7 +41,7 @@ assets/              1단계 이미지 30장, assets/sprites/<ID>_s<단계>.png 
   map/               섬 마을 지도 낮·밤 + 클릭 영역 map.json
   ui/                메뉴 아이콘. ui/kit/ = 도트 UI 키트 조각·아이콘 (docs/UI_KIT.md)
   fonts/             갈무리 글꼴 (OFL)
-docs/mockups/        확정된 화면 목업 (메인 낮·밤, 설정 창, 내 동물 animals_v2)
+docs/mockups/        확정된 화면 목업 (메인 낮·밤, 설정 창, 내 동물 animals_v2, battle/ 전투장)
 docs/UI_KIT.md       도트 UI 키트 규칙 (모든 화면이 따름). 조각 다시 만들기: tools/uikit.py
 gui/                 Pygame 화면 (아래 GUI 규칙)
 CHARACTERS.md        캐릭터 목록 · GUI.md 화면 구조 설명
@@ -61,6 +61,8 @@ CHARACTERS.md        캐릭터 목록 · GUI.md 화면 구조 설명
 - 색·글꼴·한글 라벨은 `gui/theme.py`, 키트 위젯(`panel`, `card`, `ribbon`, `chip`, `gauge`, `Button(색, icon, sub)`, `icon`)은 `gui/widgets.py`. 둥근 사각형·직접 고른 색으로 새로 그리지 말고 키트 조각을 쓴다
 - 지도가 아닌 화면의 배경은 `app.backdrop(surface)`(어둡게 깐 지도), 왼쪽 위 `◀ 지도` 갈색 버튼 + 빨간 리본 제목
 - 도트 이미지는 정수배로만 (`SpriteCache.get(path, size)`, size = 28의 배수: 28 원본, 56 = 2배, 84 = 3배). smoothscale 금지
+- **적 몬스터** (`assets/enemies`, `data/enemies.json`): 졸개 12종 원본 28×28, 보스 9종(스테이지마다 1) 원본 46×46, 파일은 4배. 화면에서는 둘 다 원본 ×2 (`SpriteCache.scaled(path, 2)` → 졸개 56, 보스 92). 보스 여부는 백엔드 `boss` 값, 없으면 그림 크기(`SpriteCache.is_boss`). 칸이 정해진 곳은 `SpriteCache.fit(path, w, h)` (들어가는 정수배, 안 들어가는 보스는 위쪽을 잘라 초상). 표시 정보(스테이지별 보스)는 `gui/enemies.py`
+  - 기영님이 백엔드 적 name/sprite/boss를 enemies.json 기준으로 바꿔 줄 예정. 그 전에는 백엔드가 주는 sprite(동물 그림)를 그대로 그림
 - 글꼴: 갈무리(`assets/fonts/`, OFL, `Galmuri_LICENSE.txt` 같이 배포). `T.font('title'|'body'|'small'|'big')`로만 쓴다 (크기 12/12/10/15 고정 = 획이 픽셀에 딱 맞는 크기, `tests/test_fonts.py`, 안티에일리어싱 끔)
 - **칸 안 글씨**(버튼·간판·메뉴·칩·리본·알림·툴팁 등)는 `widgets.text_in(surface, 글씨, 칸, ...)`: 실제 글자 모양(줄 높이 아님) 기준 정렬. 칸 크기는 글씨에 맞춰 넓힌다(`fit_width`, `Button.width_for`, `BUTTON_H` 20, `CHIP_H` 16, `CARD_LABEL_H` 20). **글자 크기를 줄여서 맞추지 않는다**
 - 화면을 바꾸면 `python tools/check_text_fit.py`로 모든 칸 글씨가 사방 2px 여백 안에 있는지 확인 (`shots`를 붙이면 실제 창 크기 스크린샷)

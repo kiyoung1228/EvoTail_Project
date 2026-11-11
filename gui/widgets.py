@@ -320,8 +320,15 @@ class Button:
 # ---------- 도트 캐릭터 ----------
 LYING_ROWS = 20         # 엎드린 모습: 원본 28줄 중 20줄만 남김
 
+BOSS_MIN_ORIGINAL = 29     # 원본 폭이 이보다 크면 보스 (졸개·동물 28, 보스 46)
+
+
 class SpriteCache:
-    """assets/sprites(112×112 = 원본 28×28의 4배)를 원본 28로 줄인 뒤 정수배로만 키운다."""
+    """도트 그림 파일(원본의 4배로 저장)을 원본 크기로 줄인 뒤 정수배로만 키운다.
+
+    - 동물 assets/sprites: 112×112 → 원본 28
+    - 적 assets/enemies: 졸개 112×112 → 원본 28, 보스 184×184 → 원본 46
+    """
 
     def __init__(self):
         self._base = {}
@@ -333,7 +340,7 @@ class SpriteCache:
             if path and os.path.exists(path):
                 img = pygame.image.load(path).convert_alpha()
                 w, h = img.get_size()
-                self._base[rel_path] = pygame.transform.scale(img, (w * 28 // 112, h * 28 // 112))
+                self._base[rel_path] = pygame.transform.scale(img, (w // 4, h // 4))     # 4배 저장 → 원본
             else:
                 ph = pygame.Surface((28, 28), pygame.SRCALPHA)
                 pygame.draw.rect(ph, T.shade('gray', 2), (6, 6, 16, 16))
@@ -347,6 +354,44 @@ class SpriteCache:
             base = self._load(rel_path)
             n = max(1, size // 28)
             self._scaled[key] = pygame.transform.scale(base, (base.get_width() * n, base.get_height() * n))
+        return self._scaled[key]
+
+    # ---------- 적 몬스터 (졸개·보스 공통) ----------
+    def original_size(self, rel_path):
+        """원본 도트 크기 (파일 ÷ 4). 졸개·동물 (28, 28), 보스 (46, 46)."""
+        return self._load(rel_path).get_size()
+
+    def is_boss(self, rel_path, flag=None):
+        """보스인지. 백엔드가 boss를 주면 그 값, 아니면 그림 크기(원본 폭 46)로 판단."""
+        if flag is not None:
+            return bool(flag)
+        return self.original_size(rel_path)[0] >= BOSS_MIN_ORIGINAL
+
+    def scaled(self, rel_path, n=2):
+        """원본 × n (정수). 전투 화면은 졸개·보스 모두 ×2 → 졸개 56, 보스 92 (논리 px)."""
+        key = (rel_path, 'x', n)
+        if key not in self._scaled:
+            base = self._load(rel_path)
+            self._scaled[key] = pygame.transform.scale(base, (base.get_width() * n, base.get_height() * n))
+        return self._scaled[key]
+
+    def fit(self, rel_path, box_w, box_h, max_n=2):
+        """정해진 칸(도감·카드 등)에 들어가는 그림. 들어가는 가장 큰 정수배(최대 max_n)로,
+        ×1도 안 들어가면(칸보다 큰 보스) ×1에서 그림 위쪽을 칸 크기만큼 잘라 초상으로."""
+        key = (rel_path, 'fit', box_w, box_h, max_n)
+        if key not in self._scaled:
+            w, h = self.original_size(rel_path)
+            n = min(max_n, box_w // w, box_h // h)
+            if n >= 1:
+                img = self.scaled(rel_path, n)
+            else:
+                base = self._load(rel_path)
+                art = base.get_bounding_rect()
+                cw, ch = min(box_w, w), min(box_h, h)
+                x = max(0, min(w - cw, art.centerx - cw // 2))
+                y = max(0, min(h - ch, art.top))                    # 머리부터 (위쪽 초상)
+                img = base.subsurface((x, y, cw, ch)).copy()
+            self._scaled[key] = img
         return self._scaled[key]
 
     def lying(self, rel_path, size):
