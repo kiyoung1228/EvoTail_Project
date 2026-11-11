@@ -40,11 +40,11 @@ class BackendPatchTests(unittest.TestCase):
         self.g=GameService(self.path,now=self.clock,rng=FixedRng(.99))
         self.ids=list(self.g.state['animals'])
 
-    def test_yard_defaults_to_three_starters(self):
+    def test_yard_defaults_to_empty_gui_fills_slots(self):
         snap=self.g.get_snapshot()
-        self.assertEqual(snap['yard'],self.ids)
-        self.assertEqual(snap['yard_max'],6)
-        self.assertEqual(self.g.get_rules()['yard_max'],6)
+        self.assertEqual(snap['yard'],[])
+        self.assertEqual(snap['yard_max'],5)
+        self.assertEqual(self.g.get_rules()['yard_max'],5)
 
     def test_yard_reorder_and_empty_are_allowed(self):
         self.assertEqual(self.g.set_yard_animals([self.ids[2],self.ids[0]])['yard'],
@@ -56,20 +56,20 @@ class BackendPatchTests(unittest.TestCase):
 
     def test_yard_rejects_duplicates_unowned_bad_type_without_changing_save(self):
         prev=self.g.get_snapshot()['yard']
-        for keys in ([self.ids[0],self.ids[0]],['not_owned'], 'bad', [4]):
+        for keys in ([self.ids[0],self.ids[0]],['not_owned'], 'bad', [4], (self.ids[0],)):
             with self.subTest(keys=keys), self.assertRaises(GameRuleError):
                 self.g.set_yard_animals(keys)
             self.assertEqual(self.g.get_snapshot()['yard'],prev)
 
-    def test_yard_allows_six_but_not_seven(self):
+    def test_yard_allows_five_but_not_six(self):
         additional=[k for k in self.g.characters if k not in self.ids][:4]
         self.g._mutate(lambda s:s['animals'].update({k:self.g._new_animal(k,s['clock']['virtual'])
                                                    for k in additional}))
-        self.g.set_yard_animals(self.ids+additional[:3])
-        self.assertEqual(len(self.g.get_snapshot()['yard']),6)
+        self.g.set_yard_animals(self.ids+additional[:2])
+        self.assertEqual(len(self.g.get_snapshot()['yard']),5)
         with self.assertRaises(GameRuleError):
-            self.g.set_yard_animals(self.ids+additional)
-        self.assertEqual(len(self.g.get_snapshot()['yard']),6)
+            self.g.set_yard_animals(self.ids+additional[:3])
+        self.assertEqual(len(self.g.get_snapshot()['yard']),5)
 
     def test_yard_survives_restart(self):
         new_selection=[self.ids[1]]
@@ -81,8 +81,20 @@ class BackendPatchTests(unittest.TestCase):
         self.g._mutate(lambda s:s.pop('yard'))
         self.assertNotIn('yard',self.g.store.load())
         again=GameService(self.path,now=self.clock,rng=FixedRng(.99))
-        self.assertEqual(again.get_snapshot()['yard'],self.ids)
-        self.assertEqual(again.store.load()['yard'],self.ids)
+        self.assertEqual(again.get_snapshot()['yard'],[])
+        self.assertEqual(again.store.load()['yard'],[])
+
+    def test_legacy_six_selection_migrates_to_five_without_losing_animals(self):
+        extra=[k for k in self.g.characters if k not in self.ids][:3]
+        selected=self.ids+extra
+        def legacy(s):
+            s['animals'].update({k:self.g._new_animal(k,s['clock']['virtual']) for k in extra})
+            s['yard']=selected
+        self.g._mutate(legacy)
+        again=GameService(self.path,now=self.clock,rng=FixedRng(.99))
+        self.assertEqual(again.get_snapshot()['yard'],selected[:5])
+        self.assertEqual(again.store.load()['yard'],selected[:5])
+        self.assertEqual(len(again.get_animals()),6)
 
     def test_bridge_accepts_yard_command_and_preserves_json(self):
         bridge=GameBridge(self.g)
@@ -151,12 +163,15 @@ class BackendPatchTests(unittest.TestCase):
 
     def test_perfect_cooking_via_bridge_awards_distinct_food_and_xp(self):
         self.g.buy_item('egg_food')
-        response=GameBridge(self.g).call('cook',recipe='boiled_egg',grade='Perfect')
+        response=GameBridge(self.g).call('cook',recipe='boiled_egg',judgment='perfect')
         self.assertTrue(response['ok'])
         res=response['data']
         self.assertTrue(res['success'])
         self.assertEqual(res['grade'],'Perfect')
         self.assertEqual(res['result'],'great_success')
+        self.assertEqual(res['judgment'],'perfect')
+        self.assertEqual(res['outcome'],'great')
+        self.assertEqual(res['xp'],10)
         self.assertEqual(res['effect_multiplier'],1.5)
         self.assertEqual(res['effects']['fullness'],15)
         self.assertEqual(res['xp_gained'],10)
@@ -180,11 +195,13 @@ class BackendPatchTests(unittest.TestCase):
                             self.assertTrue(result['success'])
                             self.assertFalse(result['rescued'])
                             self.assertEqual(result['xp_gained'],stars*10)
-                            self.assertEqual(result['xp'],xp+stars*10)
+                            self.assertEqual(result['xp'],stars*10)
+                            self.assertEqual(result['total_xp'],xp+stars*10)
                             expected_item=('food_perfect_' if grade=='Perfect' else 'food_')+recipe
                             self.assertEqual(result['item'],expected_item)
                             self.assertEqual(result['result'],
                                              'great_success' if grade=='Perfect' else 'success')
+                            self.assertEqual(result['outcome'],'great' if grade=='Perfect' else 'success')
                             self.assertEqual(result['effect_multiplier'],1.5 if grade=='Perfect' else 1.0)
                             inv=self.g.get_inventory()['stackable']
                             self.assertTrue(all(item not in inv for item in r['ingredients']))
@@ -201,17 +218,20 @@ class BackendPatchTests(unittest.TestCase):
                         self._give_recipe_ingredients(recipe)
                         before=self.g.get_inventory()['stackable']
                         self.g.rng=FixedRng(roll)
-                        response=GameBridge(self.g).call('cook',recipe=recipe,grade='Miss')
+                        response=GameBridge(self.g).call('cook',recipe=recipe,judgment='miss')
                         self.assertTrue(response['ok'])
                         result=response['data']
                         self.assertEqual(result['grade'],'Miss')
                         self.assertEqual(result['rescued'],expected)
                         self.assertEqual(result['success'],expected)
                         self.assertEqual(result['result'],'success' if expected else 'failure')
+                        self.assertEqual(result['outcome'],'rescued' if expected else 'burnt')
+                        self.assertEqual(result['judgment'],'miss')
                         self.assertEqual(result['miss_rescue_chance'],chance)
                         self.assertAlmostEqual(result['failure_chance'],1-chance)
                         self.assertEqual(result['xp_gained'],0)
-                        self.assertEqual(result['xp'],xp)
+                        self.assertEqual(result['xp'],0)
+                        self.assertEqual(result['total_xp'],xp)
                         self.assertEqual(result['level'],self.g.get_recipes()['level'])
                         item='food_'+recipe if expected else 'burned_food'
                         self.assertEqual(result['item'],item)
@@ -247,7 +267,8 @@ class BackendPatchTests(unittest.TestCase):
         self.assertEqual(result['miss_rescue_chance'],0.0)
         self.assertFalse(result['rescued'])
         self.assertEqual(result['xp_gained'],0)
-        self.assertEqual(result['xp'],1000)
+        self.assertEqual(result['xp'],0)
+        self.assertEqual(result['total_xp'],1000)
         self.assertEqual(result['item'],'burned_food')
         self.assertEqual(self.g.get_inventory()['stackable']['burned_food'],1)
         self.assertNotIn('wheat',self.g.get_inventory()['stackable'])
@@ -256,7 +277,7 @@ class BackendPatchTests(unittest.TestCase):
         self.g.buy_item('egg_food')
         before=self.g.get_inventory()
         bridge=GameBridge(self.g)
-        for grade in ('perfect','Great',None,[],3):
+        for grade in ('Great','',None,[],3):
             with self.subTest(grade=grade):
                 res=bridge.call('cook',recipe='boiled_egg',grade=grade)
                 self.assertFalse(res['ok'])
@@ -266,6 +287,25 @@ class BackendPatchTests(unittest.TestCase):
             self.assertFalse(bridge.call('cook',recipe=recipe,grade='Perfect')['ok'])
             self.assertEqual(self.g.get_inventory(),before)
         self.assertEqual(self.g.get_recipes()['xp'],0)
+
+    def test_canonical_judgment_returns_attempt_xp_and_total_xp(self):
+        self.g._mutate(lambda s:s.update(cook_xp=90))
+        self._give_recipe_ingredients('boiled_egg')
+        bridge=GameBridge(self.g)
+        result=bridge.call('cook',recipe='boiled_egg',judgment='good')['data']
+        self.assertEqual((result['outcome'],result['judgment'],result['xp'],
+                          result['total_xp'],result['level']),('success','good',10,100,2))
+        self.assertEqual(self.g.get_recipes()['xp'],100)
+        self._give_recipe_ingredients('boiled_egg')
+        before=self.g.get_inventory()
+        for params in ({'judgment':None},{'judgment':'great'},
+                       {'judgment':'good','grade':'Miss'}):
+            result=bridge.call('cook',recipe='boiled_egg',**params)
+            self.assertFalse(result['ok'])
+            self.assertEqual(result['error']['code'],'RULE_REJECTED')
+            self.assertEqual(self.g.get_inventory(),before)
+        result=bridge.call('cook',recipe='boiled_egg',judgment='perfect')['data']
+        self.assertEqual((result['outcome'],result['xp'],result['total_xp']),('great',10,110))
 
     def test_perfect_food_is_separate_and_saved_then_feeds_at_1_5x(self):
         self._give_recipe_ingredients('fried_chicken')
@@ -316,6 +356,7 @@ class BackendPatchTests(unittest.TestCase):
     def test_cooking_catalog_and_timing_metadata(self):
         rules=self.g.get_rules()['cooking']
         self.assertEqual(rules['grades'],['Perfect','Good','Miss'])
+        self.assertEqual(rules['judgments'],['perfect','good','miss'])
         timing=rules['timing']
         self.assertEqual(timing['timeout_seconds'],5)
         self.assertEqual(timing['perfect_half_width'],5)
