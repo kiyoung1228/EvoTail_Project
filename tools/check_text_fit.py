@@ -134,6 +134,59 @@ def scripted_run(self):
             ks.target = a['id']; frames(1)
         ks.scroll = max(0, len(self.state['animals']) - LIST_ROWS_KITCHEN); frames(2)
         shot('real_kitchen_feed.png')
+        # 상점: 탭 6개(모든 상품) → 부화(새/중복) → 병원(환자 있음/없음, 성공/실패) → 장비 고르기
+        def shop_fixture(s):    # test fixture only (temp save)
+            s['inventory'].update(heal_basic=2, heal_advanced=1, egg_special=3, egg_basic=1, equip_claw=1,
+                                  equip_shell=2, potion_attack=1)
+            for k in ('dealer_normal_01', 'healer_special_05'):
+                s['animals'][k]['sick'] = True
+            return True
+        g._mutate(shop_fixture); self.refresh()
+        self.go('shop'); frames(2)
+        sh = self.scene
+        for tid, *_ in __import__('gui.items', fromlist=['TABS']).TABS:
+            sh.go_tab(tid); frames(1)
+            for _ in range(4):
+                for item in sh.visible():
+                    sh.selected[tid] = item; frames(1)
+                    move(sh.cell_rect(sh.visible().index(item)).center)
+                sh.scroll += 3; frames(1)
+            sh.scroll = 0
+        sh.go_tab('egg'); sh.selected['egg'] = 'egg_special'; frames(1)
+        shot('real_shop.png')
+        orig_rng = g.rng.random
+        g.rng.random = lambda: 0.5
+        sh.hatch(); self.overlays[-1].skip(); frames(2)
+        key = self.overlays[-1].result['id']
+        shot('real_hatch.png')
+        self.close_overlay()
+        orig_choice = g.rng.choice
+        g.rng.choice = lambda opts: key
+        sh.hatch(); self.overlays[-1].skip(); frames(2)            # 중복
+        g.rng.choice = orig_choice
+        self.close_overlay()
+        sh.selected['egg'] = 'egg_basic'
+        sh.hatch(); self.overlays[-1].skip(); frames(2)            # 남은 알 0개 (한 번 더 꺼짐)
+        g.rng.random = orig_rng
+        self.close_overlay(); frames(1)
+        self.go('hospital'); frames(2)
+        hs = self.scene
+        for a in hs.patients():
+            hs.selected = a['id']; frames(1)
+        shot('real_hospital.png')
+        g.rng.random = lambda: 0.99
+        hs.potion = 'heal_basic'; hs.treat(); frames(2); self.close_overlay()
+        g.rng.random = lambda: 0.0
+        hs.potion = 'heal_basic'; hs.treat(); frames(2); self.close_overlay()
+        hs.potion = 'heal_advanced'; hs.treat(); frames(2); self.close_overlay()
+        g.rng.random = orig_rng
+        frames(2)
+        self.go('animals', selected='dealer_normal_01'); frames(2)
+        from gui.scenes.animals_scene import EquipOverlay
+        self.open_overlay(EquipOverlay(self, 'dealer_normal_01')); frames(2)
+        self.overlays[-1]._equip('equip_claw'); frames(2)
+        self.open_overlay(EquipOverlay(self, 'dealer_normal_01')); frames(2)
+        self.close_overlay(); frames(2)
         # 전투장: 스테이지 고르기(모든 단계) → 출전 준비 → 전투(대상 고르기·기록 펼침) → 결과
         self.go('battle'); frames(2)
         sp = self.scene

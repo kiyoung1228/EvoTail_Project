@@ -43,7 +43,7 @@ assets/              1단계 이미지 30장, assets/sprites/<ID>_s<단계>.png 
   map/               섬 마을 지도 낮·밤 + 클릭 영역 map.json
   ui/                메뉴 아이콘. ui/kit/ = 도트 UI 키트 조각·아이콘 (docs/UI_KIT.md)
   fonts/             갈무리 글꼴 (OFL)
-docs/mockups/        확정된 화면 목업 (메인 낮·밤, 설정 창, 내 동물 animals_v2, battle/ 전투장)
+docs/mockups/        확정된 화면 목업 (메인 낮·밤, 설정 창, 내 동물 animals_v2, battle/ 전투장, home/ 주방, shop/ 상점·부화, hospital/ 병원)
 docs/UI_KIT.md       도트 UI 키트 규칙 (모든 화면이 따름). 조각 다시 만들기: tools/uikit.py
 gui/                 Pygame 화면 (아래 GUI 규칙)
 CHARACTERS.md        캐릭터 목록 · GUI.md 화면 구조 설명
@@ -207,6 +207,26 @@ CHARACTERS.md        캐릭터 목록 · GUI.md 화면 구조 설명
 - 이름: 재료는 백엔드 상점 목록 label (없으면 `assets/food/food_icons.json` name). 그림이 없는 재료(돼지고기·양배추)는 키트 아이콘으로 대신
 - 다시 만들기: `tools/food_icons.py`(음식 그림), `tools/home_mock.py`(주방 목업·배경)
 
+## 상점 · 알 부화 (목업 `docs/mockups/shop/`, `gui/scenes/shop.py` `ShopScene`, `gui/scenes/hatch.py`)
+지도 "상점" 건물 → 상점. 배경 `assets/shop/shop.png`(1280×720, ½로 그대로, 위 26px 투명 = 상단 바 자리)
+- **탭 6개** (`gui/items.py` `TABS`, 상점 목록 `kind`로 나눔): 먹이·장난감(snack·toy) / 회복·포션(cure·prebattle·battle_item) / 장비(equip) / 알(egg) / 재료·씨앗(ingredient·seed) / 팔기(빨간 글씨, 가방에 있고 `sell`이 있는 것). 사는 탭은 `buy`가 있는 것만
+- 가운데 3열 칸: 그림 ×2, 이름(길면 두 줄 `widgets.wrap2`, 줄이지 않음), 코인 가격, 가진 개수는 그림 오른쪽 아래 회색 칩 "×N". 3줄 넘으면 휠
+- 오른쪽 상세: 그림 ×3, 이름(big), 종류 칩, 효과 줄(`items.effect_lines`, 숫자는 전부 `get_shop_catalog`), "보유 N", 수량 - N +(최대 99, 팔기는 가진 수까지), 합계, "구매"(아래 "N개 · N코인") = `buy_item(item, quantity)` / 팔기 탭은 "판매" = `sell_item`. 실패 이유(코인 부족, 쓴 장난감 등)는 백엔드 알림
+- 장비 상세: "내 동물 화면에서 장착", "전투 중 교체 불가". 내 동물 화면 아래 파란 "장비" 버튼 → `EquipOverlay`(가방 장비 장착 `equip(key, item)` / 해제 `equip(key, None)`)
+- **알 탭**: 진한 배경 + 빛줄기 위 알, "특급 등장 확률" 금색 막대. 확률(특수 60% / 기본 10%)은 백엔드 `hatch_egg` 안의 숫자라 API로 안 나옴 → **GUI 표시 문구** `items.EGG_SPECIAL_RATE`. 백엔드 확률을 바꾸면 여기도 바꿀 것 (기영님께 `get_rules`로 내 달라고 요청 가능). 보유하면 초록 "지금 부화"
+- 문구는 게임 말투 ("~요" 대신 "보유 2", "출전 불가", "~샀다")
+- **부화 연출** (`HatchOverlay`, hatch_1_storyboard): 총 2.6초, 클릭·Space·ESC로 건너뛰기. ① 0~1.2초 흔들흔들(±4px, 점점 빠르게) + 은은한 빛 ② 1.2~2.2초 금 1줄 → 여러 줄, 금에서 빛, 빛줄기 회전 ③ 2.2~2.6초 하얀 빛 폭발 + 껍질 위/아래 조각 + 반짝이 ④ 결과 창. `hatch_egg(egg)`는 연출 시작할 때 한 번(실패하면 연출 없이 알림). 알 그림 ×5
+- **부화 결과** (hatch_2_result / hatch_3_duplicate): 왼쪽 빛줄기 무대 + 동물 원본 ×4 + 껍질 조각, 새 동물이면 빨간 "NEW". 오른쪽 이름, 칩(특급 금색 / 일반 회색, 역할, 속성, "강점 ○○" = 캐릭터 `strength`, '기준'은 "균형"), 설명(`get_catalog` description), "도감 등록! N / 30"(`hatch_egg`의 owned / 캐릭터 수) 또는 중복이면 빨강 "이미 보유한 동물 · 도감 변화 없음", 능력치 4줄(`get_evolution_status`의 stats·caps), 버튼 내 동물 보기 / 한 번 더 부화(같은 알 개수, 없으면 회색) / 상점으로
+
+## 병원 (목업 `docs/mockups/hospital/`, `gui/scenes/hospital.py` `HospitalScene`)
+지도 "병원" 건물 → 병원. 그리는 순서: `assets/hospital/room.png` → 환자(원본 ×3, 논리 (236, 92), `assets/items/items_icons.json`의 hospital) → `blanket.png`(이불이 가슴까지)
+- 위: ◀ 지도 + 리본 "병원" + 아픈 동물 탭(얼굴 16px + 이름, 스냅샷 `sick`). 없으면 빈 침대 + "아픈 동물 없음"
+- 가운데: 침대 환자 + 땀방울 + "아픔" 말풍선. 오른쪽 정보 칸: 이름, 칩(아픔 / 출전 불가), 피로도·포만감 게이지 + `T.level` 단계, "훈련·사냥·전투 불가"
+- 아래 쟁반: "치료할 포션 선택", 기본/고급 회복 포션 카드("치료 50% · 피로도 -10" = 상점 목록 chance·fatigue, 보유 N, 0이면 빨강), "치료하기"(아래 "○○ 1개 사용"), "포션 사러 가기 ▶ 상점"(상점 회복·포션 탭)
+- 치료 = `use_item(item, key)` → `CureResult`(Overlay): success면 빛줄기·"○○ 회복!"·피로도 전→후(전 = 호출 직전 스냅샷, 후 = 응답 fatigue)·다음 환자/닫기, 아니면 회색·"○○ 아직 아픔"·"포션 1개 소모"·다시 치료/닫기
+
+**아이템 그림** (`assets/items/`, `gui/items.py` `ItemIcons`): 원본 16×16, 파일 4배(64). 화면에선 ×1~×3 정수배만. `seed_*`는 전부 `seed.png`. 그림이 없으면 `assets/food` 그림, 그것도 없으면 키트 아이콘. 다시 만들기: `tools/shop_icons.py`, 목업 `tools/shop_mock.py`·`shop_mock2.py`, 병원 배경 `tools/hosp_room.py`
+
 ## 진행 상황
 - 완료: 백엔드 1차(기영), 캐릭터 30종 데이터, 역할별 MAX, 도트 75장 (PR #1 merge됨)
 - 완료 (PR #2 merge됨): 진화 단계별 이름·이미지를 백엔드가 반환, GUI 뼈대, 텍스트 카드 지도(임시), 집 화면(상태·능력치·간식·훈련·진화), 시간 속도 F5/F12
@@ -217,12 +237,13 @@ CHARACTERS.md        캐릭터 목록 · GUI.md 화면 구조 설명
 - 완료 (PR #9 merge됨, 기영): 스냅샷 `last_team`(마지막 출전 팀 ID 3개, `start_battle` 때 저장), `last_saved`(실제 시각, 자동 저장 포함)
 - 완료 (merge됨): 도트 UI 키트(640×360 논리 화면, 갈무리 글꼴), 내 동물 화면 animals_v2, 지도 메뉴·간판·알림, 설정 창, 전투장(PR #10, 스테이지 고르기·출전 준비·전투·결과), 전투 아이템(PR #11)
 - 완료 (PR #12 merge됨, 기영): 적 몬스터 enemies.json 연결, 전투 행동 회복량 `amount`, 스테이지 `ai_description`
-- 진행 중 (브랜치 `home-kitchen`): 집·주방 (레시피 북·재료 부족·요리 미니게임·결과·음식 주기), 전투 다음 동물 자동 선택
+- 완료 (PR #13 merge됨): 집·주방 (레시피 북·재료 부족·요리 미니게임·결과·음식 주기), 전투 다음 동물 자동 선택
+- 진행 중 (브랜치 `shop-hospital`): 상점(탭 6개·구매·판매)·알 부화 연출·병원·내 동물 장비 장착, 키트 금색(gold)
 
 ## 다음 할 일 (순서대로)
 1. **메인 화면을 목업대로**: `map_scene.py`의 텍스트 카드를 지도 이미지 + 간판 + 오른쪽 메뉴로 교체. 마당 동물은 `map.json`의 `yard` 안에서 움직이게. 지금의 "집" 화면(AnimalsScene)은 메뉴 "내 동물"로 연결
 2. **설정 창** (시간 속도, 시연 모드, 저장·불러오기, 게임 종료)
 3. **전투장**: 스테이지 선택(적 미리보기 `preview_stage`), 팀 3마리 + 전투 전 포션 선택, 전투 화면(체력바, 행동 버튼은 `get_battle_actions`로), 결과 화면
-4. 상점(구매·판매·알 부화), 병원(치료), 밭, 사냥터, 도감(없는 동물은 실루엣), 가방. (집 주방 + 타이밍 미니게임 = 브랜치 `home-kitchen`)
+4. ~~상점(구매·판매·알 부화)~~, ~~병원(치료)~~ (완료, 브랜치 `shop-hospital`), 밭, 사냥터, 도감(없는 동물은 실루엣), 가방. (집 주방 + 타이밍 미니게임 = 완료, PR #13)
 5. 마이룸(여유 있으면)
 6. 실행 파일(PyInstaller), 보고서, **시연 영상(F12 시연 모드)**
