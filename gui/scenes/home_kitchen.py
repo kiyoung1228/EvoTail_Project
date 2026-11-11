@@ -47,9 +47,9 @@ JUDGE_TEXT = {'perfect': 'PERFECT!', 'good': 'GOOD!', 'miss': 'MISS'}
 JUDGE_COLOR = {'perfect': T.shade('orange', 1), 'good': T.shade('orange', 1), 'miss': T.shade('gray', 1)}
 RESULT = {   # outcome → 리본 글씨, 리본 색, 큰 글씨, 아래 설명
     'great': ('대성공!', 'green', 'PERFECT', '효과 1.5배!'),
-    'success': ('성공!', 'green', 'GOOD', '맛있게 완성했어요'),
+    'success': ('성공!', 'green', 'GOOD', '맛있게 완성!'),
     'rescued': ('아슬아슬 성공!', 'brown', 'MISS', '아슬아슬 성공! (경험치 없음)'),
-    'burnt': ('탄 요리...', 'red', 'MISS', '재료가 타 버렸어요 (경험치 없음)'),
+    'burnt': ('탄 요리...', 'red', 'MISS', '재료가 타 버림 (경험치 없음)'),
 }
 ACTIVITY_LABEL = {'training': '훈련 중', 'hunting': '사냥 중'}
 
@@ -304,7 +304,7 @@ class KitchenScene(Scene):
         if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE and g['judgment'] is None:
             self.mode = 'book'          # 그만두기 (아직 cook을 안 불렀으니 재료는 그대로)
             self.game = None
-            self.app.toast('요리를 그만뒀어요 · 재료는 그대로예요', 'info', 'snack')
+            self.app.toast('요리 중단 · 재료는 그대로', 'info', 'snack')
             return
         pressed = (event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE) or \
                   (event.type == pygame.MOUSEBUTTONDOWN and event.button == 1 and BAR_PANEL.collidepoint(event.pos))
@@ -315,7 +315,7 @@ class KitchenScene(Scene):
     def start_cooking(self, key=None):
         key = key or self.recipe
         if not self.can_cook(key):
-            self.app.toast('재료가 부족해요', 'bad', 'snack')
+            self.app.toast('재료 부족', 'bad', 'snack')
             return
         t = self.rules.get('timing', {})
         r = self.recipes[key]
@@ -375,10 +375,10 @@ class KitchenScene(Scene):
             if ok:
                 self.buttons.append(Button(rect, '요리 시작!', self.start_cooking, 'orange', icon='snack'))
             else:
-                self.buttons.append(Button(rect, '재료가 부족해요', None, 'gray', enabled=False))
+                self.buttons.append(Button(rect, '재료 부족', None, 'gray', enabled=False))
         elif self.mode == 'book' and self.tab == 'feed' and self.dish:
             a = self.app.animal(self.target)
-            label = f"{a['name']}에게 주기" if a else '동물을 골라요'
+            label = f"{a['name']}에게 주기" if a else '동물 선택'
             w = max(170, Button.width_for(label, icon=True) + 8)
             rect = pygame.Rect(RIGHT.centerx - w // 2, 316, w, 26)
             self.buttons.append(Button(rect, label, self.feed, 'green', enabled=bool(a and not self.busy_reason(a)),
@@ -410,9 +410,9 @@ class KitchenScene(Scene):
         if data is None:
             return
         if data.get('refused'):
-            self.app.toast(f"{T.josa(a['name'], '이')} {T.josa(name, '을')} 안 먹었어요", 'bad', 'frown')
+            self.app.toast(f"{T.josa(a['name'], '이')} {T.josa(name, '을')} 안 먹었다", 'bad', 'frown')
         else:
-            self.app.toast(f"{T.josa(a['name'], '이')} {T.josa(name, '을')} 먹었어요! 포만감 {before}→{data['fullness']}",
+            self.app.toast(f"{T.josa(a['name'], '이')} {T.josa(name, '을')} 먹었다! 포만감 {before}→{data['fullness']}",
                            'ok', 'heart')
         self._reload()
         self._fix_feed_selection()
@@ -565,14 +565,14 @@ class KitchenScene(Scene):
             self._draw_cell(surface, i, item, F.dish_name(item, self.catalog, self.recipes).replace('대성공 ', ''),
                             item == self.dish, sub=f'×{self.have(item)}')
         if not dishes:
-            text(surface, '아직 만든 요리가 없어요', (LEFT.centerx, LEFT.y + 110), 'title', T.TEXT_SOFT, 'center')
-            text(surface, '레시피 탭에서 요리해 보세요', (LEFT.centerx, LEFT.y + 128), 'body', T.TEXT_SOFT, 'center')
+            text(surface, '아직 만든 요리 없음', (LEFT.centerx, LEFT.y + 110), 'title', T.TEXT_SOFT, 'center')
+            text(surface, '레시피 탭에서 요리하기', (LEFT.centerx, LEFT.y + 128), 'body', T.TEXT_SOFT, 'center')
         if len(dishes) > COLS * GRID_ROWS:       # 휠로 넘기기 표시
             rows = (len(dishes) + COLS - 1) // COLS
             more = f'{self.dish_scroll + 1}-{self.dish_scroll + GRID_ROWS} / {rows}줄 · 휠'
             text(surface, more, (LEFT.right - 6, LEFT.y + 4), 'small', T.TEXT_SOFT, anchor='topright')
         elif F.BURNED in dishes and len(dishes) <= COLS * (GRID_ROWS - 1):     # 셋째 줄이 비어 있을 때만
-            text(surface, '탄 요리는 반쯤은 안 먹어요', (LEFT.x + 10, LEFT.bottom - 16), 'body', T.TEXT_SOFT)
+            text(surface, '탄 요리는 절반 확률로 거절', (LEFT.x + 10, LEFT.bottom - 16), 'body', T.TEXT_SOFT)
 
     def _draw_feed_detail(self, surface):
         x0 = RIGHT.x + 12
@@ -586,10 +586,10 @@ class KitchenScene(Scene):
             effects = (self.catalog.get(item) or {}).get('effects', {})
             n = draw_effects(surface, (x0 + 58, RIGHT.y + 30), effects, max_w=RIGHT.right - 8 - (x0 + 58))
             if item == F.BURNED:
-                text(surface, '반쯤은 안 먹어요', (x0 + 58, RIGHT.y + 31 + n * EFFECT_LINE_H), 'body', T.TEXT_SOFT)
+                text(surface, '절반 확률로 거절', (x0 + 58, RIGHT.y + 31 + n * EFFECT_LINE_H), 'body', T.TEXT_SOFT)
         else:
-            text(surface, '줄 요리가 없어요', (x0, RIGHT.y + 14), 'big', T.TEXT_SOFT)
-        text(surface, '누구에게 줄까요?', (x0, LIST.y - 16), 'title')
+            text(surface, '줄 요리 없음', (x0, RIGHT.y + 14), 'big', T.TEXT_SOFT)
+        text(surface, '누구에게 줄까?', (x0, LIST.y - 16), 'title')
         animals = self.animals()
         gain = ((self.catalog.get(item) or {}).get('effects') or {}).get('fullness', 0) if item else 0
         for i, a in enumerate(animals[self.scroll:self.scroll + LIST_ROWS]):
@@ -605,7 +605,7 @@ class KitchenScene(Scene):
         sprite = self.app.sprites.get(a['sprite'], 28)
         surface.blit(sprite, (r.x + 4, r.y + 2))
         inner = card_inner(r)
-        chip_label = reason or ('배고파요' if T.level(a, 'fullness') == '나쁨' else None)
+        chip_label = reason or ('배고픔' if T.level(a, 'fullness') == '나쁨' else None)
         cw = chip_width(chip_label) if chip_label else 0
         nx = r.x + 36
         name = shorten(a['name'], inner.right - nx - cw - 8, 'title')

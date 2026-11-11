@@ -93,7 +93,7 @@ def scripted_run(self):
         for r in (5, 60, 1):
             self.toggle_speed(r) if r != 1 else self.toggle_speed(self.state['clock']['rate']); frames(2)
         o.save(); frames(2)
-        self.open_overlay(ConfirmOverlay(self, '불러올까요?', '마지막으로 저장된 상태를 다시 불러와요', '불러오기', 'purple',
+        self.open_overlay(ConfirmOverlay(self, '불러올까?', '마지막으로 저장된 상태를 다시 불러옴', '불러오기', 'purple',
                                          lambda: None)); frames(2)
         self.close_overlay(); self.open_overlay(HelpOverlay(self)); frames(2)
         self.close_overlay(); self.close_overlay(); frames(1)

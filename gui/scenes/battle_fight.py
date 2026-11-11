@@ -363,7 +363,7 @@ class BattleScene(Scene):
         acts = [a for a in (self.app.call('get_battle_actions', actor=key) or []) if a.get('kind') == 'battle_item']
         self.item_menu = False
         if not acts:
-            self.app.toast('지금은 쓸 수 없어요 · 다친 아군이 없거나 행동이 남지 않았어요', 'bad', 'heart')
+            self.app.toast('지금은 쓸 수 없음 · 다친 아군이 없거나 남은 행동 없음', 'bad', 'heart')
             return
         self.item_id, self.item_actions, self.mode = key, acts, 'item'
 
@@ -375,7 +375,7 @@ class BattleScene(Scene):
         self._send('end_player_turn')
 
     def ask_forfeit(self):
-        self.app.open_overlay(ConfirmOverlay(self.app, '도망갈까요?', '지는 것으로 처리돼요', '도망가기', 'red',
+        self.app.open_overlay(ConfirmOverlay(self.app, '도망갈까?', '패배로 처리됨', '도망가기', 'red',
                                              self.forfeit))
 
     def forfeit(self):
@@ -647,13 +647,13 @@ class BattleScene(Scene):
     def _draw_hint(self, surface):
         healer = (self._fighter(self.selected) or {}).get('role') == 'healer'
         if self.mode == 'attack':
-            msg, ic = '공격할 적을 누르세요 · 취소는 ESC', 'sword'
+            msg, ic = '공격할 적 선택 · 취소는 ESC', 'sword'
         elif self.mode == 'item':
-            msg, ic = f"{T.josa(self._item_label(self.item_id), '을')} 쓸 아군을 누르세요 · 취소는 ESC", 'heart'
+            msg, ic = f"{T.josa(self._item_label(self.item_id), '을')} 쓸 아군 선택 · 취소는 ESC", 'heart'
         elif healer:
-            msg, ic = '회복할 아군을 누르세요 · 취소는 ESC', 'heart'
+            msg, ic = '회복할 아군 선택 · 취소는 ESC', 'heart'
         else:
-            msg, ic = '절대방어할 아군을 누르세요 · 취소는 ESC', 'shield'
+            msg, ic = '절대방어할 아군 선택 · 취소는 ESC', 'shield'
         w = fit_width(msg, extra=16) + 4
         box = pygame.Rect(0, 56, w, CARD_LABEL_H); box.centerx = T.WIDTH // 2
         card(surface, box)
@@ -805,7 +805,7 @@ class BattleResultScene(Scene):
         y = P.y + 44
         # 첫 대회 우승 / 처음 깸 + 다음 단계 열림
         if self.first:
-            msg = '첫 대회 우승!' if st.get('mode') == 'rank' else '처음 깼어요!'
+            msg = '첫 대회 우승!' if st.get('mode') == 'rank' else '첫 클리어!'
             cw = fit_width(msg, 'title', shadow=True) + 10
             box = pygame.Rect(0, y, cw, 20); box.centerx = P.centerx
             nine(surface, 'button_orange_normal', box)

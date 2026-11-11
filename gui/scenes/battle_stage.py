@@ -27,11 +27,11 @@ LOCK_RING = [(96, 90, 86), (150, 142, 134), (184, 176, 166)]
 
 # 상대 성향 (AI 종류 → 짧은 설명, 표시 문구. 자세한 설명은 백엔드 get_ai_profiles)
 AI_SHORT = {
-    'tutorial': '공격만 해요',
-    'random': '아무거나 골라요',
-    'rules': '약한 쪽부터 노려요',
-    'heuristic': '이득을 계산해요',
-    'lookahead': '앞수를 읽어요',
+    'tutorial': '공격만 함',
+    'random': '아무거나 고름',
+    'rules': '약한 쪽부터 노림',
+    'heuristic': '이득을 계산함',
+    'lookahead': '앞수를 읽음',
 }
 
 # 스테이지 지도 칸 (논리 좌표, 뱀 모양 길): 1줄 왼→오, 2줄 오→왼, 3줄 왼→오
@@ -113,7 +113,7 @@ class StagePickScene(Scene):
                     if st['unlocked']:
                         self.selected = st['id']
                     else:
-                        self.app.toast('아직 잠겨 있어요 · 앞 단계를 먼저 깨요', 'bad', 'lock')
+                        self.app.toast('아직 잠김 · 앞 단계를 먼저 깨기', 'bad', 'lock')
                     return
 
     def update(self, dt):
@@ -289,7 +289,7 @@ class TeamPrepScene(Scene):
             return '배고픔'
         if T.level(a, 'mood') == '나쁨':
             return '기분 나쁨'
-        return '쉬어야 해요'
+        return '휴식 필요'
 
     # ---------- 배치 ----------
     def _team_slot(self, i):
@@ -316,11 +316,11 @@ class TeamPrepScene(Scene):
     # ---------- 동작 ----------
     def add(self, a):
         if not a.get('participation'):
-            self.app.toast(f"{T.josa(a['name'], '은')} 지금 출전할 수 없어요 · {a.get('participation_reason') or ''}",
+            self.app.toast(f"{T.josa(a['name'], '은')} 지금 출전 불가 · {a.get('participation_reason') or ''}",
                            'bad', 'heart')
             return
         if len(self.team) >= 3:
-            self.app.toast('팀이 가득 찼어요 · ✕로 한 마리를 빼고 넣어요', 'bad', 'sword')
+            self.app.toast('팀이 가득 참 · ✕로 한 마리를 빼고 넣기', 'bad', 'sword')
             return
         self.team.append(a['id'])
         self.from_last = False
@@ -386,7 +386,7 @@ class TeamPrepScene(Scene):
         ready = len(self.team) == 3
         self.buttons = [
             Button((12, 32, back_w, BUTTON_H), '스테이지', lambda: app.go('battle'), 'brown', icon='back'),
-            Button(go, '출전!' if ready else f'{3 - len(self.team)}마리 더 골라요', self.start, 'red',
+            Button(go, '출전!' if ready else f'{3 - len(self.team)}마리 더 고르기', self.start, 'red',
                    enabled=ready, icon='sword' if ready else None),
         ]
         if pages > 1:
@@ -417,7 +417,7 @@ class TeamPrepScene(Scene):
         text_in(surface, '상대', (self.FOE_BOX.x, self.TOP.y + 8, 60, 16), 'title', align='left', pad=0, log=False)
         text_in(surface, '내 팀', (self.TEAM_BOX.x, self.TOP.y + 8, 60, 16), 'title', align='left', pad=0, log=False)
         if self.from_last:
-            text_in(surface, '지난번 팀으로 채웠어요', (self.TEAM_BOX.x, self.TOP.y + 8, self.TEAM_BOX.w, 16), 'small',
+            text_in(surface, '지난번 팀으로 채움', (self.TEAM_BOX.x, self.TOP.y + 8, self.TEAM_BOX.w, 16), 'small',
                     T.TEXT_SOFT, align='right', pad=0, log=False)
         text_in(surface, 'VS', (self.FOE_BOX.right, self.FOE_BOX.y, self.TEAM_BOX.x - self.FOE_BOX.right,
                                  self.FOE_BOX.h), 'big', T.shade('orange', 1), shadow=T.WOOD[3], tag='prep')
@@ -461,7 +461,7 @@ class TeamPrepScene(Scene):
                     surface.set_at((gx, ghost.y), T.WOOD[2]); surface.set_at((gx, ghost.bottom - 1), T.WOOD[2])
                 for gy in range(ghost.y, ghost.bottom, 4):
                     surface.set_at((ghost.x, gy), T.WOOD[2]); surface.set_at((ghost.right - 1, gy), T.WOOD[2])
-                text_in(surface, '비어 있어요', (slot.x, fy + 4, slot.w, 15), 'small', T.TEXT_SOFT, tag='prep')
+                text_in(surface, '빈 자리', (slot.x, fy + 4, slot.w, 15), 'small', T.TEXT_SOFT, tag='prep')
                 continue
             a = self.app.animal(self.team[i])
             if not a:
@@ -489,7 +489,7 @@ class TeamPrepScene(Scene):
         panel(surface, P)
         text_in(surface, '다른 동물', (P.x + 13, P.y + 8, 80, 16), 'title', align='left', pad=0, log=False)
         hint_right = P.right - (70 if self.pages > 1 else 13)
-        hint = f'누르면 팀에 넣어요' + (f' · {self.page + 1}/{self.pages}' if self.pages > 1 else '')
+        hint = f'누르면 팀에 넣기' + (f' · {self.page + 1}/{self.pages}' if self.pages > 1 else '')
         text_in(surface, hint, (P.x + 90, P.y + 8, hint_right - P.x - 90, 16), 'small', T.TEXT_SOFT, align='right', pad=0,
                 log=False)
         others = self._others()[self.page * self.PER_PAGE:(self.page + 1) * self.PER_PAGE]
@@ -512,7 +512,7 @@ class TeamPrepScene(Scene):
             else:
                 chip(surface, (tx, inner.y + 21), self._short_reason(a), 'gray')
                 if r.collidepoint(hover):
-                    self._tip = (a.get('participation_reason') or '지금은 출전할 수 없어요', r, 'above')
+                    self._tip = (a.get('participation_reason') or '지금은 출전 불가', r, 'above')
 
     def _draw_potions(self, surface):
         P = self.POTIONS

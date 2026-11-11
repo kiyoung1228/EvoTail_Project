@@ -88,20 +88,20 @@ class AnimalsScene(Scene):
         yard_btn = pygame.Rect(DETAIL.right - 13 - bw, DETAIL.y + 10, bw, BUTTON_H)
         if key in yard:
             self.buttons.append(Button(yard_btn, yard_label,
-                                       lambda: app.act('set_yard_animals', f"{T.josa(app.name_of(key), '을')} 집으로 들였어요",
+                                       lambda: app.act('set_yard_animals', f"{T.josa(app.name_of(key), '을')} 집으로 들였다",
                                                        icon='home', keys=[k for k in yard if k != key]),
                                        'brown', icon='home'))
         else:
             full = len(yard) >= yard_max
             self.buttons.append(Button(yard_btn, yard_label,
-                                       lambda: app.act('set_yard_animals', f"{T.josa(app.name_of(key), '을')} 마당에 내보냈어요",
+                                       lambda: app.act('set_yard_animals', f"{T.josa(app.name_of(key), '을')} 마당에 내보냈다",
                                                        icon='home', keys=yard + [key]),
                                        'green', enabled=not full, icon='home'))
 
         # 간식
         snacks = app.state.get('inventory', {}).get('stackable', {}).get('snack', 0)
         self.buttons.append(Button((204, 322, 129, 24), f'간식 주기 ×{snacks}',
-                                   lambda: app.act('use_item', '간식을 줬어요', icon='snack', item='snack', key=key),
+                                   lambda: app.act('use_item', '간식을 줬다', icon='snack', item='snack', key=key),
                                    'orange', enabled=snacks > 0 and not busy, icon='snack'))
         # 장비 (장착·해제 = equip(key, item) / equip(key, None). 전투 중·활동 중이면 백엔드가 거절)
         eq_label = self._equip_label(a)
@@ -114,13 +114,13 @@ class AnimalsScene(Scene):
         cost = costs.get(a['stage'] + 1, costs.get(str(a['stage'] + 1)))
         label = '최종 진화' if a['stage'] >= a['max_stage'] else (f'진화 {cost:,}' if cost else '진화')
         self.buttons.append(Button((486, 322, 134, 24), label,
-                                   lambda: app.act('evolve', lambda d: f"{T.josa(d.get('name') or app.name_of(key), '으로')} 진화했어요!", icon='heart',
+                                   lambda: app.act('evolve', lambda d: f"{T.josa(d.get('name') or app.name_of(key), '으로')} 진화했다!", icon='heart',
                                                    key=key),
                                    'purple', enabled=ready and not busy, icon='coin' if cost else None))
         # 훈련
         if busy and a['activity'].get('kind') == 'training':
             self.buttons.append(Button((516, 280, 102, 32), '훈련 취소',
-                                       lambda: app.act('cancel_training', '훈련을 취소했어요', icon='sword', key=key),
+                                       lambda: app.act('cancel_training', '훈련 취소', icon='sword', key=key),
                                        'red'))
         else:
             stat = self.train_stat
@@ -173,20 +173,20 @@ class AnimalsScene(Scene):
         act = a.get('activity') or {}
         left = fmt_time(act.get('end', 0) - self.app.now()) if act else ''
         if a.get('sick'):
-            return 'heart', True, '아파요 · 병원에서 치료해 주세요'
+            return 'heart', True, '아픔 · 병원에서 치료 필요'
         if act.get('kind') == 'training':
             return 'sword', False, f"훈련 중 · 남은 시간 {left}"
         if act.get('kind') == 'hunting':
             return 'wing', False, f"사냥 나감 · 남은 시간 {left}"
         if T.level(a, 'fullness') == '나쁨':
-            return 'meat', False, f"배고파요 · 포만감 {a['fullness']}"
+            return 'meat', False, f"배고픔 · 포만감 {a['fullness']}"
         if T.level(a, 'fatigue') == '나쁨':
-            return 'zzz', False, f"피곤해요 · 피로도 {a['fatigue']}"
+            return 'zzz', False, f"피곤함 · 피로도 {a['fatigue']}"
         if T.level(a, 'mood') == '나쁨':
-            return 'frown', False, f"기분이 나빠요 · 기분 {a['mood']}"
+            return 'frown', False, f"기분 나쁨 · 기분 {a['mood']}"
         if not a.get('participation'):
-            return 'heart', True, f"쉬어야 해요 · {a.get('participation_reason') or '상태 확인'}"
-        return 'heart', False, '건강해요 · 훈련·전투 가능'
+            return 'heart', True, f"휴식 필요 · {a.get('participation_reason') or '상태 확인'}"
+        return 'heart', False, '건강함 · 훈련·전투 가능'
 
     def _draw_list(self, surface):
         panel(surface, LIST)
@@ -262,11 +262,11 @@ class AnimalsScene(Scene):
             line = f"지금: {auto.get('label', '-')} — {auto.get('reason', '')}"
         text(surface, line, (x, 106), 'body', T.TEXT_SOFT)
         if act:
-            msg, color = '활동이 끝나면 다시 훈련·전투할 수 있어요', T.TEXT_SOFT
+            msg, color = '활동이 끝나면 다시 훈련·전투 가능', T.TEXT_SOFT
         elif a.get('participation'):
             msg, color = '훈련 · 전투 가능', T.OK
         else:
-            msg, color = f"쉬어야 해요: {a.get('participation_reason') or '상태 확인'}", T.BAD
+            msg, color = f"휴식 필요: {a.get('participation_reason') or '상태 확인'}", T.BAD
         icon(surface, 'heart', (x, 123))
         text(surface, msg, (x + 15, 129), 'title', color, 'midleft')
 
@@ -283,7 +283,7 @@ class AnimalsScene(Scene):
 
         # 능력치
         ribbon(surface, (204, 176, 70, 18), '능력치', 'brown')
-        text(surface, '줄을 눌러 훈련할 능력치를 골라요 · 막대 끝 = 이번 단계 MAX', (282, 185), 'small', T.TEXT_SOFT, 'midleft')
+        text(surface, '줄을 눌러 훈련할 능력치 선택 · 막대 끝 = 이번 단계 MAX', (282, 185), 'small', T.TEXT_SOFT, 'midleft')
         hover = mouse_pos()
         for stat, r in self._stat_rows():
             if stat == self.train_stat:
@@ -313,7 +313,7 @@ class AnimalsScene(Scene):
 
         if a['stage'] < a['max_stage']:
             ready = all(a['stats'][s] >= a['caps'][s] for s in T.STATS)
-            hint = '진화할 수 있어요!' if ready else '능력치를 모두 MAX로!'
+            hint = '진화 가능!' if ready else '능력치를 모두 MAX로!'
             text(surface, hint, (479, 334), 'body', T.OK if ready else T.TEXT_SOFT, 'midright')
 
 

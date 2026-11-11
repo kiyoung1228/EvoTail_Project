@@ -70,6 +70,7 @@ CHARACTERS.md        캐릭터 목록 · GUI.md 화면 구조 설명
 - 화면을 바꾸면 `python tools/check_text_fit.py`로 모든 칸 글씨가 사방 2px 여백 안에 있는지 확인 (`shots`를 붙이면 실제 창 크기 스크린샷)
 - 알림은 `app.toast(문구, 'ok'|'bad'|'info', 아이콘)`, `app.act(..., icon='home')`처럼 아이콘을 줄 수 있다. **한 번에 1개**(새 알림이 바꿔 낌), 3.5초 뒤 사라짐, **화면을 바꾸면 지움**(`App.go`). 자리는 화면의 `toast_anchor()`: 기본 오른쪽 위(◀ 버튼·제목 리본 피함), 지도 왼쪽 아래, 전투 명령창 바로 위, 결과 왼쪽 위
 - 이름 뒤 조사는 `T.josa(이름, '을'|'이'|'은'|'으로'|'과')`로 받침에 맞게. `을(를)`처럼 쓰지 않는다
+- **화면 문구·알림은 게임 말투** ("~요" 금지): "재료 부족", "출전 불가", "보유 2", "감자를 심었다", "누구에게 줄까?" 처럼 명사형·"~다"·"~까?"
 - 상태 단계(좋음·보통·나쁨)는 백엔드가 동물 행마다 주는 `status`(`{'fullness','mood','fatigue'}` → `'good'/'normal'/'bad'`)를 `T.level(a, kind)`, `T.any_bad(a)`로 읽는다. GUI에서 기준값으로 다시 계산하지 않는다
 - 남은 시간·진행 게이지는 `app.now()`(스냅샷 시각 + 그 뒤 흐른 시간 × 배속)로 계산
 - 설명 말풍선은 `widgets.tooltip`, 선택 강조는 `widgets.select_frame(색)` (키트 스타일). 말풍선은 화면 가장자리에서 4px 안쪽(`TIP_INSET`), `avoid`(예: 다른 동물 체력바)와 겹치면 반대쪽
@@ -194,12 +195,12 @@ CHARACTERS.md        캐릭터 목록 · GUI.md 화면 구조 설명
 ## 집 · 주방 (목업 `docs/mockups/home/`, `gui/scenes/home_kitchen.py` `KitchenScene`)
 지도 "집" 건물 → 주방. 배경 `assets/home/kitchen.png`(1280×720 = 논리 640×360의 2배 → ½로 그대로). 왼쪽 위 ◀ 지도 + 빨간 리본(집 · 주방 / 요리 중 / 요리 완성), 오른쪽 위 요리 레벨 칸(누적 경험치 / 다음 레벨 기준, `get_recipes`의 level·xp, `get_rules()['cooking']['level_thresholds']`)
 - **레시피 북** (home_1_book): 책(panel) 위 책갈피 탭 "레시피"(빨강) / "음식 주기"(초록). 왼쪽 쪽 = 레시피 칸(그림·이름·별), 재료가 모자라면 회색. 오른쪽 쪽 = 큰 그림(×4)·이름·별·한 줄 설명·재료(가진 수/필요 수)·먹으면 효과(`get_shop_catalog()[regular_item]['effects']`)·"대성공이면 N배 · 경험치 +N"(`perfect_multiplier`, `xp_per_star`)·요리 시작
-  - 재료 부족 (home_1b_missing): 그림은 색 그대로, "N가지 부족" 빨강, 모자란 재료 칸 빨간 테두리·빨간 숫자 + "구하기: 밭/사냥터/상점", 충분하면 초록 숫자 + "충분함!", 버튼은 회색 "재료가 부족해요"
+  - 재료 부족 (home_1b_missing): 그림은 색 그대로, "N가지 부족" 빨강, 모자란 재료 칸 빨간 테두리·빨간 숫자 + "구하기: 밭/사냥터/상점", 충분하면 초록 숫자 + "충분함!", 버튼은 회색 "재료 부족"
   - 구하는 곳은 백엔드 값으로: 상점 목록 kind `crop` = 밭, `get_hunts` 사냥터 보상 item = 사냥터, `buy`가 있으면 상점
   - 한 줄 설명만 GUI 표시 문구 (`gui/food.py` `DESCRIPTION`, 백엔드에 설명 없음)
 - **미니게임** (home_2_bar): 난로 위 프라이팬 + 재료 그림, 위에 이름·별, 오른쪽 위 남은 시간. 아래 막대: 커서가 끝→끝 `travel_seconds`(레시피) 동안 왕복, 목표 중심은 `target_center_min~max` 무작위, 중심 ± `good_half_width` = Good(주황), ± `perfect_half_width` = Perfect(노랑). Space(또는 막대 클릭) 한 번에 판정 → `cook(recipe, judgment)`. `timeout_seconds` 안에 안 누르면 miss. ESC는 그만두기(cook 전이라 재료 그대로). 숫자는 전부 `get_rules()['cooking']['timing']`
 - **결과** (home_3_result): outcome별 `great` 대성공(초록 리본·빛줄기·PERFECT·효과 1.5배) / `success` 성공 / `rescued` "아슬아슬 성공! (경험치 없음)"(갈색) / `burnt` 탄 요리(빨강, MISS). 요리 그림·이름·효과(결과 `effects`), 레벨 게이지(이번에 오른 부분은 밝게, `xp`·`total_xp`), 레벨 업 칩. 버튼 "한 번 더"(재료 없으면 꺼짐) / "동물에게 주기"(음식 주기 탭에 방금 요리를 골라 둠)
-- **음식 주기** (home_4_feed): 왼쪽 = 가진 요리(`food_*`, `food_perfect_*`, `burned_food`) + 개수, 대성공은 별 배지. 오른쪽 = 고른 요리 효과 + 동물 목록(포만감 게이지, 고른 동물은 먹은 뒤 포만감을 연두색으로 미리보기 "42→87", 포만감 나쁨이면 "배고파요" 칩, 활동 중(훈련·사냥·전투)이면 흐리게 + 이유, 4줄 넘으면 휠). "○○에게 주기" = `use_item(item, key)`. 탄 요리는 "반쯤은 안 먹어요", `refused`면 알림
+- **음식 주기** (home_4_feed): 왼쪽 = 가진 요리(`food_*`, `food_perfect_*`, `burned_food`) + 개수, 대성공은 별 배지. 오른쪽 = 고른 요리 효과 + 동물 목록(포만감 게이지, 고른 동물은 먹은 뒤 포만감을 연두색으로 미리보기 "42→87", "누구에게 줄까?", 포만감 나쁨이면 "배고픔" 칩, 활동 중(훈련·사냥·전투)이면 흐리게 + 이유, 4줄 넘으면 휠). "○○에게 주기" = `use_item(item, key)`. 탄 요리는 "탄 요리는 절반 확률로 거절", `refused`면 알림
 
 **음식 그림** (`assets/food/`, `gui/food.py`)
 - 원본 16×16, 파일은 4배(64). `FoodIcons.get(item, n)`으로 원본 × n (화면에서는 ×1~×4 정수배만)
