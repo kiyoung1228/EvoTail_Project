@@ -17,6 +17,7 @@ import pygame
 from .. import theme as T
 from ..app import Scene
 from ..widgets import text, text_width, panel, card, tooltip, select_frame, Kit
+from .settings import SettingsOverlay
 
 MAP_DIR = os.path.join(T.ROOT, 'assets', 'map')
 UI_DIR = os.path.join(T.ROOT, 'assets', 'ui')
@@ -37,7 +38,7 @@ MENU = [
     ('pokedex', '도감', 'pokedex'),
     ('bag', '가방', 'bag'),
     ('my_room', '마이룸', 'my_room'),
-    ('settings', '설정', 'settings'),
+    ('settings', '설정', None),           # 화면 이동 대신 설정 창 (SettingsOverlay)
 ]
 MENU_PANEL = pygame.Rect(589, 40, 46, 270)
 MENU_BTN = 36          # 버튼 한 변
@@ -306,6 +307,8 @@ class MapScene(Scene):
                 pass
             if kind == 'place':
                 self.app.go(PLACES[key][2])
+            elif kind == 'menu' and key == 'settings':
+                self.app.open_overlay(SettingsOverlay(self.app))     # 설정은 지도 위에 뜨는 창
             elif kind == 'menu':
                 self.app.go(next(m[2] for m in MENU if m[0] == key))
             elif kind == 'animal':

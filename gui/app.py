@@ -59,7 +59,33 @@ class Scene:
         return 'midtop', (T.WIDTH // 2, T.HEADER_H + 4)
 
 
+class Overlay:
+    """화면 위에 뜨는 창 (설정 창, 확인 창 등). 열려 있는 동안 입력은 맨 위 창만 받는다.
+
+    rect 밖을 클릭하거나 ESC를 누르면 닫힌다 (close_outside=False면 밖 클릭은 무시).
+    """
+    close_outside = True
+
+    def __init__(self, app, rect):
+        self.app = app
+        self.rect = pygame.Rect(rect)
+
+    def handle(self, event):
+        """창 안쪽 입력. 처리했으면 True."""
+        return False
+
+    def update(self, dt):
+        pass
+
+    def draw(self, surface):
+        pass
+
+    def close(self):
+        self.app.close_overlay(self)
+
+
 TOAST_SECONDS = 3.5
+DIM = (24, 16, 24, 120)        # 창이 열렸을 때 뒤 화면을 어둡게
 
 
 class App:
@@ -81,7 +107,11 @@ class App:
         self.running = True
         self.scenes = {}
         self.scene = None
+        self.overlays = []        # 화면 위에 뜬 창들 (맨 뒤가 맨 위)
+        self.last_saved = None    # 이번 실행에서 "저장하기"로 저장한 실제 시각 (time.time)
         self._maps = {}
+        self._dim = pygame.Surface((T.WIDTH, T.HEIGHT), pygame.SRCALPHA)
+        self._dim.fill(DIM)
         self.refresh()
         self.last_seq = max([e.get('seq', 0) for e in self.call('recent_events') or []], default=0)
 
@@ -167,6 +197,28 @@ class App:
         for k, v in kwargs.items():
             setattr(self.scene, k, v)
         self.scene.enter()
+
+    def open_overlay(self, overlay):
+        if hasattr(self.scene, 'hover'):      # 뒤 화면의 마우스 강조·툴팁은 끈다
+            self.scene.hover = None
+        self.overlays.append(overlay)
+
+    def close_overlay(self, overlay=None):
+        if overlay is None and self.overlays:
+            overlay = self.overlays[-1]
+        if overlay in self.overlays:
+            self.overlays.remove(overlay)
+
+    def _handle_overlay(self, event):
+        top = self.overlays[-1]
+        if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+            top.close()
+        elif (event.type == pygame.MOUSEBUTTONDOWN and event.button == 1
+              and not top.rect.collidepoint(event.pos)):
+            if top.close_outside:
+                top.close()
+        else:
+            top.handle(event)
 
     def toggle_speed(self, target):
         """F5: 보통 ↔ 빠르게(5배), F12: 보통 ↔ 시연 모드(60배)."""
@@ -261,12 +313,19 @@ class App:
                 self.running = False
             elif event.type == pygame.KEYDOWN and event.key in (pygame.K_F5, pygame.K_F12):
                 self.toggle_speed(T.SPEED_DEMO if event.key == pygame.K_F12 else T.SPEED_FAST)
+            elif self.overlays:
+                self._handle_overlay(self._to_logical(event))
             else:
                 self.scene.handle(self._to_logical(event))
         self._poll_worker()
         self.scene.update(dt)
+        for overlay in list(self.overlays):
+            overlay.update(dt)
         self.scene.draw(self.screen)
         self.draw_header(self.screen)
+        for overlay in self.overlays:         # 창마다 뒤를 한 번씩 어둡게 (위에 뜬 창이 잘 보이게)
+            self.screen.blit(self._dim, (0, 0))
+            overlay.draw(self.screen)
         self.draw_toasts(self.screen)
         pygame.transform.scale(self.screen, T.WINDOW, self.window)
         pygame.display.flip()
