@@ -237,9 +237,12 @@ CHARACTERS.md        캐릭터 목록 · GUI.md 화면 구조 설명
 - 오른쪽 칸: 빈 밭 = 씨앗 카드 2열 × 3줄(봉투 ×2, 이름, "보유 N", 0이면 빨강 + 반투명), "씨앗 1개 → 감자 3개", "씨앗은 상점에서 N코인"(상점 목록 buy), "감자 심기"(아래 "10분 뒤 수확", 씨앗 0이면 회색 "씨앗 없음") = `plant_crop(index, crop)` / 자라는 중 = 큰 그림 ×3, 남은 시간 + 게이지, "다 자라면 감자 ×3" / 다 자람 = "수확 가능" 칩, 큰 그림, "받는 것: 토마토 ×3", "가방 보유 2 → 5", "수확하기" = `harvest_crop(index)` / 안 산 칸 = 팻말 + 가격 + "밭 넓히기" → 확인 창 → `expand_plot`(코인 부족 등은 백엔드 알림)
 - 수확하면 그 칸에서 작물 아이콘 3개가 위로 톡 튀었다 사라짐(0.6초, 그동안 "빈 밭" 글씨·새싹 미리보기 숨김) + "토마토 +3" 알림
 - **작물 그림** `assets/farm/plants/`: seeded / sprout / growing / `<작물>_ripe` (원본 24×24, 파일 4배 96). 밭 칸 ×2(48), 오른쪽 ×3(72). 단계는 진행 = 1 - 남은 시간 / 자라는 시간 → `plants.json`의 구간(0~20% seeded, 20~55% sprout, 55~100% growing, ready면 ripe)
+  - **한 칸 = 한 포기 그림(×2) 6번**: 위치는 `plants.json`의 `plot_fill.positions`(칸 132×108 기준, 칸 왼쪽 위에서 48px 그림의 왼쪽 위, 순서대로 = 뒷줄 먼저), `flip_odd`면 홀수 번째(1·3·5)는 좌우 뒤집기, 칸이 132보다 넓으면 가운데 맞춤. 위치 숫자는 코드에 적지 않고 json에서 읽음 (`FarmScene._fill`). 빈 밭 새싹 미리보기도 6포기. 칩·게이지·반짝이는 작물 위에. 오른쪽 상세 칸은 한 포기 ×3
+  - 수확 연출이 시작되면 그 칸의 6포기는 바로 사라짐 (백엔드에서 빈 밭이 됨)
+  - 다시 만들기: 감자·양파·밀 다 자란 그림은 `tools/crops_v8.py`, 나머지(토마토·쌀·양배추 다 자람, 성장 단계, 씨앗 봉투)는 `tools/farm_icons.py`
 - **GUI 표시값** (`farm.FARM_DISPLAY`): 자라는 시간 600초, 수확 개수 3개. 백엔드 `config.CROP_DURATION`·`CROP_YIELD`인데 `get_rules`·스냅샷에 안 나와서 GUI에 둠. 백엔드 값을 바꾸면 같이 바꿀 것 (기영님께 `get_rules`에 넣어 달라고 요청 가능). 밭 가격은 `get_rules()['plot_costs']` 백엔드 값
 - 작물·씨앗 이름은 상점 목록 label. 양배추 재료 그림 `assets/food/cabbage.png`(food_icons.json에 추가)
-- 다시 만들기: `tools/farm_icons.py`(작물·씨앗 봉투), `tools/farm_mock.py`(목업·배경)
+- 다시 만들기: `tools/farm_icons.py`(작물·성장 단계·씨앗 봉투), `tools/crops_v8.py`(감자·양파·밀 다 자람), `tools/farm_mock.py`(목업·배경)
 
 ## 진행 상황
 - 완료: 백엔드 1차(기영), 캐릭터 30종 데이터, 역할별 MAX, 도트 75장 (PR #1 merge됨)

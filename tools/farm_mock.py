@@ -111,10 +111,18 @@ def locked(base, x, y, w, h, cost, next_one):
 def mmss(sec): return f'{sec // 60}:{sec % 60:02d}'
 
 
+def fill_plants(base, x, y, w, im):
+    """밭 한 칸을 6포기로 꽉 채움 (뒷줄 → 앞줄, 번갈아 좌우 뒤집기)"""
+    ox = x + (w - 132) // 2
+    for i, (dx, dy) in enumerate([(6, 14), (42, 12), (78, 14), (2, 46), (38, 48), (74, 46)]):
+        g = im.transpose(Image.FLIP_LEFT_RIGHT) if i % 2 else im
+        paste(base, g, (ox + dx, y + dy))
+
+
 def plot_tile(base, x, y, w, h, crop, st, rem, sel=False, hover_seed=None):
     soil(base, x, y, w, h)
     if crop:
-        paste(base, plant(crop, st), (x + (w - 48) // 2, y + h - 62))
+        fill_plants(base, x, y, w, plant(crop, st))
         if st == 'ripe':
             d = ImageDraw.Draw(base)
             for sx, sy in ((x + 18, y + 16), (x + w - 20, y + 22), (x + w - 30, y + 10)):
@@ -126,7 +134,7 @@ def plot_tile(base, x, y, w, h, crop, st, rem, sel=False, hover_seed=None):
     else:
         if hover_seed:                                                                        # 심을 자리 미리보기
             g = plant(hover_seed, 'sprout'); g.putalpha(g.getchannel('A').point(lambda v: v * 0.5))
-            paste(base, g, (x + (w - 48) // 2, y + h - 62))
+            fill_plants(base, x, y, w, g)
         text_mid(base, x + w / 2, y + 16, '빈 밭', K.F_SMALL(), (236, 210, 180), (90, 56, 30))
     if sel: B.corners(base, x - 2, y - 2, x + w + 1, y + h + 1)
 

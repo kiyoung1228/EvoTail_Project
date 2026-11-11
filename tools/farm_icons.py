@@ -297,3 +297,125 @@ def ripe_rice():        # v4: 가늘게 휘어 늘어진 이삭 + 작은 낟알(
 
 
 RIPE['rice'] = ripe_rice
+
+
+# ================= v5: 밀·감자 다시 =================
+def ripe_wheat():       # 가는 줄기 3개 + 날씬한 이삭(낟알 V자 무늬) + 긴 까끄라기
+    im = Image.new('RGBA', (24, 24)); d = ImageDraw.Draw(im)
+    _mound(d)
+    G0, G1, G2 = (255, 238, 160), (232, 190, 80), (170, 122, 40)
+    d.line((8, 20, 4, 13), fill=(200, 170, 80)); d.line((15, 20, 20, 14), fill=(200, 170, 80))        # 잎
+    for x, top in ((8, 5), (12, 2), (16, 5)):
+        d.line((x, 21, x, top + 8), fill=G2)
+        for i in range(4):                                                                              # V자 낟알
+            y = top + i * 2
+            d.point((x - 1, y), fill=G1); d.point((x + 1, y), fill=G1); d.point((x, y + 1), fill=G0)
+            d.point((x - 1, y + 1), fill=G2); d.point((x + 1, y + 1), fill=G2)
+        d.point((x, top - 1), fill=G1)
+        d.line((x - 1, top - 1, x - 2, top - 4), fill=G0); d.line((x + 1, top - 1, x + 2, top - 4), fill=G0)  # 까끄라기
+        d.line((x, top - 2, x, top - 4), fill=G0)
+    return outline(im)
+
+
+def ripe_potato():      # 동글동글 잎 덤불 + 흰 꽃 + 흙 위로 보이는 감자 2알
+    im = Image.new('RGBA', (24, 24)); d = ImageDraw.Draw(im)
+    _mound(d)
+    L0, L1, L2, LD = (176, 226, 120), (112, 186, 82), (70, 140, 60), (40, 96, 46)
+    for bx in ((3, 8, 11, 16), (13, 8, 21, 16), (7, 4, 17, 13), (5, 11, 13, 18), (11, 11, 19, 18)):
+        d.ellipse(bx, fill=L1, outline=LD)
+    for bx in ((8, 5, 12, 8), (14, 9, 18, 12), (4, 9, 8, 12)): d.ellipse(bx, fill=L0)
+    for x, y in ((9, 13), (15, 14), (12, 10)): d.point((x, y), fill=L2)
+    for x, y in ((9, 4), (15, 6)):                                                                       # 감자꽃
+        d.point([(x, y - 1), (x - 1, y), (x + 1, y), (x, y + 1)], fill=(255, 255, 255)); d.point((x, y), fill=(250, 210, 60))
+    for bx in ((4, 18, 10, 22), (13, 18, 19, 22)):                                                       # 감자
+        d.ellipse(bx, fill=(206, 160, 98), outline=(110, 72, 38)); d.point((bx[0] + 2, bx[1] + 1), fill=(240, 206, 150))
+        d.point((bx[0] + 4, bx[1] + 2), fill=(150, 104, 58))
+    return outline(im)
+
+
+RIPE.update({'wheat': ripe_wheat, 'potato': ripe_potato})
+# 밭 한 칸을 꽉 채우는 배치 (칸 안 좌표, 원본 ×2 = 48px 그림의 왼쪽 위). 뒷줄 먼저 그림
+FILL = [(6, 14), (42, 12), (78, 14), (-2, 46), (34, 48), (70, 46)]
+
+
+# ================= v6: 양파·밀·감자 다시 =================
+def ripe_onion():       # 길쭉한 초록 잎 3갈래 + 반쯤 흙에 묻힌 황금빛 양파
+    im = Image.new('RGBA', (24, 24)); d = ImageDraw.Draw(im)
+    g, G, D = (156, 218, 104), (86, 172, 74), (46, 112, 52)
+    for pts in (((11, 12), (8, 6), (5, 2)), ((12, 12), (12, 6), (12, 0)), ((13, 12), (16, 7), (19, 3))):
+        d.line(pts, fill=G); d.line([(x + 1, y) for x, y in pts], fill=D)
+        d.point(pts[-1], fill=g); d.point(((pts[1][0] + pts[2][0]) // 2, (pts[1][1] + pts[2][1]) // 2), fill=g)
+    Y0, Y1, Y2 = (255, 230, 168), (234, 178, 96), (178, 112, 54)
+    d.polygon([(11, 9), (13, 9), (14, 12), (10, 12)], fill=Y1)                                  # 목
+    d.ellipse((6, 11, 18, 22), fill=Y1, outline=Y2)
+    d.chord((6, 11, 18, 22), 300, 60, fill=(206, 140, 70)); d.ellipse((6, 11, 18, 22), outline=Y2)   # 오른쪽 그림자
+    d.arc((8, 11, 16, 23), 200, 260, fill=Y2); d.arc((8, 11, 16, 23), 280, 340, fill=Y2)       # 껍질 결
+    d.ellipse((8, 13, 11, 17), fill=Y0); d.point((9, 14), fill=(255, 250, 230))
+    d.ellipse((3, 19, 21, 25), fill=(138, 90, 52)); d.line((6, 20, 18, 20), fill=(176, 124, 80))   # 흙 (아래 반 덮음)
+    d.point([(8, 22), (15, 22)], fill=(104, 64, 38))
+    return outline(im)
+
+
+def ripe_wheat():       # 이삭 4개 (3칸 폭, 낟알 줄무늬) + 까끄라기 + 금빛 잎
+    im = Image.new('RGBA', (24, 24)); d = ImageDraw.Draw(im)
+    _mound(d)
+    Y0, Y1, Y2, Y3 = (255, 240, 170), (240, 200, 90), (204, 150, 52), (150, 100, 34)
+    d.line((9, 21, 4, 13), fill=(206, 182, 84)); d.line((14, 21, 20, 13), fill=(206, 182, 84))
+    for cx, top, lean in ((6, 6, -1), (10, 3, 0), (14, 4, 0), (18, 7, 1)):
+        d.line((cx - lean, 21, cx, top + 8), fill=Y3)
+        for r in range(8):
+            y = top + r
+            row = (Y1, Y0, Y1) if r % 2 == 0 else (Y2, Y1, Y2)
+            if r in (0, 7): row = (None, Y1, None)
+            for i, c in enumerate(row):
+                if c: d.point((cx - 1 + i, y), fill=c)
+        d.point((cx, top - 1), fill=Y0); d.point((cx - 1, top - 2), fill=Y0); d.point((cx + 1, top - 2), fill=Y0)
+        d.point((cx - 2, top - 1), fill=Y1); d.point((cx + 2, top), fill=Y1)
+    return outline(im)
+
+
+def ripe_potato():      # 작은 잎 덤불 + 흙 위로 드러난 감자 3알 (감자가 주인공)
+    im = Image.new('RGBA', (24, 24)); d = ImageDraw.Draw(im)
+    L0, L1, LD = (170, 224, 116), (98, 178, 78), (48, 112, 52)
+    d.line((12, 16, 9, 10), fill=LD); d.line((12, 16, 15, 9), fill=LD); d.line((12, 16, 12, 8), fill=LD)
+    for bx in ((5, 6, 11, 11), (13, 5, 19, 10), (9, 2, 15, 8), (4, 10, 9, 14), (15, 10, 20, 14)):
+        d.ellipse(bx, fill=L1, outline=LD); d.point((bx[0] + 2, bx[1] + 1), fill=L0); d.point((bx[0] + 1, bx[1] + 2), fill=L0)
+    d.point([(12, 1), (11, 2), (13, 2), (12, 3)], fill=(255, 255, 255)); d.point((12, 2), fill=(250, 210, 60))   # 꽃
+    d.ellipse((1, 15, 23, 25), fill=(138, 90, 52)); d.line((4, 16, 20, 16), fill=(176, 124, 80))
+    for bx in ((2, 14, 10, 20), (14, 14, 22, 20), (8, 17, 16, 23)):                                       # 감자 3알
+        d.ellipse(bx, fill=(214, 168, 104), outline=(112, 70, 36))
+        d.arc((bx[0] + 1, bx[1] + 1, bx[2] - 1, bx[3] - 1), 10, 120, fill=(170, 120, 66))
+        d.point((bx[0] + 2, bx[1] + 2), fill=(244, 214, 160)); d.point((bx[0] + 3, bx[1] + 2), fill=(244, 214, 160))
+        d.point((bx[0] + 5, bx[1] + 3), fill=(140, 92, 48))
+    return outline(im)
+
+
+RIPE.update({'onion': ripe_onion, 'wheat': ripe_wheat, 'potato': ripe_potato})
+
+
+def ripe_potato():      # v7: 잎을 따로따로(틈 있게) + 줄기 보이게
+    im = Image.new('RGBA', (24, 24)); d = ImageDraw.Draw(im)
+    L0, L1, L2, LD = (176, 228, 120), (104, 182, 80), (70, 144, 62), (40, 100, 48)
+    for a, b in (((12, 16), (6, 9)), ((12, 16), (18, 8)), ((12, 16), (12, 5)), ((12, 14), (4, 13)), ((12, 14), (20, 13))):
+        d.line((a, b), fill=L2)
+    for cx, cy in ((6, 8), (18, 7), (12, 4), (4, 12), (20, 12)):                                          # 잎 하나 = 4x3 타원
+        d.ellipse((cx - 2, cy - 2, cx + 2, cy + 1), fill=L1, outline=LD)
+        d.point((cx - 1, cy - 1), fill=L0); d.point((cx + 1, cy), fill=L2)
+    for cx, cy in ((9, 10), (15, 10)):
+        d.ellipse((cx - 2, cy - 1, cx + 1, cy + 1), fill=L1, outline=LD); d.point((cx - 1, cy), fill=L0)
+    d.point([(12, 0), (11, 1), (13, 1), (12, 2)], fill=(255, 255, 255)); d.point((12, 1), fill=(250, 210, 60))
+    d.ellipse((1, 15, 23, 25), fill=(138, 90, 52)); d.line((4, 16, 20, 16), fill=(176, 124, 80))
+    for bx in ((2, 14, 10, 20), (14, 14, 22, 20), (8, 17, 16, 23)):
+        d.ellipse(bx, fill=(214, 168, 104), outline=(112, 70, 36))
+        d.arc((bx[0] + 1, bx[1] + 1, bx[2] - 1, bx[3] - 1), 10, 120, fill=(170, 120, 66))
+        d.point((bx[0] + 2, bx[1] + 2), fill=(244, 214, 160)); d.point((bx[0] + 3, bx[1] + 2), fill=(244, 214, 160))
+        d.point((bx[0] + 5, bx[1] + 3), fill=(140, 92, 48))
+    return outline(im)
+
+
+RIPE['potato'] = ripe_potato
+
+
+# ================= v8: 손으로 찍은 감자·양파·밀 (crops_v8.py) =================
+import crops_v8 as _V8
+RIPE.update({'potato': _V8.potato, 'onion': _V8.onion, 'wheat': _V8.wheat})

@@ -26,7 +26,11 @@ PANEL = pygame.Rect(444, 58, 188, 298)
 ART = pygame.Rect(PANEL.x + 12, 110, PANEL.w - 24, 86)
 PLANT_DIR = os.path.join(T.ROOT, 'assets', 'farm', 'plants')
 with open(os.path.join(PLANT_DIR, 'plants.json'), encoding='utf-8') as _f:
-    STAGES = {k: v for k, v in json.load(_f)['stages_by_progress'].items() if isinstance(v, list)}
+    _PLANTS = json.load(_f)
+STAGES = {k: v for k, v in _PLANTS['stages_by_progress'].items() if isinstance(v, list)}
+# 한 칸 = 한 포기 그림(×2) 6번: 위치는 칸(132×108 기준) 왼쪽 위에서 그림 왼쪽 위, 순서대로(뒷줄 먼저), 홀수 번째는 좌우 뒤집기
+PLOT_FILL = _PLANTS.get('plot_fill', {})
+FILL_BASE_W = 132
 SOIL = (132, 84, 50)
 POP_SECONDS = 0.6
 SPARK = (255, 240, 140)
@@ -43,12 +47,14 @@ class Plants:
     def __init__(self):
         self._c = {}
 
-    def get(self, name, n=2, alpha=255):
-        key = (name, n, alpha)
+    def get(self, name, n=2, alpha=255, flip=False):
+        key = (name, n, alpha, flip)
         if key not in self._c:
             img = pygame.image.load(os.path.join(PLANT_DIR, f'{name}.png')).convert_alpha()
             w, h = img.get_size()
             img = pygame.transform.scale(img, (w // 4 * n, h // 4 * n))
+            if flip:
+                img = pygame.transform.flip(img, True, False)
             if alpha < 255:
                 img = img.copy()
                 img.fill((255, 255, 255, alpha), special_flags=pygame.BLEND_RGBA_MULT)
@@ -306,10 +312,10 @@ class FarmScene(Scene):
         else:
             p = self.plots()[i]
             surface.blit(soil_tile(r.w, r.h), r)
-            pos = (r.x + (r.w - 48) // 2, r.bottom - 62)
+
             popping = any(pi == i for pi, _, _ in self.pops)
             if p.get('crop'):
-                surface.blit(self.plants.get(self.stage(p), 2), pos)
+                self._fill(surface, r, self.stage(p))           # 6포기 먼저, 칩·게이지·반짝이는 그 위에
                 if p.get('ready'):
                     for k, (sx, sy) in enumerate(((r.x + 18, r.y + 16), (r.right - 20, r.y + 22),
                                                   (r.right - 30, r.y + 10))):
@@ -325,12 +331,19 @@ class FarmScene(Scene):
                           FARM_DISPLAY['duration'] - rem, FARM_DISPLAY['duration'], 'green')
             else:
                 if i == self.selected and self.seed and self.seeds(self.seed) and not popping:   # 심을 자리 미리보기
-                    surface.blit(self.plants.get('sprout', 2, 128), pos)
+                    self._fill(surface, r, 'sprout', 128)
                 if not popping:          # 수확 연출 동안은 "빈 밭" 글씨 숨김
                     text(surface, '빈 밭', (r.centerx, r.y + 10), 'small', (236, 210, 180), 'midtop',
                          shadow=(90, 56, 30))
         if i == self.selected:
             select_frame(surface, r.inflate(4, 4))
+
+    def _fill(self, surface, r, name, alpha=255):
+        """칸을 한 포기 그림(원본 ×2) 6번으로 채움. 위치·뒤집기는 plants.json plot_fill."""
+        ox = r.x + max(0, (r.w - FILL_BASE_W) // 2)
+        flip_odd = PLOT_FILL.get('flip_odd', False)
+        for k, (x, y) in enumerate(PLOT_FILL.get('positions', [])):
+            surface.blit(self.plants.get(name, 2, alpha, flip=flip_odd and k % 2 == 1), (ox + x, r.y + y))
 
     def _draw_pops(self, surface):
         """수확: 작물 아이콘 3개가 위로 톡 튀었다 사라짐 (0.6초)."""
