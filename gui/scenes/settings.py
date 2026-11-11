@@ -73,8 +73,7 @@ class SettingsOverlay(Overlay):
         self.app.toggle_speed(T.SPEED_DEMO)      # F12와 같은 함수
 
     def save(self):
-        if self.app.act('save_game', '저장했어요', icon='home') is not None:
-            self.app.last_saved = time.time()
+        self.app.act('save_game', '저장했어요', icon='home')
 
     def ask_load(self):
         self.app.open_overlay(ConfirmOverlay(
@@ -165,11 +164,9 @@ class SettingsOverlay(Overlay):
         pygame.draw.line(surface, T.WOOD[3], (P.x + 12, P.y + 118), (P.right - 13, P.y + 118))
         for b in self.buttons:
             b.draw(surface)
-        # 마지막 저장
-        if self.app.last_saved:
-            saved = f"마지막 저장: {clock_text(self.app.last_saved)} (자동 저장 켜짐)"
-        else:
-            saved = '자동 저장 켜짐 · 바뀐 내용은 바로 저장돼요'
+        # 마지막 저장: 백엔드 last_saved (실제 시각, 자동 저장 포함, PR #9)
+        last = self.app.state.get('last_saved')
+        saved = f"마지막 저장: {clock_text(last)} (자동 저장 켜짐)" if last else '자동 저장 켜짐'
         text(surface, saved, (P.centerx, P.bottom - 26), 'small', T.TEXT_SOFT, 'center')
         text(surface, 'ESC · 창 밖을 누르면 닫혀요', (P.centerx, P.bottom - 14), 'small', T.TEXT_SOFT, 'center')
 

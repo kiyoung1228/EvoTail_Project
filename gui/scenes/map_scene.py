@@ -115,7 +115,7 @@ class MapScene(Scene):
 
         1. 스냅샷 ``yard`` (플레이어가 "마당에 내보내기"로 고른 동물, 그 순서대로)
         2. ``yard_max``보다 적으면 빈자리는 화면에서만 채움 (세이브에는 안 씀):
-           전투 팀 → 돌봐야 하는 동물(배고픔·기분 나쁨) → 최근에 얻은 동물
+           마지막 전투 팀(last_team) → 돌봐야 하는 동물(배고픔·기분 나쁨) → 최근에 얻은 동물
         활동 중인 동물(훈련·사냥)과 아픈 동물은 마당 대신 그 장소 앞에 작게 보인다.
         """
         state = self.app.state
@@ -133,7 +133,7 @@ class MapScene(Scene):
                 free.append(a['id'])
         free_set = set(free)
         chosen = [k for k in state.get('yard', []) if k in free_set]
-        team = [f['id'] for f in (state.get('battle') or {}).get('player', [])]
+        team = list(state.get('last_team') or [])        # 마지막으로 출전한 팀 (백엔드 PR #9)
 
         def needs_care(key):
             a = by_id[key]

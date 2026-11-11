@@ -111,7 +111,6 @@ class App:
         self.scenes = {}
         self.scene = None
         self.overlays = []        # 화면 위에 뜬 창들 (맨 뒤가 맨 위)
-        self.last_saved = None    # 이번 실행에서 "저장하기"로 저장한 실제 시각 (time.time)
         self.speed_before_demo = 1  # 시연 모드를 켜기 직전 속도 (끄면 이 속도로 돌아감)
         self._maps = {}
         self._dim = pygame.Surface((T.WIDTH, T.HEIGHT), pygame.SRCALPHA)
