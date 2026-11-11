@@ -39,10 +39,12 @@ class DisplayInfoTests(unittest.TestCase):
         dex = next(d for d in self.g.get_pokedex() if d['id'] == key)
         self.assertEqual(dex['name'], '불꽃여우')
 
-    def test_enemies_have_wild_animal_look(self):
+    def test_enemies_use_dedicated_monster_artwork(self):
         preview = self.g.preview_stage('tutorial')
+        self.assertEqual(sum(enemy['boss'] for enemy in preview['enemy']), 1)
         for enemy in preview['enemy']:
-            self.assertTrue(enemy['name'].startswith('야생 '))
+            self.assertTrue(enemy['name'])
+            self.assertTrue(enemy['sprite'].startswith('assets/enemies/'))
             self.assertTrue(os.path.exists(os.path.join(ROOT, enemy['sprite'])))
 
     def test_battle_fighters_carry_name_and_sprite(self):

@@ -43,6 +43,7 @@ class GameService:
             cap_path=Path(__file__).resolve().parent.parent/'data'/'role_caps.json'
         self.caps=self._load_caps(cap_path)
         self._validate_catalog()
+        self.enemies=self._load_enemies(Path(__file__).resolve().parent.parent/'data'/'enemies.json')
         self.state,self._revision=self.store.load_with_revision()
         if self.state is None:
             self.state=self._fresh_state()
@@ -83,6 +84,43 @@ class GameService:
                 caps[role][stage]=dict(values)
                 previous=values
         return caps
+
+    @staticmethod
+    def _load_enemies(path):
+        """Load the shared enemy artwork catalog before changing a saved game."""
+        data=json.loads(Path(path).read_text(encoding='utf-8'))
+        if (not isinstance(data,dict)
+            or not isinstance(data.get('minions'),list)
+            or not isinstance(data.get('bosses'),list)):
+            raise ValueError('enemies.json must define minions and bosses lists')
+        seen=set()
+        stages=set()
+        minion_roles=set()
+        for group in ('minions','bosses'):
+            for entry in data[group]:
+                if not isinstance(entry,dict):raise ValueError('invalid enemy entry')
+                key=entry.get('id')
+                role=entry.get('role')
+                if not isinstance(key,str) or not key or key in seen:
+                    raise ValueError('invalid or duplicate enemy ID')
+                seen.add(key)
+                if role not in C.ROLES or entry.get('element')!=C.ROLE_ELEMENTS[role]:
+                    raise ValueError('enemy role/element mismatch')
+                if any(not isinstance(entry.get(field),str) or not entry[field].strip()
+                       for field in ('name','sprite')):
+                    raise ValueError('enemy name and sprite must be nonempty strings')
+                if group=='bosses':
+                    stage=entry.get('stage')
+                    if (not isinstance(stage,str) or stage not in C.STAGES
+                        or stage in stages or entry.get('boss') is not True):
+                        raise ValueError('each stage must have exactly one boss')
+                    stages.add(stage)
+                else:
+                    if entry.get('boss',False):raise ValueError('minion cannot be a boss')
+                    minion_roles.add(role)
+        if stages!=set(C.STAGES) or minion_roles!=set(C.ROLES):
+            raise ValueError('enemy catalog must cover every stage and minion role')
+        return data
 
     def _validate_catalog(self):
         if len(self.characters)!=30: raise ValueError('catalog must contain exactly 30 species')
@@ -515,6 +553,7 @@ class GameService:
             hunts={area:{**copy.deepcopy(job),'remaining_seconds':max(0,job['end']-now)}
                    for area,job in s['hunts'].items()}
             stages=[{**C.STAGES[key],'id':key,
+                     'ai_description':B.AI_PROFILES[C.STAGES[key]['ai']]['summary'],
                      'unlocked':C.STAGES[key]['order']<=s['progress']+1,
                      'cleared':key in s['cleared']}
                     for key in C.STAGE_ORDER]
@@ -954,7 +993,9 @@ class GameService:
 
     def get_stages(self):
         def fn(s):
-            return [{**C.STAGES[key],'id':key,'unlocked':C.STAGES[key]['order']<=s['progress']+1,
+            return [{**C.STAGES[key],'id':key,
+                     'ai_description':B.AI_PROFILES[C.STAGES[key]['ai']]['summary'],
+                     'unlocked':C.STAGES[key]['order']<=s['progress']+1,
                      'cleared':key in s['cleared']} for key in C.STAGE_ORDER]
         return self._read(fn)
 
@@ -964,10 +1005,11 @@ class GameService:
         attempt=s.get('battle_attempts',{}).get(stage,0)
         seed=hashlib.sha256(f"{s['created']}:{stage}:{attempt}:enemy_team".encode()).digest()
         local_rng=random.Random(int.from_bytes(seed[:8],'big'))
+        boss=next(b for b in self.enemies['bosses'] if b['stage']==stage)
         if stage=='tutorial':
-            roles=['tank','dealer','healer']
+            roles=['dealer','healer']
         else:
-            roles=[local_rng.choice(list(C.ROLES)) for _ in range(3)]
+            roles=[local_rng.choice(list(C.ROLES)) for _ in range(2)]
             if spec['ai']=='lookahead' and s.get('last_team_roles'):
                 from collections import Counter
                 common=Counter(s['last_team_roles']).most_common(1)[0][0]
@@ -976,17 +1018,20 @@ class GameService:
                 counter_role=next(role for role,element in C.ROLE_ELEMENTS.items() if element==counter_element)
                 roles[0]=counter_role
                 roles[1]=counter_role
-        enemy_stage=3 if spec['power']>500 else (2 if spec['power']>300 else 1)
+        selected=[boss]
+        for role in roles:
+            pool=sorted((e for e in self.enemies['minions'] if e['role']==role),key=lambda e:e['id'])
+            # Prefer distinct minions when both share a role; keep seeded selection.
+            unused=[e for e in pool if e['id'] not in {x['id'] for x in selected}]
+            selected.append(local_rng.choice(unused or pool))
         enemies=[]
-        for i,role in enumerate(roles):
-            pool=sorted(k for k,c in self.characters.items()
-                        if c['role']==role and c['max_stage']>=enemy_stage)
-            species=local_rng.choice(pool)
-            look=self.display_info(species,enemy_stage)
-            enemies.append({'id':f'enemy_{i}','name':'야생 '+look['name'],'sprite':look['sprite'],
-                            'species':species,'role':role,'element':C.ROLE_ELEMENTS[role],
+        for i,entry in enumerate(selected):
+            enemies.append({'id':f'enemy_{i}','name':entry['name'],'sprite':entry['sprite'],
+                            'species':entry['id'],'boss':i==0,
+                            'role':entry['role'],'element':entry['element'],
                             'stats':{stat:spec['power'] for stat in C.STATS}})
         return {'stage':stage,'label':spec['label'],'power':spec['power'],'ai':spec['ai'],
+                'ai_description':B.AI_PROFILES[spec['ai']]['summary'],
                 'enemy':enemies}
 
     def preview_stage(self,stage):
@@ -1019,7 +1064,7 @@ class GameService:
                 player.append(fighter)
             preview=self._stage_preview(s,stage)
             enemy=[{**B.make_fighter(e['id'],'enemy',e['role'],e['element'],3 if spec['power']>500 else (2 if spec['power']>300 else 1),e['stats']),
-                    'name':e['name'],'sprite':e['sprite']}
+                    'name':e['name'],'sprite':e['sprite'],'species':e['species'],'boss':e['boss']}
                    for e in preview['enemy']]
             s.setdefault('battle_attempts',{})[stage]=s.get('battle_attempts',{}).get(stage,0)+1
             s['last_team_roles']=[self.characters[key]['role'] for key in team]
@@ -1047,7 +1092,8 @@ class GameService:
             if battle is None or battle['current']!='player':return []
             options=B.legal_actions(battle,actor)
             if actor=='battle_bandage' and s['inventory'].get('battle_bandage',0)>0:
-                options += [{'kind':'battle_item','actor':'battle_bandage','target':f['id']}
+                options += [{'kind':'battle_item','actor':'battle_bandage','target':f['id'],
+                             'amount':B.battle_item_heal_amount('battle_bandage',f)}
                             for f in battle['player'] if B.alive(f) and f['hp']<f['stats']['hp']
                             if battle['actions']<B.max_actions(battle)]
             return options
