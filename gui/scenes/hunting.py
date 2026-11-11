@@ -41,6 +41,9 @@ STAGE = pygame.Rect(PANEL.x + 13, 92, 162, 84)           # 오른쪽 칸 무대 
 STAGE_CROP_X = {'rabbit_hill': 46, 'chicken_coop': 5, 'pig_pen': 4, 'ranch': 14}
 # 세로 시작 y (높이는 상자 그대로 84): 4곳 모두 상자 아래가 울타리 위(y 104 이하)에서 끝나고 위쪽 소품(지붕·사과·쉼터·풍차)이 안 잘리게
 STAGE_CROP_Y = {'chicken_coop': 12, 'pig_pen': 20, 'ranch': 8, 'rabbit_hill': 8}
+# 사냥 중 무대: 사냥터마다 (내 동물 x, 사냥감 x) (상자 왼쪽 위 기준, 56px 그림 왼쪽). 동물 30종 모두 그림·"!" 말풍선이
+# 소품(닭장·둥지·여물통·쉼터·건초·풍차·달)을 가리지 않게 고른 값 (tools/hunt_mock.py panel_running2()와 같음)
+STAGE_ACTORS = {'chicken_coop': (75, 91), 'pig_pen': (55, 89), 'ranch': (30, 89), 'rabbit_hill': (2, 36)}
 ROW_H, ROW_STEP, ROWS = 32, 33, 3
 LIST_Y = 198
 ACTIVITY_LABEL = {'training': '훈련 중'}
@@ -332,21 +335,27 @@ class HuntScene(Scene):
         self._stage(surface, area)
         clip = surface.get_clip()
         surface.set_clip(STAGE)
-        surface.blit(self.image('animals', area, 2), (STAGE.x + 89, STAGE.y + 26 - bob2))     # 도망가는 사냥감
-        for i in range(3):                                                                 # 흰 속도선 3줄
+        ax, cx = STAGE_ACTORS.get(area, (19, 89))
+        surface.blit(self.image('animals', area, 2), (STAGE.x + cx, STAGE.y + 26 - bob2))     # 도망가는 사냥감
+        for i in range(3):                                                                 # 흰 속도선 3줄 (사냥감 뒤)
             yy = STAGE.y + 40 + i * 5
-            pygame.draw.line(surface, T.WHITE, (STAGE.x + 85 - i * 3, yy), (STAGE.x + 79 - i * 3, yy))
-        if a:                                                                              # 쫓아가는 내 동물 (오른쪽 보게)
-            surface.blit(self._flipped(a['sprite'], 56), (STAGE.x + 19, STAGE.y + 26 - bob))
+            pygame.draw.line(surface, T.WHITE, (STAGE.x + cx - 4 - i * 3, yy), (STAGE.x + cx - 10 - i * 3, yy))
+        sprite = self._flipped(a['sprite'], 56) if a else None
+        if sprite:                                                                         # 쫓아가는 내 동물 (오른쪽 보게)
+            surface.blit(sprite, (STAGE.x + ax, STAGE.y + 26 - bob))
         phase = (t * 3) % 1                                                                # 흙먼지: 뒤로 흩어짐
         for dx, dy, r in ((0, 0, 3), (-6, 2, 2), (-11, 1, 1)):
-            px, py = STAGE.x + 25 + dx - int(phase * 4), STAGE.y + 78 + dy
+            px, py = STAGE.x + ax + 6 + dx - int(phase * 4), STAGE.y + 78 + dy
             pygame.draw.circle(surface, (250, 244, 230), (px, py), r)
             pygame.draw.circle(surface, (200, 186, 160), (px, py), r, 1)
         surface.set_clip(clip)
-        bubble = pygame.Rect(STAGE.x + 41, STAGE.y + 6, 22, 20)                            # "!" 말풍선
-        card(surface, bubble)
-        text_in(surface, '!', card_inner(bubble), 'title', T.BAD, tag='hunt')
+        if sprite:                                                                         # "!" 말풍선: 동물 머리 바로 위
+            art = sprite.get_bounding_rect().move(STAGE.x + ax, STAGE.y + 26 - bob)
+            bubble = pygame.Rect(0, 0, 22, 20)
+            bubble.midbottom = (art.centerx, art.top - 1)
+            bubble.clamp_ip(STAGE)                                                         # 상자 위로 나가면 안으로
+            card(surface, bubble)
+            text_in(surface, '!', card_inner(bubble), 'title', T.BAD, tag='hunt')
         # 이름 + 진행 길 (출발 깃발 → 발자국 → 동물 얼굴 → 고기)
         y = 192 + self._text_lines(surface, f"{name} 사냥 중", x, 192, 'title', T.TEXT, right, 13)
         dur = spec['duration']

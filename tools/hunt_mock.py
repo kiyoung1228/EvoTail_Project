@@ -268,11 +268,17 @@ def panel_running2(base, key='rabbit_hill', aid='healer_normal_01', name='산들
     chip(base, 456 + int(ImageDraw.Draw(Image.new('L', (1, 1))).textlength(label, font=K.F_BIG())) + 6, 68, '사냥 중', 'brown')
     stage_box(base, key, 457, 92, 162, 84)
     d = ImageDraw.Draw(base)
-    paste(base, critter(key, 2), (546, 118))                                         # 도망가는 사냥감
-    for i in range(3): d.line((542 - i * 3, 132 + i * 5, 536 - i * 3, 132 + i * 5), fill=(255, 255, 255))
-    paste(base, B.spr(aid, 1, 2).transpose(Image.FLIP_LEFT_RIGHT), (476, 118))       # 쫓아가는 내 동물
-    dust(d, 482, 170)
-    B.card(base, 498, 98, 22, 20); text_mid(base, 509, 108, '!', K.F_TITLE(), RED)    # 느낌표 말풍선
+    # 사냥터마다 (내 동물 x, 사냥감 x), 상자(457, 92) 기준. gui/scenes/hunting.py STAGE_ACTORS와 같음
+    ax, cx = {'chicken_coop': (75, 91), 'pig_pen': (55, 89), 'ranch': (30, 89), 'rabbit_hill': (2, 36)}[key]
+    paste(base, critter(key, 2), (457 + cx, 118))                                     # 도망가는 사냥감
+    for i in range(3): d.line((457 + cx - 4 - i * 3, 132 + i * 5, 457 + cx - 10 - i * 3, 132 + i * 5), fill=(255, 255, 255))
+    me = B.spr(aid, 1, 2).transpose(Image.FLIP_LEFT_RIGHT)
+    paste(base, me, (457 + ax, 118))                                                  # 쫓아가는 내 동물
+    dust(d, 457 + ax + 6, 170)
+    l, t, r, b = me.getbbox()                                                         # 느낌표 말풍선: 동물 머리 바로 위
+    bx = 457 + ax + (l + r) // 2 - 11; by = max(92, 118 + t - 1 - 20)
+    bx = max(457, min(457 + 162 - 22, bx))
+    B.card(base, bx, by, 22, 20); text_mid(base, bx + 11, by + 10, '!', K.F_TITLE(), RED)
     # 진행 길: 출발 깃발 → 발자국 → 내 동물 → 도착(고기)
     K.draw_text(base, (456, 192), f'{name} 사냥 중', K.F_TITLE(), K.TEXT, 'lm')
     y = 214; x0, x1 = 462, 600
