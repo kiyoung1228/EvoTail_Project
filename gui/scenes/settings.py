@@ -114,15 +114,11 @@ class SettingsOverlay(Overlay):
     # ---------- 그리기 ----------
     def _option(self, surface, rect, label, selected, disabled=False):
         """선택지 버튼: 고른 것 = 초록 키트 버튼, 아닌 것 = card 칸 (마우스 올리면 강조).
-        disabled: 회색 버튼(돌아갈 속도) / 흐린 글씨 card."""
+        disabled: 시연 모드 중. 보통·빠르게 둘 다 같은 회색(disabled) 버튼 모양 (돌아갈 속도는 아래 안내 문구로)."""
         if disabled:
-            if selected:
-                nine(surface, 'button_green_disabled', rect)
-                text_in(surface, label, button_face(rect), 'title', (226, 220, 210), shadow=T.shade('gray', 0),
-                        tag='option')
-            else:
-                card(surface, rect)
-                text_in(surface, label, card_inner(rect), 'body', T.TEXT_SOFT, tag='option')
+            nine(surface, 'button_green_disabled', rect)
+            text_in(surface, label, button_face(rect), 'title', (226, 220, 210), shadow=T.shade('gray', 0),
+                    tag='option')
             return
         if selected:
             nine(surface, 'button_green_normal', rect)
