@@ -12,6 +12,7 @@
 ## 작업 방식 (꼭 지킬 것)
 - master에 직접 커밋하지 않는다. 작업마다 **새 브랜치 → 커밋 → push → PR**. 합치는 건 상대 팀원(기영)이 확인 후.
 - 시작 전에 `git pull`로 최신 master를 받는다.
+- 새 브랜치는 upstream을 걸지 않고 만든다: `git fetch` 후 `git switch -c 이름 --no-track origin/master`. upstream이 `origin/master`로 걸리면 GitHub Desktop에 Publish가 안 뜸 (이미 걸렸으면 `git branch --unset-upstream 이름`)
 - PR 전에 테스트를 돌린다: `python -m unittest discover -s tests` 와 `python test_integrated_flow.py`
 - 커밋 메시지에 `Co-Authored-By` 줄이나 Claude 관련 표시를 넣지 않는다. PR 설명에도 "Generated with Claude Code" 같은 줄을 넣지 않는다
 - 백엔드(`roc/`)를 고쳐야 하면 최소한으로 고치고, PR 설명에 무엇을 왜 고쳤는지 적는다 (기영 담당 코드).
