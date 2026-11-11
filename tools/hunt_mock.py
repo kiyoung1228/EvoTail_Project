@@ -249,7 +249,7 @@ if __name__ == '__main__':
 # ================= 사냥 중 / 귀환 칸 v2 (풍경 무대 + 연출) =================
 def stage_box(base, key, x, y, w, h, dim=1.0):
     z = Z2.zone(key, 208, 140)
-    cx = {'rabbit_hill': 40, 'chicken_coop': 30, 'pig_pen': 20, 'ranch': 30}[key]
+    cx = {'rabbit_hill': 46, 'chicken_coop': 5, 'pig_pen': 4, 'ranch': 14}[key]   # gui/scenes/hunting.py STAGE_CROP_X와 같음
     crop = z.crop((cx, 140 - h - 18, cx + w, 140 - 18))
     if dim != 1.0: crop = ImageEnhance.Brightness(crop).enhance(dim)
     d = ImageDraw.Draw(base); d.rectangle((x - 1, y - 1, x + w, y + h), outline=INK)

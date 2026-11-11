@@ -36,7 +36,9 @@ PANEL = pygame.Rect(444, 58, 188, 298)
 ART = pygame.Rect(PANEL.x + 12, 96, PANEL.w - 24, 80)
 STAGE = pygame.Rect(PANEL.x + 13, 92, 162, 84)           # 오른쪽 칸 무대 (사냥 중·완료)
 # 무대 = 풍경 그림(208×140)에서 자를 자리: 가로 시작 x, 아래 울타리 위 18px (tools/hunt_mock.py stage_box()와 같음)
-STAGE_CROP_X = {'rabbit_hill': 40, 'chicken_coop': 30, 'pig_pen': 20, 'ranch': 30}
+# 상자 왼쪽·오른쪽 끝에 잘리는 소품이 없게 고른 값 (최대 208 - 162 = 46): 달토끼 절구(x 22~44)는 상자 밖, 닭장(6~90)·여물통(8~58)은
+# 통째로 안, 목장은 건초(14~)와 풍차 기둥(~175)이 딱 들어가게
+STAGE_CROP_X = {'rabbit_hill': 46, 'chicken_coop': 5, 'pig_pen': 4, 'ranch': 14}
 STAGE_CROP_BOTTOM = 18
 ROW_H, ROW_STEP, ROWS = 32, 33, 3
 LIST_Y = 198
