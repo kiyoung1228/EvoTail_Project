@@ -187,6 +187,27 @@ def scripted_run(self):
         self.overlays[-1]._equip('equip_claw'); frames(2)
         self.open_overlay(EquipOverlay(self, 'dealer_normal_01')); frames(2)
         self.close_overlay(); frames(2)
+        # 밭: 빈 밭(씨앗 있음/0개) / 자라는 중 / 다 자람 / 넓힐 칸 / 잠긴 칸 / 넓히기 확인 창 / 모두 수확
+        def farm_fixture(s):    # test fixture only (temp save)
+            v = s['clock']['virtual']
+            s['inventory'].update(seed_potato=12, seed_cabbage=3)
+            s['plots'] = [{'crop': 'tomato', 'end': v - 1, 'ready': True},
+                          {'crop': 'cabbage', 'end': v + 252, 'ready': False},
+                          {'crop': None, 'end': None, 'ready': False}]
+            return True
+        g._mutate(farm_fixture); self.refresh()
+        self.go('farm'); frames(2)
+        fm = self.scene
+        for i in range(6):
+            fm.selected = i; frames(1)
+            if i == 2:
+                for c in fm.crops():
+                    fm.seed = c; frames(1)
+        shot('real_farm.png')
+        fm.selected = 3; frames(1); fm.ask_expand(); frames(2); self.close_overlay()
+        fm.harvest_all(); frames(2)
+        g._mutate(lambda s: s['inventory'].update(seed_potato=0, seed_cabbage=0) or True); self.refresh()
+        fm.selected = 2; frames(2)
         # 전투장: 스테이지 고르기(모든 단계) → 출전 준비 → 전투(대상 고르기·기록 펼침) → 결과
         self.go('battle'); frames(2)
         sp = self.scene

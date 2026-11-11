@@ -1,0 +1,18 @@
+{
+ "note": "작물 원본 24x24, 파일 4배(96). 화면은 원본 ×2(48), 상세 칸은 ×3(72). 단계: seeded(심은 직후) / sprout / growing / <crop>_ripe",
+ "stages_by_progress": {
+  "seeded": [
+   0,
+   0.2
+  ],
+  "sprout": [
+   0.2,
+   0.55
+  ],
+  "growing": [
+   0.55,
+   1.0
+  ],
+  "ripe": "ready == True"
+ }
+}

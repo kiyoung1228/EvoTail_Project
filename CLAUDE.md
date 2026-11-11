@@ -43,7 +43,7 @@ assets/              1단계 이미지 30장, assets/sprites/<ID>_s<단계>.png 
   map/               섬 마을 지도 낮·밤 + 클릭 영역 map.json
   ui/                메뉴 아이콘. ui/kit/ = 도트 UI 키트 조각·아이콘 (docs/UI_KIT.md)
   fonts/             갈무리 글꼴 (OFL)
-docs/mockups/        확정된 화면 목업 (메인 낮·밤, 설정 창, 내 동물 animals_v2, battle/ 전투장, home/ 주방, shop/ 상점·부화, hospital/ 병원)
+docs/mockups/        확정된 화면 목업 (메인 낮·밤, 설정 창, 내 동물 animals_v2, battle/ 전투장, home/ 주방, shop/ 상점·부화, hospital/ 병원, farm/ 밭)
 docs/UI_KIT.md       도트 UI 키트 규칙 (모든 화면이 따름). 조각 다시 만들기: tools/uikit.py
 gui/                 Pygame 화면 (아래 GUI 규칙)
 CHARACTERS.md        캐릭터 목록 · GUI.md 화면 구조 설명
@@ -225,7 +225,20 @@ CHARACTERS.md        캐릭터 목록 · GUI.md 화면 구조 설명
 - 아래 쟁반: "치료할 포션 선택", 기본/고급 회복 포션 카드("치료 50% · 피로도 -10" = 상점 목록 chance·fatigue, 보유 N, 0이면 빨강), "치료하기"(아래 "○○ 1개 사용"), "포션 사러 가기 ▶ 상점"(상점 회복·포션 탭)
 - 치료 = `use_item(item, key)` → `CureResult`(Overlay): success면 빛줄기·"○○ 회복!"·피로도 전→후(전 = 호출 직전 스냅샷, 후 = 응답 fatigue)·다음 환자/닫기, 아니면 회색·"○○ 아직 아픔"·"포션 1개 소모"·다시 치료/닫기
 
-**아이템 그림** (`assets/items/`, `gui/items.py` `ItemIcons`): 원본 16×16, 파일 4배(64). 화면에선 ×1~×3 정수배만. `seed_*`는 전부 `seed.png`. 그림이 없으면 `assets/food` 그림, 그것도 없으면 키트 아이콘. 다시 만들기: `tools/shop_icons.py`, 목업 `tools/shop_mock.py`·`shop_mock2.py`, 병원 배경 `tools/hosp_room.py`
+**아이템 그림** (`assets/items/`, `gui/items.py` `ItemIcons`): 원본 16×16, 파일 4배(64). 화면에선 ×1~×3 정수배만. 씨앗은 작물별 봉투 `seed_<작물>.png`, 없을 때만 `seed.png`. 그림이 없으면 `assets/food` 그림, 그것도 없으면 키트 아이콘. 다시 만들기: `tools/shop_icons.py`, 목업 `tools/shop_mock.py`·`shop_mock2.py`, 병원 배경 `tools/hosp_room.py`
+
+## 밭 (목업 `docs/mockups/farm/`, `gui/scenes/farm.py` `FarmScene`, A안)
+지도 "밭" 건물 → 밭. 배경 `assets/farm/farm.png`(1280×720, ½로 그대로, 위 26px 투명)
+- 위: ◀ 지도 + 리본 "밭" + 정보 칸 "심고 10분 · 수확 3개". 다 자란 밭이 하나라도 있으면 그 자리에 주황 "모두 수확" → ready인 밭마다 `harvest_crop(index)`을 차례로, 끝나면 "토마토 +3 · 양배추 +3" 알림 한 번
+- 왼쪽 텃밭 6칸(3열 × 2줄, 나무 틀 + 흙 점무늬는 코드로 그림 `soil_tile`, tools/farm_mock.py soil()과 같음). 상태는 스냅샷 `plots`(index, crop, ready, end, remaining_seconds), 남은 시간은 `end - app.now()`로 계속 줄어듦
+  - 자라는 중: 왼쪽 위 갈색 칩 "4:12" + 아래 초록 진행 게이지 / 다 자람: 초록 칩 "수확!" + 천천히 깜빡이는 반짝이 / 빈 밭: "빈 밭" + 고른 칸에 고른 씨앗 새싹 반투명 미리보기(씨앗이 있을 때)
+  - 안 산 칸: 풀밭 + 팻말. 바로 다음 칸만 밝은 팻말 "밭 넓히기 + 코인"(`get_rules()['plot_costs'][칸 번호]`, 최대 칸 수 = plot_costs 길이), 그 뒤는 어두운 팻말 "잠김". 고른 칸은 노란 꺾쇠(`select_frame`)
+- 오른쪽 칸: 빈 밭 = 씨앗 카드 2열 × 3줄(봉투 ×2, 이름, "보유 N", 0이면 빨강 + 반투명), "씨앗 1개 → 감자 3개", "씨앗은 상점에서 N코인"(상점 목록 buy), "감자 심기"(아래 "10분 뒤 수확", 씨앗 0이면 회색 "씨앗 없음") = `plant_crop(index, crop)` / 자라는 중 = 큰 그림 ×3, 남은 시간 + 게이지, "다 자라면 감자 ×3" / 다 자람 = "수확 가능" 칩, 큰 그림, "받는 것: 토마토 ×3", "가방 보유 2 → 5", "수확하기" = `harvest_crop(index)` / 안 산 칸 = 팻말 + 가격 + "밭 넓히기" → 확인 창 → `expand_plot`(코인 부족 등은 백엔드 알림)
+- 수확하면 그 칸에서 작물 아이콘 3개가 위로 톡 튀었다 사라짐(0.6초) + "토마토 +3" 알림
+- **작물 그림** `assets/farm/plants/`: seeded / sprout / growing / `<작물>_ripe` (원본 24×24, 파일 4배 96). 밭 칸 ×2(48), 오른쪽 ×3(72). 단계는 진행 = 1 - 남은 시간 / 자라는 시간 → `plants.json`의 구간(0~20% seeded, 20~55% sprout, 55~100% growing, ready면 ripe)
+- **GUI 표시값** (`farm.FARM_DISPLAY`): 자라는 시간 600초, 수확 개수 3개. 백엔드 `config.CROP_DURATION`·`CROP_YIELD`인데 `get_rules`·스냅샷에 안 나와서 GUI에 둠. 백엔드 값을 바꾸면 같이 바꿀 것 (기영님께 `get_rules`에 넣어 달라고 요청 가능). 밭 가격은 `get_rules()['plot_costs']` 백엔드 값
+- 작물·씨앗 이름은 상점 목록 label. 양배추 재료 그림 `assets/food/cabbage.png`(food_icons.json에 추가)
+- 다시 만들기: `tools/farm_icons.py`(작물·씨앗 봉투), `tools/farm_mock.py`(목업·배경)
 
 ## 진행 상황
 - 완료: 백엔드 1차(기영), 캐릭터 30종 데이터, 역할별 MAX, 도트 75장 (PR #1 merge됨)
@@ -238,12 +251,13 @@ CHARACTERS.md        캐릭터 목록 · GUI.md 화면 구조 설명
 - 완료 (merge됨): 도트 UI 키트(640×360 논리 화면, 갈무리 글꼴), 내 동물 화면 animals_v2, 지도 메뉴·간판·알림, 설정 창, 전투장(PR #10, 스테이지 고르기·출전 준비·전투·결과), 전투 아이템(PR #11)
 - 완료 (PR #12 merge됨, 기영): 적 몬스터 enemies.json 연결, 전투 행동 회복량 `amount`, 스테이지 `ai_description`
 - 완료 (PR #13 merge됨): 집·주방 (레시피 북·재료 부족·요리 미니게임·결과·음식 주기), 전투 다음 동물 자동 선택
-- 진행 중 (브랜치 `shop-hospital`): 상점(탭 6개·구매·판매)·알 부화 연출·병원·내 동물 장비 장착, 키트 금색(gold)
+- 완료 (PR #14 merge됨): 상점(탭 6개·구매·판매)·알 부화 연출·병원·내 동물 장비 장착, 키트 금색(gold)
+- 진행 중 (브랜치 `farm`): 밭(텃밭 6칸·씨앗 심기·수확·모두 수확·밭 넓히기), 작물별 씨앗 봉투, 양배추 그림
 
 ## 다음 할 일 (순서대로)
 1. **메인 화면을 목업대로**: `map_scene.py`의 텍스트 카드를 지도 이미지 + 간판 + 오른쪽 메뉴로 교체. 마당 동물은 `map.json`의 `yard` 안에서 움직이게. 지금의 "집" 화면(AnimalsScene)은 메뉴 "내 동물"로 연결
 2. **설정 창** (시간 속도, 시연 모드, 저장·불러오기, 게임 종료)
 3. **전투장**: 스테이지 선택(적 미리보기 `preview_stage`), 팀 3마리 + 전투 전 포션 선택, 전투 화면(체력바, 행동 버튼은 `get_battle_actions`로), 결과 화면
-4. ~~상점(구매·판매·알 부화)~~, ~~병원(치료)~~ (완료, 브랜치 `shop-hospital`), 밭, 사냥터, 도감(없는 동물은 실루엣), 가방. (집 주방 + 타이밍 미니게임 = 완료, PR #13)
+4. ~~상점(구매·판매·알 부화)~~, ~~병원(치료)~~ (완료, PR #14), ~~밭~~ (완료, 브랜치 `farm`), 사냥터, 도감(없는 동물은 실루엣), 가방. (집 주방 + 타이밍 미니게임 = 완료, PR #13)
 5. 마이룸(여유 있으면)
 6. 실행 파일(PyInstaller), 보고서, **시연 영상(F12 시연 모드)**

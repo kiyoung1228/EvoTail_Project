@@ -1,6 +1,6 @@
 """상점·병원 아이템 그림과 표시 글씨. 게임 규칙은 없다 (가격·효과·확률 숫자는 get_shop_catalog 값).
 
-- 그림: assets/items/<백엔드 id>.png (원본 16×16, 파일 4배 64). seed_* 는 전부 seed.png.
+- 그림: assets/items/<백엔드 id>.png (원본 16×16, 파일 4배 64). 씨앗은 seed_<작물>.png, 없을 때만 seed.png.
   그림이 없으면 assets/food 그림(재료·요리), 그것도 없으면 키트 아이콘. 화면에서는 ×1~×3 정수배만.
 - 다시 만들기: tools/shop_icons.py
 """
@@ -80,8 +80,9 @@ class ItemIcons:
 
     def base(self, item):
         if item not in self._base:
-            name = 'seed' if item.startswith('seed_') else item
-            path = os.path.join(ITEM_DIR, f'{name}.png')
+            path = os.path.join(ITEM_DIR, f'{item}.png')
+            if item.startswith('seed_') and not os.path.exists(path):      # 작물별 봉투가 없을 때만 공용 봉투
+                path = os.path.join(ITEM_DIR, 'seed.png')
             if os.path.exists(path):
                 img = pygame.image.load(path).convert_alpha()
                 w, h = img.get_size()
