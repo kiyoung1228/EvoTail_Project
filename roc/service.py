@@ -19,6 +19,9 @@ from . import autonomy as AUTO
 from .store import SQLiteStore, SaveConflictError
 
 
+_UNSET = object()
+
+
 class GameRuleError(ValueError):
     """User-facing validation failure; safe to show in GUI."""
 
@@ -135,7 +138,7 @@ class GameService:
         owned={key:self._new_animal(key,now) for key in starter.values()}
         inv={'snack':3}
         return {'schema':2,'event_seq':0,'created':now,'clock':{'virtual':now,'last_real':now,'rate':1.0},
-                'coins':300,'animals':owned,'yard':list(owned)[:C.YARD_MAX_ANIMALS],
+                'coins':300,'animals':owned,'yard':[],
                 'inventory':inv,'toy_instances':[],
                 'plots':[{'crop':None,'end':None,'ready':False}], 'hunts':{}, 'jobs':{},
                 'battle':None,'battle_result':None,'battle_attempts':{},'last_team_roles':[],
@@ -157,15 +160,18 @@ class GameService:
     def _mutate(self, fn):
         with self._lock:
             candidate=copy.deepcopy(self.state)
-            # Old SQLite saves have no yard key. Preserve every owned animal;
-            # only initialize the visible selection (up to six starters).
+            # Old saves without a selection start empty; GUI fills empty slots.
+            # Previous releases allowed six selections. Keep the first five
+            # in display order without deleting any owned animal.
             if 'yard' not in candidate:
-                candidate['yard']=list(candidate['animals'])[:C.YARD_MAX_ANIMALS]
+                candidate['yard']=[]
             yard=candidate['yard']
-            if (not isinstance(yard,list) or len(yard)>C.YARD_MAX_ANIMALS
+            if (not isinstance(yard,list) or len(yard)>6
                 or any(type(k)!=str or k not in candidate['animals'] for k in yard)
                 or len(set(yard))!=len(yard)):
                 raise GameRuleError('저장된 마당 동물 목록에 잘못된 값이 있습니다.')
+            if len(yard)>C.YARD_MAX_ANIMALS:
+                candidate['yard']=yard[:C.YARD_MAX_ANIMALS]
             # The v2 save format had no monotonically increasing event IDs.
             # All new events are numbered, so the long-term SQLite history has
             # exactly-once insertion regardless of the 80-entry UI ring buffer.
@@ -515,13 +521,13 @@ class GameService:
         return self._read(lambda s:{'keys':list(s['yard']),'max':C.YARD_MAX_ANIMALS})
 
     def set_yard_animals(self,keys):
-        """Choose 0..6 *owned* animals in display order; auto-save to SQLite.
+        """Choose 0..5 *owned* animals in display order; auto-save to SQLite.
 
         This affects the GUI yard selection only, not training, battles,
         metabolism, offline progression or autonomous behaviour.
         """
         def fn(s):
-            if type(keys) not in (list,tuple):
+            if type(keys) is not list:
                 raise GameRuleError('마당 동물은 동물 ID 목록으로 전달해야 합니다.')
             if len(keys)>C.YARD_MAX_ANIMALS:
                 raise GameRuleError(f'마당에는 최대 {C.YARD_MAX_ANIMALS}마리만 배치할 수 있습니다.')
@@ -581,6 +587,7 @@ class GameService:
                            'level_thresholds':list(C.COOK_LEVEL_XP),
                            'miss_rescue_by_level':list(C.COOK_MISS_RESCUE_BY_LEVEL),
                            'miss_rescue_max_star':C.COOK_MISS_RESCUE_MAX_STAR,
+                           'judgments':list(C.COOK_JUDGMENTS),
                            'grades':list(C.COOK_GRADES),
                            'perfect_multiplier':C.COOK_PERFECT_MULTIPLIER,
                            'timing':copy.deepcopy(C.COOK_TIMING)}}
@@ -838,7 +845,7 @@ class GameService:
 
     def _cook_level(self,s):
         xp=s['cook_xp']
-        return max(i+1 for i,threshold in enumerate(C.COOK_LEVEL_XP) if xp>=threshold)
+        return max(i+1 for i,threshold in enumerate(C.COOK_LEVELS) if xp>=threshold)
 
     def _cook_rescue_chance(self,stars,level):
         if stars>C.COOK_MISS_RESCUE_MAX_STAR:
@@ -856,16 +863,24 @@ class GameService:
                                for key,r in C.RECIPES.items()}}
         return self._read(fn)
 
-    def cook(self,recipe,grade='Good'):
-        """Resolve timing grades; only a low-star Miss can be rescued.
+    def cook(self,recipe,judgment=_UNSET,*,grade=_UNSET):
+        """Resolve the GUI's timing judgment, not a separate failure roll.
 
-        Perfect and Good always succeed and earn star-based XP. A rescued
-        1-3 star Miss gives regular food, without XP; 4-5 star Miss always burns.
-        Default Good preserves older CLI/demo calls, not GUI input validation.
+        Canonical input: judgment='perfect'/'good'/'miss'. For existing
+        callers, accept grade= and title-case labels; omitted judgment is
+        Good (legacy demos). The GUI should always pass its actual judgment.
+        xp is the reward for this attempt; total_xp is cumulative mastery XP.
         """
+        if judgment is not _UNSET and grade is not _UNSET:
+            raise GameRuleError('요리 판정은 judgment 또는 grade 중 하나만 전달해야 합니다.')
+        selected=judgment if judgment is not _UNSET else grade
+        if selected is _UNSET:
+            selected='good'
+        if not isinstance(selected,str) or selected.lower() not in C.COOK_JUDGMENTS:
+            raise GameRuleError('요리 판정은 perfect, good, miss 중 하나여야 합니다.')
+        selected=selected.lower()
+
         def fn(s):
-            if not isinstance(grade,str) or grade not in C.COOK_GRADES:
-                raise GameRuleError('요리 판정은 Perfect, Good, Miss 중 하나여야 합니다.')
             if not isinstance(recipe,str) or recipe not in C.RECIPES:
                 raise GameRuleError('없는 요리입니다.')
             r=C.RECIPES[recipe]
@@ -874,16 +889,17 @@ class GameService:
             for item,quantity in r['ingredients'].items():self._take(s,item,quantity)
             level=self._cook_level(s)
             rescue_chance=self._cook_rescue_chance(r['stars'],level)
-            fail=1.0-rescue_chance if grade=='Miss' else 0.0
-            rescued=(grade=='Miss' and rescue_chance>0.0
+            fail=1.0-rescue_chance if selected=='miss' else 0.0
+            rescued=(selected=='miss' and rescue_chance>0.0
                      and self.rng.random()<rescue_chance)
-            success=grade!='Miss' or rescued
+            success=selected!='miss' or rescued
             if not success:
-                obtained='burned_food'; result='failure'
-            elif grade=='Perfect':
-                obtained='food_perfect_'+recipe; result='great_success'
+                obtained='burned_food'; result='failure'; outcome='burnt'
+            elif selected=='perfect':
+                obtained='food_perfect_'+recipe; result='great_success'; outcome='great'
             else:
                 obtained='food_'+recipe; result='success'
+                outcome='rescued' if rescued else 'success'
             self._add(s,obtained,1)
             self._count(s,'cooks_attempted')
             gained=0
@@ -892,10 +908,12 @@ class GameService:
                 if not rescued:
                     gained=C.COOK_XP[r['stars']]
                     s['cook_xp']+=gained
-            return {'success':success,'grade':grade,'result':result,'item':obtained,
+            return {'success':success,'judgment':selected,'outcome':outcome,
+                    'grade':selected.title(),'result':result,'item':obtained,
                     'effect_multiplier':C.ITEMS[obtained]['effect_multiplier'],
                     'effects':dict(C.ITEMS[obtained]['effects']),
-                    'xp':s['cook_xp'],'xp_gained':gained,'level':self._cook_level(s),
+                    'xp':gained,'xp_gained':gained,'total_xp':s['cook_xp'],
+                    'level':self._cook_level(s),
                     'failure_chance':fail,'miss_rescue_chance':rescue_chance,
                     'rescued':rescued}
         return self._mutate(fn)
