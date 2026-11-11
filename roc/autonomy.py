@@ -22,6 +22,8 @@ ACTION_LABELS = {
 # labels and nature-specific permission rules in GameService._available.
 PREFERENCE_BONUS = 35
 ACTION_THRESHOLD = 45
+# Above this threshold, idle animals must rest regardless of temperament.
+FORCED_REST_FATIGUE_THRESHOLD = 80
 PERSONALITY_FOCUS = {
     'glutton': 'eat',
     'sleepy': 'rest',
@@ -54,6 +56,10 @@ def evaluate(animal: dict) -> Decision:
     nature = animal['nature']
 
     scores = {'eat': 100-fullness, 'rest': fatigue, 'play': 100-mood}
+    # Absolute safety rule: check *before* picky personality's refusal or
+    # any competing hunger / mood priority. 80 itself is not forced rest.
+    if fatigue > FORCED_REST_FATIGUE_THRESHOLD:
+        return Decision('rest', '피로도 80 초과: 상태가 나쁨, 성격과 관계없이 강제 휴식', scores)
     severe = {'eat': fullness < 30, 'rest': fatigue > 55, 'play': mood < 30}
     if nature == 'picky' and any(severe.values()):
         return Decision('refuse', '까칠한 성격: 상태가 나빠 자율 활동 거부', scores)
