@@ -35,6 +35,7 @@ def scripted_run(self):
         s['animals']['tank_normal_02']['fullness'] = 10
         s['yard'] = ['dealer_special_02', 'tank_normal_02', 'healer_special_05']
         s['coins'] = 1234567
+        s['inventory']['battle_bandage'] = 12                 # 전투 아이템 목록 (두 자리 개수)
         return True
     g._mutate(setup)
     self.act('start_training', None, key='tank_normal_01', stat='defense', difficulty='easy')
@@ -115,6 +116,8 @@ def scripted_run(self):
                 bs.selected = f['id']; bs._load_actions(); frames(2)
                 if any(a['kind'] == 'attack' and a['target'] for a in bs.actions):
                     bs.mode = 'attack'; frames(2); bs.mode = None
+            bs.item_menu = True; frames(2)                     # 전투 아이템 목록
+            bs.item_menu = False
             move((550, 320)); frames(2)
             shot('real_battle.png')
             res = self.call('forfeit_battle'); self.refresh()

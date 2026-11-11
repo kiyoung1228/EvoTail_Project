@@ -7,7 +7,8 @@
 - 피해·회복 숫자, 쓰러진 동물 회색, 적 차례는 기록을 0.6초 간격으로 하나씩
 - 전투 기록: 작은 칸, 마우스를 올리면 위로 펼침. 도망가기 = forfeit_battle (확인 창)
 - 피해 계산 등 규칙은 계산하지 않는다: 체력·피해·회복은 전부 백엔드가 준 값과 기록(events)으로 그린다.
-  전투 중 아이템(battle_bandage)은 화면에 넣지 않는다 (팀 결정: 아이템은 전투 전에만)
+  전투 중 아이템(응급 붕대 battle_bandage)은 "아이템" 버튼 → 목록 → 아군 고르기 (팀 확정: 전투 중 아이템 요구사항).
+  get_battle_actions(아이템)의 battle_item 행동만 쓰고, 쓰면 팀 행동 1번(백엔드 use_battle_item)
 """
 import random
 import time
@@ -34,14 +35,14 @@ FLOAT_TIME = 0.9
 # TODO: 백엔드 get_battle_actions가 회복량(amount)을 주면 이 표를 지운다 (기영님께 요청)
 HEAL_PREVIEW = {1: 100, 2: 300, 3: 500}
 # 특수기: 역할 상관없이 보라색 버튼 (방어 버튼 파랑과 헷갈리지 않게)
-SPECIAL = {'tank': ('절대방어', 'shield', '아군 1마리 · 다음 적 차례 피해 0'),
-           'healer': ('회복', 'heart', '아군 1마리 · 쓰면 1턴 쉼')}
+SPECIAL = {'tank': ('절대방어', 'shield'), 'healer': ('회복', 'heart')}
+SPECIAL_NOTE = ('아군 1마리', '쓰면 다음 턴 1번 쉼')      # 버튼 아래 설명 (두 줄)
 
 
 def cooldown_label(cd):
-    """쿨타임 중 특수기 버튼 글씨. 백엔드 cooldown: 쓰면 2, 내 턴이 시작될 때마다 1씩 줄고 0이면 사용 가능.
-    (숫자의 정확한 뜻은 기영님께 확인 중)"""
-    return '다음 턴에 사용' if cd <= 1 else f'{cd}턴 뒤 사용'
+    """쿨타임 중 특수기 버튼 글씨 (팀 확정: 특수기를 쓰면 다음 자기 팀 턴 1번만 쉼).
+    백엔드 cooldown이 0보다 크면 이번 턴엔 못 씀 → 버튼은 회색(disabled)으로 막는다."""
+    return '재사용 대기: 1턴'
 
 
 def shorten(msg, width, kind='small'):
@@ -126,6 +127,10 @@ class BattleScene(Scene):
         self._round_now = 1
         self._done_at = 0.0
         self.log_len = 0
+        self.items = {}            # 상점 목록 (get_shop_catalog), 전투 아이템 이름·회복량
+        self.item_menu = False     # 아이템 목록이 열려 있는지
+        self.item_id = None        # 대상 고르는 중인 아이템
+        self.item_actions = []     # get_battle_actions(아이템)이 준 battle_item 행동
 
     # ---------- 시작 ----------
     def enter(self):
@@ -141,6 +146,8 @@ class BattleScene(Scene):
         self.fresh = False
         stages = self.app.call('get_stages') or []
         self.stage = next((s for s in stages if s['id'] == self.view.get('stage')), {})
+        self.items = self.app.call('get_shop_catalog') or {}
+        self.item_menu, self.item_id, self.item_actions = False, None, []
         profiles = self.app.call('get_ai_profiles') or {}
         self.ai_label = profiles.get(self.view.get('ai'), {}).get('strategy', '')
         self.selected = None
@@ -194,6 +201,8 @@ class BattleScene(Scene):
             return f"{n(e['actor'])} → {n(e['target'])} 절대방어", T.shade('blue', 1)
         if t == 'heal':
             return f"{n(e['actor'])} → {n(e['target'])} 회복 +{e['amount']}", T.shade('green', 1)
+        if t == 'battle_item':
+            return f"{self._item_label(e.get('item'))} → {n(e['target'])} 회복 +{e['amount']}", T.shade('green', 1)
         return None, None              # ai_decision 등은 기록에 안 씀
 
     @staticmethod
@@ -208,8 +217,10 @@ class BattleScene(Scene):
         b = self._short(self._name(e.get('target'))) if e.get('target') else ''
         if t == 'hit':
             tail, color = f"-{e['damage']}" + ('!' if e.get('critical') else ''), T.TEXT
-        elif t == 'heal':
+        elif t in ('heal', 'battle_item'):
             tail, color = f"+{e['amount']}", T.shade('green', 1)
+            if t == 'battle_item':
+                a = self._item_label(e.get('item'))
         elif t == 'blocked':
             tail, color = '막힘', T.shade('blue', 1)
         elif t == 'shield':
@@ -248,7 +259,7 @@ class BattleScene(Scene):
             self.disp_hp[target] = max(0, self.disp_hp.get(target, 0) - e['damage'])
             label = f"-{e['damage']}" + ('!' if e.get('critical') else '')
             self._float(target, label, T.shade('red', 1) if not e.get('critical') else T.shade('orange', 1))
-        elif t == 'heal':
+        elif t in ('heal', 'battle_item'):
             f = self._fighter(target)
             mx = f['stats']['hp'] if f else 9999
             self.disp_hp[target] = min(mx, self.disp_hp.get(target, 0) + e['amount'])
@@ -321,6 +332,39 @@ class BattleScene(Scene):
         if any(a['kind'] == 'special' for a in self.actions):
             self.mode = 'special'
 
+    # ---------- 전투 아이템 (응급 붕대 등, 팀 확정: 전투 중 사용) ----------
+    def _item_label(self, item):
+        label = self.items.get(item, {}).get('label', item or '')
+        return label.replace('전투 ', '')                       # '전투 응급 붕대' → '응급 붕대'
+
+    def _battle_items(self):
+        """가방에 있는 전투 아이템 [(key, 개수)]. 종류는 상점 목록의 kind == 'battle_item'."""
+        inv = self.app.state.get('inventory', {}).get('stackable', {})
+        return [(k, inv.get(k, 0)) for k, v in self.items.items() if v.get('kind') == 'battle_item' and inv.get(k, 0) > 0]
+
+    def toggle_items(self):
+        self.item_menu = not self.item_menu
+        self.mode = None
+
+    def _item_rows(self):
+        """아이템 목록 칸 (아이템 버튼 위로 쌓음)."""
+        rows = self._battle_items()
+        out = []
+        for i, (key, n) in enumerate(rows):
+            r = pygame.Rect(0, 0, 196, 34)
+            r.bottomright = (472, 276 - i * 36)
+            out.append((key, n, r))
+        return out
+
+    def pick_item(self, key):
+        """아이템을 고르면 백엔드가 주는 대상(battle_item 행동)으로 아군 고르기."""
+        acts = [a for a in (self.app.call('get_battle_actions', actor=key) or []) if a.get('kind') == 'battle_item']
+        self.item_menu = False
+        if not acts:
+            self.app.toast('지금은 쓸 수 없어요 · 다친 아군이 없거나 행동이 남지 않았어요', 'bad', 'heart')
+            return
+        self.item_id, self.item_actions, self.mode = key, acts, 'item'
+
     def do_defend(self):
         if any(a['kind'] == 'defend' for a in self.actions):
             self._send('battle_action', actor=self.selected, kind='defend', target=self.selected)
@@ -341,29 +385,52 @@ class BattleScene(Scene):
     def _targets(self):
         if not self.mode:
             return []
+        if self.mode == 'item':
+            return [a['target'] for a in self.item_actions if a.get('target')]
         return [a['target'] for a in self.actions if a['kind'] == self.mode and a['target']]
+
+    def _heal_preview(self, target):
+        """회복 대상 미리보기 양 (실제 회복은 백엔드 기록 값). 아이템은 상점 목록의 heal(백엔드 ITEMS),
+        힐러는 HEAL_PREVIEW. 백엔드가 actions에 amount를 주면 그 값으로 바꿀 것."""
+        if self.mode == 'item':
+            return self.items.get(self.item_id, {}).get('heal', 0)
+        healer = self._fighter(self.selected)
+        if self.mode == 'special' and healer and healer['role'] == 'healer':
+            return HEAL_PREVIEW.get(healer.get('stage', 1), 0)
+        return 0
 
     # ---------- 입력 ----------
     def handle(self, event):
-        if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE and self.mode:
-            self.mode = None
+        if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE and (self.mode or self.item_menu):
+            self.mode, self.item_menu = None, False
             return
         if self._busy():
             if self.buttons and self.buttons[0].handle(event):       # 도망가기는 언제나
                 return
             return
+        if self.item_menu and event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            for key, n, r in self._item_rows():
+                if r.collidepoint(event.pos):
+                    self.pick_item(key)
+                    return
+            if not any(b.label.startswith('아이템') and b.rect.collidepoint(event.pos) for b in self.buttons):
+                self.item_menu = False                          # 목록 밖을 누르면 닫기
+                return
         for b in self.buttons:
             if b.handle(event):
                 return
-        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 3 and self.mode:
-            self.mode = None
+        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 3 and (self.mode or self.item_menu):
+            self.mode, self.item_menu = None, False
             return
         if event.type != pygame.MOUSEBUTTONDOWN or event.button != 1:
             return
         hit = self._fighter_at(event.pos)
         if self.mode:
             if hit and hit in self._targets():
-                self._send('battle_action', actor=self.selected, kind=self.mode, target=hit)
+                if self.mode == 'item':
+                    self._send('battle_action', actor=self.item_id, kind='battle_item', target=hit)
+                else:
+                    self._send('battle_action', actor=self.selected, kind=self.mode, target=hit)
             return
         f = self._fighter(hit) if hit else None
         if f and f['team'] == 'player' and f['hp'] > 0:
@@ -438,14 +505,18 @@ class BattleScene(Scene):
         btns.append(Button((178, 314, 94, 26), '방어', self.do_defend, 'blue',
                            enabled=not busy and 'defend' in kinds, icon='shield'))
         if role in SPECIAL:
-            name, ic, _ = SPECIAL[role]
+            name, ic = SPECIAL[role]
             if role == 'healer':
                 name = f"회복 +{HEAL_PREVIEW.get(f.get('stage', 1), '')}"
             cd = f.get('cooldown', 0) if f else 0
-            label = cooldown_label(cd) if cd > 0 else name          # 쿨타임이면 회색(disabled) + 언제 쓰는지
-            btns.append(Button((278, 280, 114, 26), label, self.do_special, 'purple',
+            label = cooldown_label(cd) if cd > 0 else name          # 쿨타임이면 회색(disabled) + 재사용 대기
+            btns.append(Button((276, 280, 112, 26), label, self.do_special, 'purple',
                                enabled=not busy and cd == 0 and 'special' in kinds, icon=None if cd > 0 else ic))
-        btns.append(Button((398, 280, 74, 26), '턴 넘기기', self.end_turn, 'brown', enabled=not busy))
+        # 아이템: 가방에 전투 아이템이 있을 때만 켜기, 개수 표시. 쓰면 팀 행동 1번 (백엔드 use_battle_item)
+        total = sum(n for _, n in self._battle_items())
+        btns.append(Button((392, 280, 80, 26), f'아이템 {total}', self.toggle_items, 'green',
+                           enabled=not busy and total > 0, icon='snack'))
+        btns.append(Button((392, 314, 80, 26), '턴 넘기기', self.end_turn, 'brown', enabled=not busy))
         self.buttons = btns
 
     # ---------- 그리기 ----------
@@ -468,6 +539,8 @@ class BattleScene(Scene):
         self._draw_command(surface)
         for b in self.buttons:
             b.draw(surface)
+        if self.item_menu:
+            self._draw_item_menu(surface, hover)
         self.log_open = LOG_SMALL.collidepoint(hover) or (self.log_open and LOG_BIG.collidepoint(hover))
         if self.log_open:
             self._draw_log_big(surface)
@@ -495,20 +568,16 @@ class BattleScene(Scene):
         bar = pygame.Rect(art.centerx - 22, art.top - 11, 44, 8)
         ratio = hp / mx if mx else 0
         color = 'green' if ratio > .5 else ('orange' if ratio > .25 else 'red')
-        # 회복 대상 미리보기: 회복 뒤 체력을 옅게
-        if self.mode == 'special' and f['id'] == hover_id and f['id'] in targets:
-            healer = self._fighter(self.selected)
-            if healer and healer['role'] == 'healer':
-                gain = min(HEAL_PREVIEW.get(healer.get('stage', 1), 0), mx - hp)
-                gauge(surface, bar, hp + gain, mx, 'green')
-                inner = bar.inflate(-4, -4)
-                w0 = int(inner.w * max(0, hp) / mx)
-                pygame.draw.rect(surface, T.shade('green', 3), (inner.x + w0, inner.y, int(inner.w * (hp + gain) / mx) - w0, inner.h))
-                pygame.draw.rect(surface, T.shade(color, 2), (inner.x, inner.y, w0, inner.h))
-                text_in(surface, f'+{gain}', (art.centerx - 30, bar.y - 18, 60, 16), 'title', T.shade('green', 1),
-                        shadow=T.WHITE, log=False)
-            else:
-                gauge(surface, bar, hp, mx, color)
+        preview = self._heal_preview(f['id']) if f['id'] == hover_id and f['id'] in targets else 0
+        if preview:                                    # 회복 대상: 회복 뒤 체력을 옅게 + "+N"
+            gain = min(preview, mx - hp)
+            gauge(surface, bar, hp + gain, mx, 'green')
+            inner = bar.inflate(-4, -4)
+            w0 = int(inner.w * max(0, hp) / mx)
+            pygame.draw.rect(surface, T.shade('green', 3), (inner.x + w0, inner.y, int(inner.w * (hp + gain) / mx) - w0, inner.h))
+            pygame.draw.rect(surface, T.shade(color, 2), (inner.x, inner.y, w0, inner.h))
+            text_in(surface, f'+{gain}', (art.centerx - 30, bar.y - 18, 60, 16), 'title', T.shade('green', 1),
+                    shadow=T.WHITE, log=False)
         else:
             gauge(surface, bar, hp, mx, color)
         if down:
@@ -569,6 +638,8 @@ class BattleScene(Scene):
         healer = (self._fighter(self.selected) or {}).get('role') == 'healer'
         if self.mode == 'attack':
             msg, ic = '공격할 적을 누르세요 · 취소는 ESC', 'sword'
+        elif self.mode == 'item':
+            msg, ic = f"{T.josa(self._item_label(self.item_id), '을')} 쓸 아군을 누르세요 · 취소는 ESC", 'heart'
         elif healer:
             msg, ic = '회복할 아군을 누르세요 · 취소는 ESC', 'heart'
         else:
@@ -581,6 +652,18 @@ class BattleScene(Scene):
         x = inner.x + (inner.w - g.w - 16) // 2
         icon(surface, ic, (x, inner.y + 2))
         text_in(surface, msg, (x + 16, inner.y, g.w, inner.h), 'body', log=False)
+
+    def _draw_item_menu(self, surface, hover):
+        """전투 아이템 목록: 이름 ×개수 / 회복량 · 팀 행동 1번 사용 (백엔드 동작)."""
+        for key, n, r in self._item_rows():
+            card(surface, r, r.collidepoint(hover))
+            inner = card_inner(r)
+            spec = self.items.get(key, {})
+            icon(surface, 'heart', (inner.x + 2, inner.y + 2))
+            text_in(surface, f"{self._item_label(key)} ×{n}", (inner.x + 16, inner.y, inner.w - 16, 15), 'title',
+                    align='left', pad=0, check=inner, tag='battle_item')
+            text_in(surface, f"체력 +{spec.get('heal', '')} · 팀 행동 1번 사용", (inner.x + 16, inner.y + 15,
+                    inner.w - 16, 13), 'small', T.TEXT_SOFT, align='left', pad=0, check=inner, tag='battle_item')
 
     def _draw_floats(self, surface):
         now = time.time()
@@ -612,12 +695,10 @@ class BattleScene(Scene):
             text_in(surface, f"공 {st['attack']} · 방 {st['defense']} · 민 {st['agility']}",
                     (inner.x + 2, inner.y + 46, inner.w - 4, 14), 'small', T.TEXT_SOFT, align='left', pad=0,
                     check=inner, tag='battle')
-            if role in SPECIAL:
-                text_in(surface, SPECIAL[role][2], (278, 309, 196, 15), 'small', T.TEXT_SOFT, align='left', pad=0,
+            note = SPECIAL_NOTE if role in SPECIAL else ('딜러 공격은', '적 전체에') if role == 'dealer' else ()
+            for i, line in enumerate(note):
+                text_in(surface, line, (278, 312 + i * 13, 110, 13), 'small', T.TEXT_SOFT, align='left', pad=0,
                         log=False)
-            elif role == 'dealer':
-                text_in(surface, '딜러 공격은 적 전체에', (278, 309, 196, 15), 'small', T.TEXT_SOFT, align='left',
-                        pad=0, log=False)
         # 작은 기록 칸
         card(surface, LOG_SMALL)
         inner = card_inner(LOG_SMALL)
