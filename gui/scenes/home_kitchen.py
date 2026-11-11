@@ -30,7 +30,7 @@ CELL = (72, 83)                               # 레시피·요리 칸 (이름 �
 GRID = (LEFT.x + 3, 89, 74, 86)               # 시작 x, y, 가로 간격, 세로 간격 (4열 × 3줄)
 COLS, GRID_ROWS = 4, 3
 NAME_Y = 36                                   # 칸 안 이름 첫 줄 (두 줄 = 36~66)
-ING = (RIGHT.x + 12, 166, 126, 32, 130, 35)   # 재료 칸 x, y, w, h, 가로 간격, 세로 간격 (2열)
+ING = (RIGHT.x + 12, 166, 126, 32, 130, 34)   # 재료 칸 x, y, w, h, 가로 간격, 세로 간격 (2열)
 LIST = pygame.Rect(RIGHT.x + 12, 150, 256, 32)   # 동물 줄 (첫 줄)
 LIST_STEP, LIST_ROWS = 34, 4
 BAR = pygame.Rect(120, 264, 400, 22)          # 미니게임 막대
@@ -66,17 +66,37 @@ def effect_parts(effects):
     return out
 
 
-def draw_effects(surface, pos, effects, kind='body', center=False):
-    """아이콘 + '포만감 +30' 들을 한 줄로. center=True면 pos가 가운데. 그린 폭을 돌려준다."""
+EFFECT_GAP, EFFECT_LINE_H = 10, 13
+
+
+def draw_effects(surface, pos, effects, kind='body', center=False, max_w=None):
+    """아이콘 + '포만감 +30' 들. center=True면 pos가 가운데.
+    max_w를 주면 그 폭(오른쪽 2px 여백) 안에 들어가게 효과 단위로 줄을 나눈다 (글자 크기는 그대로).
+    그린 줄 수를 돌려준다. max_w가 있으면 넘침 점검(check_text_fit)에도 기록한다."""
     parts = effect_parts(effects)
     widths = [15 + glyph_box(s, kind).w for _, s, _ in parts]
-    total = sum(widths) + 10 * max(0, len(parts) - 1)
-    x = pos[0] - total // 2 if center else pos[0]
-    for (ic, s, color), w in zip(parts, widths):
-        icon(surface, ic, (x, pos[1]))
-        text_in(surface, s, (x + 15, pos[1] - 2, w - 15, 16), kind, color, align='left', pad=0, log=False)
-        x += w + 10
-    return total
+    lines, cur, cur_w = [], [], 0
+    for part, w in zip(parts, widths):
+        add = w + (EFFECT_GAP if cur else 0)
+        if cur and max_w and cur_w + add > max_w - 2:
+            lines.append((cur, cur_w))
+            cur, cur_w, add = [], 0, w
+        cur.append((part, w))
+        cur_w += add
+    if cur:
+        lines.append((cur, cur_w))
+    for li, (row, total) in enumerate(lines):
+        y = pos[1] + li * EFFECT_LINE_H
+        x = pos[0] - total // 2 if center else pos[0]
+        start = x
+        for (ic, s, color), w in row:
+            icon(surface, ic, (x, y))
+            text_in(surface, s, (x + 15, y - 2, w - 15, 16), kind, color, align='left', pad=0, log=False)
+            x += w + EFFECT_GAP
+        if max_w and not center:
+            record(' · '.join(p[1] for p, _ in row), pygame.Rect(start, y, total, 12),
+                   pygame.Rect(pos[0] - 2, y - 3, max_w + 2, 18), 'kitchen-effects')
+    return max(1, len(lines))
 
 
 def fill_part(surface, inner, x0, x1, color):
@@ -351,7 +371,7 @@ class KitchenScene(Scene):
         self.buttons = []
         if self.mode == 'book' and self.tab == 'recipe' and self.recipe in self.recipes:
             ok = self.can_cook(self.recipe)
-            rect = pygame.Rect(RIGHT.x + 72, 310, 170, 28)
+            rect = pygame.Rect(RIGHT.x + 72, 316, 170, 26)
             if ok:
                 self.buttons.append(Button(rect, '요리 시작!', self.start_cooking, 'orange', icon='snack'))
             else:
@@ -512,11 +532,12 @@ class KitchenScene(Scene):
         y = ING[1] + rows * ING[5] + 4
         text(surface, '먹으면', (x0, y), 'title')
         effects = (self.catalog.get(r.get('regular_item')) or {}).get('effects', {})
-        draw_effects(surface, (x0 + 48, y), effects)
+        n = draw_effects(surface, (x0 + 48, y), effects, max_w=RIGHT.right - 8 - (x0 + 48))
+        y += (n - 1) * EFFECT_LINE_H        # 효과가 두 줄이면 아래 글을 한 줄만큼 내림
         mult = self.rules.get('perfect_multiplier', 1.5)
         xp = (self.rules.get('xp_per_star') or {}).get(r['stars'], (self.rules.get('xp_per_star') or {}).get(
             str(r['stars']), 0))
-        text(surface, f'대성공이면 {mult:g}배 · 경험치 +{xp}', (x0, y + 18), 'body', T.WARN)
+        text(surface, f'대성공이면 {mult:g}배 · 경험치 +{xp}', (x0, y + 16), 'body', T.WARN)
 
     def _draw_ingredient(self, surface, rect, item, need):
         have = self.have(item)
@@ -563,9 +584,9 @@ class KitchenScene(Scene):
             name = F.dish_name(item, self.catalog, self.recipes)
             text(surface, name, (x0 + 58, RIGHT.y + 10), 'big')
             effects = (self.catalog.get(item) or {}).get('effects', {})
-            draw_effects(surface, (x0 + 58, RIGHT.y + 30), effects)
+            n = draw_effects(surface, (x0 + 58, RIGHT.y + 30), effects, max_w=RIGHT.right - 8 - (x0 + 58))
             if item == F.BURNED:
-                text(surface, '반쯤은 안 먹어요', (x0 + 58, RIGHT.y + 44), 'body', T.TEXT_SOFT)
+                text(surface, '반쯤은 안 먹어요', (x0 + 58, RIGHT.y + 31 + n * EFFECT_LINE_H), 'body', T.TEXT_SOFT)
         else:
             text(surface, '줄 요리가 없어요', (x0, RIGHT.y + 14), 'big', T.TEXT_SOFT)
         text(surface, '누구에게 줄까요?', (x0, LIST.y - 16), 'title')
