@@ -33,7 +33,7 @@
 | --- | --- | --- | --- |
 | `panel.png` | 32×32 | 8 | 큰 창 (양피지 + 나무 테두리) |
 | `card.png`, `card_selected.png` | 24×24 | 6 | 목록 칸, 알림, 상단 바의 작은 칸, 선택 강조 |
-| `button_<색>_<상태>.png` | 24×16 | 5 | 버튼. 색: green, orange, purple, red, brown, blue, gray / 상태: normal, hover, pressed, disabled |
+| `button_<색>_<상태>.png` | 24×16 | 5 | 버튼. 색: green, orange, purple, red, brown, blue, gold, gray / 상태: normal, hover, pressed, disabled |
 | `gauge_frame.png` | 16×8 | 3 | 게이지 틀 (채움은 코드로) |
 | `ribbon_<색>.png` | 40×16 | 9 | 제목 리본 (red, brown, green). 높이 18로 늘려 씀 |
 
@@ -64,6 +64,7 @@ def nine_slice(img, margin, w, h):
 3. 10%마다 아래쪽에 1px 눈금
 - 색 팔레트는 `ui_kit.json`의 `colors.gauge_fill` (각 색 4단계: 가장 어두움 → 밝음, 본색은 [2])
 - 상태: 좋음 green, 보통 orange, 나쁨 red / 능력치: 체력 red, 공격 orange, 방어 blue, 민첩 green
+- gold(금색): 특급 등급 칩, 알 특급 등장 확률 막대 (tools/uikit.py `BTN['gold']`)
 
 ### 칩 (작은 태그)
 코드로 그림: 본색 사각형 + 검은 1px 테두리 + 윗줄 밝은색 + 갈무리9 흰 글씨. 역할(딜러 orange, 탱커 blue, 힐러 green), 속성, 등급, 단계, 성격, "마당" 표시에 사용.

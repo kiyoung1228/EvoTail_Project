@@ -20,7 +20,7 @@ from .. import food as F
 from ..app import Scene
 from ..widgets import (text, text_in, glyph_box, fit_width, panel, card, card_inner, ribbon, chip, chip_width, icon,
                        gauge, tooltip, record, Button, BUTTON_H, CARD_LABEL_H)
-from .battle_fight import shorten
+from ..widgets import wrap2, shorten
 
 BOOK = pygame.Rect(14, 62, 612, 292)
 LEFT = pygame.Rect(24, 70, 300, 276)          # 왼쪽 쪽 (책 panel 안)
@@ -52,26 +52,6 @@ RESULT = {   # outcome → 리본 글씨, 리본 색, 큰 글씨, 아래 설명
     'burnt': ('탄 요리...', 'red', 'MISS', '재료가 타 버렸어요 (경험치 없음)'),
 }
 ACTIVITY_LABEL = {'training': '훈련 중', 'hunting': '사냥 중'}
-
-
-def wrap2(msg, width, kind='body'):
-    """칸 폭(width, 글자 모양 기준)에 맞게 최대 두 줄로. 한 줄에 들어가면 그대로.
-    띄어쓰기에서 먼저 나눠 보고(두 줄 다 들어가는 곳 중 가장 고르게), 안 되면 글자 수 반쯤에서 나눈다.
-    그래도 안 들어가면 줄마다 끝을 …으로 (글자 크기는 줄이지 않는다)."""
-    gw = lambda m: glyph_box(m, kind).w
-    if gw(msg) <= width:
-        return [msg]
-    splits = [(msg[:i].strip(), msg[i + 1:].strip()) for i, c in enumerate(msg) if c == ' ']
-    fit = [p for p in splits if p[0] and p[1] and max(gw(p[0]), gw(p[1])) <= width]
-    if fit:
-        return list(min(fit, key=lambda p: max(gw(p[0]), gw(p[1]))))
-    n = len(msg)
-    for i in sorted(range(1, n), key=lambda i: (abs(i - n / 2), -i)):       # 반에 가까운 곳부터 (같으면 앞줄을 길게)
-        a, b = msg[:i].strip(), msg[i:].strip()
-        if a and b and gw(a) <= width and gw(b) <= width:
-            return [a, b]
-    a, b = msg[:(n + 1) // 2].strip(), msg[(n + 1) // 2:].strip()
-    return [shorten(a, width, kind), shorten(b, width, kind)]
 
 
 def effect_parts(effects):

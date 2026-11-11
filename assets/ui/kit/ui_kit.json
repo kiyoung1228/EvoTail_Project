@@ -197,6 +197,34 @@
    ],
    "margin": 5
   },
+  "button_gold_normal": {
+   "size": [
+    24,
+    16
+   ],
+   "margin": 5
+  },
+  "button_gold_hover": {
+   "size": [
+    24,
+    16
+   ],
+   "margin": 5
+  },
+  "button_gold_pressed": {
+   "size": [
+    24,
+    16
+   ],
+   "margin": 5
+  },
+  "button_gold_disabled": {
+   "size": [
+    24,
+    16
+   ],
+   "margin": 5
+  },
   "gauge_frame": {
    "size": [
     16,
@@ -412,6 +440,28 @@
      150,
      196,
      245
+    ]
+   ],
+   "gold": [
+    [
+     120,
+     78,
+     16
+    ],
+    [
+     184,
+     128,
+     28
+    ],
+    [
+     226,
+     172,
+     40
+    ],
+    [
+     255,
+     218,
+     104
     ]
    ]
   }

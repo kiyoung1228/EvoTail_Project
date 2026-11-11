@@ -151,6 +151,61 @@ def fit_width(msg, kind='body', extra=0, shadow=False):
     return glyph_box(msg, kind).w + (1 if shadow else 0) + 2 * TEXT_PAD + extra
 
 
+def shorten(msg, width, kind='body'):
+    """width 안에 들어가게 끝을 …으로 줄인다 (글자 크기는 그대로)."""
+    if glyph_box(msg, kind).w <= width:
+        return msg
+    while msg and glyph_box(msg + '…', kind).w > width:
+        msg = msg[:-1]
+    return msg + '…'
+
+
+def wrap2(msg, width, kind='body'):
+    """칸 폭(width, 글자 모양 기준)에 맞게 최대 두 줄로. 한 줄에 들어가면 그대로.
+    띄어쓰기에서 먼저 나눠 보고(두 줄 다 들어가는 곳 중 가장 고르게), 안 되면 글자 수 반쯤에서 나눈다.
+    그래도 안 들어가면 줄마다 끝을 …으로 (글자 크기는 줄이지 않는다)."""
+    gw = lambda m: glyph_box(m, kind).w
+    if gw(msg) <= width:
+        return [msg]
+    splits = [(msg[:i].strip(), msg[i + 1:].strip()) for i, c in enumerate(msg) if c == ' ']
+    fit = [p for p in splits if p[0] and p[1] and max(gw(p[0]), gw(p[1])) <= width]
+    if fit:
+        return list(min(fit, key=lambda p: max(gw(p[0]), gw(p[1]))))
+    n = len(msg)
+    for i in sorted(range(1, n), key=lambda i: (abs(i - n / 2), -i)):       # 반에 가까운 곳부터 (같으면 앞줄을 길게)
+        a, b = msg[:i].strip(), msg[i:].strip()
+        if a and b and gw(a) <= width and gw(b) <= width:
+            return [a, b]
+    a, b = msg[:(n + 1) // 2].strip(), msg[(n + 1) // 2:].strip()
+    return [shorten(a, width, kind), shorten(b, width, kind)]
+
+
+def wrap_lines(msg, width, kind='body'):
+    """여러 줄 문장: 띄어쓰기 단위로 width 안에 들어가게 줄을 나눈다 (설명 문장용)."""
+    lines, cur = [], ''
+    for word in str(msg).split(' '):
+        test = f'{cur} {word}'.strip()
+        if cur and glyph_box(test, kind).w > width:
+            lines.append(cur)
+            cur = word
+        else:
+            cur = test
+    if cur:
+        lines.append(cur)
+    return lines
+
+
+_backgrounds = {}
+
+
+def background(rel_path):
+    """1280×720(논리의 2배)로 그린 배경 그림 → 논리 640×360 (½로, 픽셀 그대로). 캐시한다."""
+    if rel_path not in _backgrounds:
+        img = pygame.image.load(os.path.join(T.ROOT, rel_path)).convert_alpha()
+        _backgrounds[rel_path] = pygame.transform.scale(img, (T.WIDTH, T.HEIGHT))
+    return _backgrounds[rel_path]
+
+
 # ---------- 창·칸·리본·칩 ----------
 def panel(surface, rect):
     nine(surface, 'panel', rect)
@@ -270,7 +325,7 @@ def gauge(surface, rect, value, maximum, color):
 
 # ---------- 버튼 ----------
 class Button:
-    """키트 버튼. color: green orange purple red brown blue gray. sub가 있으면 두 줄 버튼."""
+    """키트 버튼. color: green orange purple red brown blue gold gray. sub가 있으면 두 줄 버튼."""
 
     def __init__(self, rect, label, on_click, color='green', enabled=True, icon=None, sub=None):
         self.rect = pygame.Rect(rect)
@@ -310,7 +365,14 @@ class Button:
             g1, g2 = glyph_box(self.label, 'title'), glyph_box(self.sub, 'small')
             block = g1.h + 1 + 1 + g2.h + 1                 # 그림자 1 + 줄 사이 1
             top = face.y + (face.h - block) // 2
-            a = text_in(surface, self.label, (face.x, top, face.w, g1.h + 1), 'title', fg, shadow=sh, log=False)
+            if self.icon:      # 아이콘은 윗줄(굵은 글씨) 왼쪽에
+                w1 = g1.w + 1 + 14
+                x1 = face.x + (face.w - w1) // 2
+                icon(surface, self.icon, (x1, top + (g1.h + 1 - 12) // 2))
+                a = text_in(surface, self.label, (x1 + 14, top, g1.w + 1, g1.h + 1), 'title', fg, shadow=sh,
+                            log=False).union((x1, top, 14, g1.h + 1))
+            else:
+                a = text_in(surface, self.label, (face.x, top, face.w, g1.h + 1), 'title', fg, shadow=sh, log=False)
             b = text_in(surface, self.sub, (face.x, top + g1.h + 2, face.w, g2.h + 1), 'small', fg, shadow=sh,
                         log=False)
             record(f'{self.label}/{self.sub}', a.union(b), face, 'button')

@@ -5,9 +5,9 @@
 import pygame
 
 from .. import theme as T
-from ..app import Scene
+from ..app import Scene, Overlay
 from ..widgets import (text, text_width, text_in, panel, card, card_inner, ribbon, chip, gauge, icon, tooltip,
-                       Button, Kit, mouse_pos, BUTTON_H)
+                       Button, Kit, mouse_pos, shorten, fit_width, BUTTON_H)
 
 LIST = pygame.Rect(9, 56, 174, 298)          # 왼쪽 목록 창
 LIST_INNER = LIST.inflate(-18, -18)          # 칸이 놓이는 영역 (창 테두리 안)
@@ -103,6 +103,10 @@ class AnimalsScene(Scene):
         self.buttons.append(Button((204, 322, 129, 24), f'간식 주기 ×{snacks}',
                                    lambda: app.act('use_item', '간식을 줬어요', icon='snack', item='snack', key=key),
                                    'orange', enabled=snacks > 0 and not busy, icon='snack'))
+        # 장비 (장착·해제 = equip(key, item) / equip(key, None). 전투 중·활동 중이면 백엔드가 거절)
+        eq_label = self._equip_label(a)
+        self.buttons.append(Button((339, 322, 143, 24), eq_label, lambda: app.open_overlay(EquipOverlay(app, key)),
+                                   'blue', enabled=not busy, icon='shield'))
         # 진화
         ready = a['stage'] < a['max_stage'] and all(a['stats'][s] >= a['caps'][s] for s in T.STATS)
         costs = self.rules.get('evolution_cost', {})
@@ -127,6 +131,18 @@ class AnimalsScene(Scene):
                                                    key=key, stat=s, difficulty=d),
                     'green', sub=f'{dur // 60}분 · +{gain}',
                     enabled=not busy and a['participation'] and a['stats'][stat] < a['caps'][stat]))
+
+    def _equip_label(self, a):
+        if not a.get('equip'):
+            return '장비 없음'
+        cat = self._catalog()
+        name = (cat.get(a['equip']) or {}).get('label', a['equip'])
+        return shorten(name, 143 - 2 - 14 - 2 * 2 - 1, 'title')
+
+    def _catalog(self):
+        if not getattr(self, '_cat', None):
+            self._cat = self.app.call('get_shop_catalog') or {}
+        return self._cat
 
     def _stat_rows(self):
         return [(stat, pygame.Rect(DETAIL.x + 15, STAT_Y0 + i * STAT_STEP, DETAIL.w - 30, 19))
@@ -298,3 +314,63 @@ class AnimalsScene(Scene):
             ready = all(a['stats'][s] >= a['caps'][s] for s in T.STATS)
             hint = '진화할 수 있어요!' if ready else '능력치를 모두 MAX로!'
             text(surface, hint, (479, 334), 'body', T.OK if ready else T.TEXT_SOFT, 'midright')
+
+
+class EquipOverlay(Overlay):
+    """장비 고르기: 가방에 있는 장비 장착 / 지금 장비 해제. 숫자·이름은 get_shop_catalog 값."""
+    ROW_H, W = 40, 220
+
+    def __init__(self, app, key):
+        self.key = key
+        self.catalog = app.call('get_shop_catalog') or {}
+        self.app = app
+        rows = len(self._rows())
+        h = 30 + max(1, rows) * self.ROW_H + 8
+        super().__init__(app, (T.WIDTH // 2 - self.W // 2, 320 - h, self.W, h))
+        self.buttons = []
+
+    def _rows(self):
+        a = self.app.animal(self.key) or {}
+        stack = self.app.state.get('inventory', {}).get('stackable', {})
+        rows = []
+        if a.get('equip'):
+            rows.append(('off', a['equip']))
+        rows += [('on', k) for k, v in self.catalog.items() if v.get('kind') == 'equip' and stack.get(k, 0) > 0]
+        return rows
+
+    def update(self, dt):
+        self.buttons = []
+        x, w = self.rect.x + 10, self.rect.w - 20
+        for i, (mode, item) in enumerate(self._rows()):
+            spec = self.catalog.get(item, {})
+            sub = f"{T.STAT_LABEL.get(spec.get('stat'), '')} +{spec.get('amount', 0)}"
+            r = (x, self.rect.y + 28 + i * self.ROW_H, w, self.ROW_H - 4)
+            if mode == 'off':
+                self.buttons.append(Button(r, f"해제: {spec.get('label', item)}", lambda: self._equip(None), 'brown',
+                                           sub=sub))
+            else:
+                self.buttons.append(Button(r, f"장착: {spec.get('label', item)}", lambda it=item: self._equip(it),
+                                           'blue', sub=sub))
+
+    def _equip(self, item):
+        name = self.app.name_of(self.key)
+        label = (self.catalog.get(item) or {}).get('label', '')
+        msg = f"{T.josa(name, '이')} {T.josa(label, '을')} 장착했다" if item else f"{name} 장비 해제"
+        if self.app.act('equip', msg, icon='shield', key=self.key, item=item) is not None:
+            self.close()
+
+    def handle(self, event):
+        for b in self.buttons:
+            if b.handle(event):
+                return True
+        return False
+
+    def draw(self, surface):
+        panel(surface, self.rect)
+        text_in(surface, '장비 고르기 · 전투 중 교체 불가', (self.rect.x + 8, self.rect.y + 8, self.rect.w - 16, 16),
+                'title', tag='equip')
+        if not self.buttons:
+            text_in(surface, '가방에 장비 없음 · 상점에서 구매', (self.rect.x + 8, self.rect.y + 30, self.rect.w - 16, 26),
+                    'body', T.TEXT_SOFT, tag='equip')
+        for b in self.buttons:
+            b.draw(surface)
