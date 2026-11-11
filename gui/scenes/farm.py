@@ -201,16 +201,18 @@ class FarmScene(Scene):
             self.pops.append((i, res['crop'], time.time()))
 
     def harvest_all(self):
-        got = {}
+        """다 자란 밭을 차례로 수확. 알림은 짧게 "6칸 수확 · 작물 18개" (실제 수확 결과로 셈)."""
+        plots, total = 0, 0
         for p in list(self.plots()):
             if p.get('ready'):
                 res = self.app.call('harvest_crop', index=p['index'])
                 if res:
-                    got[res['crop']] = got.get(res['crop'], 0) + res['count']
+                    plots += 1
+                    total += res['count']
                     self.pops.append((p['index'], res['crop'], time.time()))
         self.app.refresh()
-        if got:
-            self.app.toast(' · '.join(f"{self.label(c)} +{n}" for c, n in got.items()), 'ok', 'heart')
+        if plots:
+            self.app.toast(f"{plots}칸 수확 · 작물 {total}개", 'ok', 'heart')
 
     def ask_expand(self):
         i = len(self.plots())
@@ -324,7 +326,9 @@ class FarmScene(Scene):
             else:
                 if i == self.selected and self.seed and self.seeds(self.seed) and not popping:   # 심을 자리 미리보기
                     surface.blit(self.plants.get('sprout', 2, 128), pos)
-                text(surface, '빈 밭', (r.centerx, r.y + 10), 'small', (236, 210, 180), 'midtop', shadow=(90, 56, 30))
+                if not popping:          # 수확 연출 동안은 "빈 밭" 글씨 숨김
+                    text(surface, '빈 밭', (r.centerx, r.y + 10), 'small', (236, 210, 180), 'midtop',
+                         shadow=(90, 56, 30))
         if i == self.selected:
             select_frame(surface, r.inflate(4, 4))
 

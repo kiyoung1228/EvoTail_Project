@@ -206,6 +206,7 @@ CHARACTERS.md        캐릭터 목록 · GUI.md 화면 구조 설명
 - 파일 이름 = 백엔드 id (재료 `potato.png`, 레시피 `butter_potato.png`). `food_<id>`, `food_perfect_<id>`는 레시피 그림을 쓰고 대성공은 그림을 가리지 않는 작은 별 배지(`star_badge`). 대성공 요리 이름은 "대성공 감자버터구이"
 - 이름: 재료는 백엔드 상점 목록 label (없으면 `assets/food/food_icons.json` name). 그림이 없는 재료(돼지고기·양배추)는 키트 아이콘으로 대신
 - 다시 만들기: `tools/food_icons.py`(음식 그림), `tools/home_mock.py`(주방 목업·배경)
+  - **쌀 재료 그림**(`assets/food/rice.png`, 삼베 자루 + 흰 쌀)은 `tools/farm_icons.py`의 `rice_icon()`으로 만든다. `tools/food_icons.py`의 `rice()`는 옛 그림이라 쓰지 않음. 다 자란 벼(`rice_ripe.png`, 고개 숙인 벼)도 `farm_icons.py`의 `ripe_rice()` v4
 
 ## 상점 · 알 부화 (목업 `docs/mockups/shop/`, `gui/scenes/shop.py` `ShopScene`, `gui/scenes/hatch.py`)
 지도 "상점" 건물 → 상점. 배경 `assets/shop/shop.png`(1280×720, ½로 그대로, 위 26px 투명 = 상단 바 자리)
@@ -229,12 +230,12 @@ CHARACTERS.md        캐릭터 목록 · GUI.md 화면 구조 설명
 
 ## 밭 (목업 `docs/mockups/farm/`, `gui/scenes/farm.py` `FarmScene`, A안)
 지도 "밭" 건물 → 밭. 배경 `assets/farm/farm.png`(1280×720, ½로 그대로, 위 26px 투명)
-- 위: ◀ 지도 + 리본 "밭" + 정보 칸 "심고 10분 · 수확 3개". 다 자란 밭이 하나라도 있으면 그 자리에 주황 "모두 수확" → ready인 밭마다 `harvest_crop(index)`을 차례로, 끝나면 "토마토 +3 · 양배추 +3" 알림 한 번
+- 위: ◀ 지도 + 리본 "밭" + 정보 칸 "심고 10분 · 수확 3개". 다 자란 밭이 하나라도 있으면 그 자리에 주황 "모두 수확" → ready인 밭마다 `harvest_crop(index)`을 차례로, 끝나면 짧은 알림 한 번 "6칸 수확 · 작물 18개"(칸 수·개수는 실제 수확 결과). 한 칸 수확은 "토마토 +3"
 - 왼쪽 텃밭 6칸(3열 × 2줄, 나무 틀 + 흙 점무늬는 코드로 그림 `soil_tile`, tools/farm_mock.py soil()과 같음). 상태는 스냅샷 `plots`(index, crop, ready, end, remaining_seconds), 남은 시간은 `end - app.now()`로 계속 줄어듦
   - 자라는 중: 왼쪽 위 갈색 칩 "4:12" + 아래 초록 진행 게이지 / 다 자람: 초록 칩 "수확!" + 천천히 깜빡이는 반짝이 / 빈 밭: "빈 밭" + 고른 칸에 고른 씨앗 새싹 반투명 미리보기(씨앗이 있을 때)
   - 안 산 칸: 풀밭 + 팻말. 바로 다음 칸만 밝은 팻말 "밭 넓히기 + 코인"(`get_rules()['plot_costs'][칸 번호]`, 최대 칸 수 = plot_costs 길이), 그 뒤는 어두운 팻말 "잠김". 고른 칸은 노란 꺾쇠(`select_frame`)
 - 오른쪽 칸: 빈 밭 = 씨앗 카드 2열 × 3줄(봉투 ×2, 이름, "보유 N", 0이면 빨강 + 반투명), "씨앗 1개 → 감자 3개", "씨앗은 상점에서 N코인"(상점 목록 buy), "감자 심기"(아래 "10분 뒤 수확", 씨앗 0이면 회색 "씨앗 없음") = `plant_crop(index, crop)` / 자라는 중 = 큰 그림 ×3, 남은 시간 + 게이지, "다 자라면 감자 ×3" / 다 자람 = "수확 가능" 칩, 큰 그림, "받는 것: 토마토 ×3", "가방 보유 2 → 5", "수확하기" = `harvest_crop(index)` / 안 산 칸 = 팻말 + 가격 + "밭 넓히기" → 확인 창 → `expand_plot`(코인 부족 등은 백엔드 알림)
-- 수확하면 그 칸에서 작물 아이콘 3개가 위로 톡 튀었다 사라짐(0.6초) + "토마토 +3" 알림
+- 수확하면 그 칸에서 작물 아이콘 3개가 위로 톡 튀었다 사라짐(0.6초, 그동안 "빈 밭" 글씨·새싹 미리보기 숨김) + "토마토 +3" 알림
 - **작물 그림** `assets/farm/plants/`: seeded / sprout / growing / `<작물>_ripe` (원본 24×24, 파일 4배 96). 밭 칸 ×2(48), 오른쪽 ×3(72). 단계는 진행 = 1 - 남은 시간 / 자라는 시간 → `plants.json`의 구간(0~20% seeded, 20~55% sprout, 55~100% growing, ready면 ripe)
 - **GUI 표시값** (`farm.FARM_DISPLAY`): 자라는 시간 600초, 수확 개수 3개. 백엔드 `config.CROP_DURATION`·`CROP_YIELD`인데 `get_rules`·스냅샷에 안 나와서 GUI에 둠. 백엔드 값을 바꾸면 같이 바꿀 것 (기영님께 `get_rules`에 넣어 달라고 요청 가능). 밭 가격은 `get_rules()['plot_costs']` 백엔드 값
 - 작물·씨앗 이름은 상점 목록 label. 양배추 재료 그림 `assets/food/cabbage.png`(food_icons.json에 추가)

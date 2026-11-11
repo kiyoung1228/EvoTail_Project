@@ -224,3 +224,76 @@ def cabbage_icon():     # 재료 아이콘 16: 겉잎 + 속통 + 잎맥
     d.line((7, 4, 7, 11), fill=(206, 244, 170)); d.line((7, 8, 5, 6), fill=(206, 244, 170)); d.line((7, 8, 9, 6), fill=(206, 244, 170))
     d.point([(4, 4), (5, 3)], fill=(240, 255, 220)); d.line((3, 13, 1, 9), fill=(150, 210, 120)); d.line((12, 13, 14, 9), fill=(150, 210, 120))
     return outline(im)
+
+
+# ================= v3: 쌀 다시 (벼 이삭 + 쌀 자루) =================
+def _grain(d, x, y, c0, c1, c2):
+    """낟알 하나 2x3: 밝은 위, 진한 아래"""
+    d.rectangle((x, y, x + 1, y + 2), fill=c1); d.point((x, y), fill=c0); d.point((x + 1, y + 2), fill=c2)
+
+
+def ripe_rice():
+    im = Image.new('RGBA', (24, 24)); d = ImageDraw.Draw(im)
+    _mound(d)
+    GR, GD, GL = (96, 168, 74), (58, 122, 56), (150, 206, 104)
+    Y0, Y1, Y2 = (255, 244, 176), (236, 196, 84), (184, 136, 48)
+    d.line((5, 20, 2, 11), fill=GL); d.line((18, 20, 22, 10), fill=GL); d.line((7, 20, 5, 14), fill=GD)   # 긴 잎
+    # 줄기 3개: 위로 올라가다 끝에서 옆으로 휘고, 이삭이 아래로 늘어짐
+    for sx, top, side in ((8, 6, -1), (12, 3, 1), (16, 7, 1)):
+        d.line((sx, 21, sx, top + 1), fill=GR)
+        d.line((sx, top + 1, sx + side, top), fill=GR); d.line((sx + side, top, sx + side * 2, top), fill=Y2)
+        hx = sx + side * 3                                                                               # 늘어진 이삭 줄기
+        d.line((sx + side * 2, top, hx, top + 1), fill=Y2); d.line((hx, top + 1, hx, top + 9), fill=Y2)
+        for i in range(4):                                                                               # 낟알: 이삭 양옆으로
+            y = top + 1 + i * 2
+            _grain(d, hx - 2, y, Y0, Y1, Y2); _grain(d, hx + 1, y + 1, Y0, Y1, Y2)
+        _grain(d, hx - 1 if side > 0 else hx, top + 9, Y0, Y1, Y2)
+    return outline(im)
+
+
+RIPE['rice'] = ripe_rice
+
+
+def rice_icon():        # 재료 아이콘 16: 열린 삼베 자루 + 흰 쌀 + 흘린 낟알
+    im = Image.new('RGBA', (16, 16)); d = ImageDraw.Draw(im)
+    S0, S1, S2 = (232, 204, 150), (204, 168, 108), (156, 120, 70)
+    d.polygon([(3, 6), (12, 6), (14, 14), (1, 14)], fill=S1)                                           # 자루 몸통
+    d.line((2, 13, 13, 13), fill=S2); d.line((12, 7, 13, 13), fill=S2); d.line((3, 7, 2, 12), fill=S0)
+    for x, y in ((5, 9), (9, 11), (7, 12)): d.point((x, y), fill=S2)                                  # 삼베 결
+    d.rectangle((2, 5, 13, 6), fill=S0); d.line((2, 6, 13, 6), fill=S2)                                 # 접힌 입구
+    d.ellipse((3, 1, 12, 7), fill=(250, 250, 246))                                                     # 쌀 더미
+    for x, y in ((5, 3), (8, 2), (10, 4), (6, 5), (9, 5)): d.point((x, y), fill=(214, 214, 206))      # 낟알 결
+    d.point([(5, 2), (6, 2)], fill=(255, 255, 255))
+    for x, y in ((14, 15), (12, 15), (0, 15)): d.point((x, y), fill=(250, 250, 246))                  # 흘린 쌀
+    return outline(im)
+
+
+def ripe_rice():        # v4: 가늘게 휘어 늘어진 이삭 + 작은 낟알(1x2) 사이사이 띄움
+    import math
+    im = Image.new('RGBA', (24, 24)); d = ImageDraw.Draw(im)
+    _mound(d)
+    GR, GD, GL = (104, 172, 76), (60, 124, 56), (156, 210, 108)
+    Y0, Y1, Y2 = (255, 246, 190), (234, 200, 96), (176, 132, 52)
+    d.line((6, 20, 1, 12), fill=GL); d.line((17, 20, 23, 12), fill=GL); d.line((9, 20, 7, 15), fill=GD)
+    for sx, top, side, r in ((7, 8, -1, 5), (12, 4, 1, 6), (16, 9, 1, 5)):
+        d.line((sx, 21, sx, top + r), fill=GR)
+        cx, cy = sx + side * r, top + r                                                         # 휘는 중심
+        pts = []
+        for i in range(0, 13):
+            a = math.pi * (1 + i / 12 * .5) if side > 0 else math.pi * (2 - i / 12 * .5)
+            x = round(cx + r * math.cos(a)) if side > 0 else round(cx + r * math.cos(a))
+            y = round(cy + r * math.sin(a)); pts.append((x, y))
+        # 반원 위쪽 → 옆으로 → 아래로 늘어진 꼬리
+        arc = [(round(cx - side * r * math.cos(t)), round(cy - r * math.sin(t))) for t in [k * math.pi / 2 / 8 for k in range(9)]][::-1]
+        tail = [(arc[-1][0], arc[-1][1] + k) for k in range(1, 6)]
+        path = [(sx, top + r)] + arc + tail
+        for (x0, y0), (x1, y1) in zip(path, path[1:]): d.line((x0, y0, x1, y1), fill=Y2)
+        for k, (x, y) in enumerate(path[3:], 3):                                                # 낟알: 2칸마다 바깥쪽
+            if k % 2: continue
+            gx = x + (1 if side > 0 else -1)
+            d.point((gx, y), fill=Y0); d.point((gx, y + 1), fill=Y1)
+            d.point((x - (1 if side > 0 else -1), y + 1), fill=Y1)
+    return outline(im)
+
+
+RIPE['rice'] = ripe_rice
