@@ -206,6 +206,7 @@ CHARACTERS.md        캐릭터 목록 · GUI.md 화면 구조 설명
 - 파일 이름 = 백엔드 id (재료 `potato.png`, 레시피 `butter_potato.png`). `food_<id>`, `food_perfect_<id>`는 레시피 그림을 쓰고 대성공은 그림을 가리지 않는 작은 별 배지(`star_badge`). 대성공 요리 이름은 "대성공 감자버터구이"
 - 이름: 재료는 백엔드 상점 목록 label (없으면 `assets/food/food_icons.json` name). 그림이 없는 재료(돼지고기·양배추)는 키트 아이콘으로 대신
 - 다시 만들기: `tools/food_icons.py`(음식 그림), `tools/home_mock.py`(주방 목업·배경)
+  - **감자·양파·밀 재료 아이콘**(`potato.png`·`onion.png`·`wheat.png`, 밭 그림과 같은 모양)은 `tools/crops_v8.py`의 `potato_icon()`·`onion_icon()`·`wheat_icon()`, 쌀은 `tools/farm_icons.py`의 `rice_icon()`으로 만든다 (`tools/food_icons.py`의 같은 이름 그림은 옛 그림)
   - **쌀 재료 그림**(`assets/food/rice.png`, 삼베 자루 + 흰 쌀)은 `tools/farm_icons.py`의 `rice_icon()`으로 만든다. `tools/food_icons.py`의 `rice()`는 옛 그림이라 쓰지 않음. 다 자란 벼(`rice_ripe.png`, 고개 숙인 벼)도 `farm_icons.py`의 `ripe_rice()` v4
 
 ## 상점 · 알 부화 (목업 `docs/mockups/shop/`, `gui/scenes/shop.py` `ShopScene`, `gui/scenes/hatch.py`)

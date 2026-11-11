@@ -156,3 +156,48 @@ def potato():           # v10: 감자 색을 더 노랗게, 흙은 더 진하게
     stamp(px, 15, 10, [r[::-1] for r in POT_SMALL])
     stamp(px, 6, 12, POT_BIG)
     return im
+
+
+# ================= 재료 아이콘 16 (밭 그림과 같은 모양) =================
+def _outline16(im, col=(70, 44, 28)):
+    src = im.copy().load(); px = im.load()
+    for y in range(16):
+        for x in range(16):
+            if src[x, y][3]: continue
+            if any(0 <= x + dx < 16 and 0 <= y + dy < 16 and src[x + dx, y + dy][3] for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1))):
+                px[x, y] = col + (255,)
+    return im
+
+
+def onion_icon():
+    im = Image.new('RGBA', (16, 16)); px = im.load()
+    for pts in (((7, 3), (6, 2), (5, 1)), ((8, 3), (8, 2), (8, 0)), ((9, 3), (10, 2), (11, 1))):
+        for i, (x, y) in enumerate(pts): put(px, x, y, 'l' if i == 2 else 'g')
+    stamp(px, 1, 4, ONION_BULB)
+    for y in range(7, 13): put(px, 5 if y < 10 else 6, y, 'N')
+    for y in range(6, 14): put(px, 10, y, 'M')
+    put(px, 4, 7, 'w')
+    return im                         # 알 테두리는 지도에 이미 있음, 싹만 바깥 테두리 없음 (작아서 그대로)
+
+
+def potato_icon():
+    C.update({'p': (236, 194, 116), 'P': (196, 140, 74), 'a': (252, 230, 176)})
+    im = Image.new('RGBA', (16, 16)); d = ImageDraw.Draw(im)
+    d.ellipse((1, 3, 14, 13), fill=C['p'] + (255,), outline=C['o'] + (255,))
+    d.chord((1, 3, 14, 13), 350, 140, fill=C['P'] + (255,)); d.ellipse((1, 3, 14, 13), outline=C['o'] + (255,))
+    d.chord((2, 3, 13, 12), 350, 140, fill=C['p'] + (255,))
+    d.point([(4, 5), (5, 5), (4, 6)], fill=C['a'] + (255,))
+    for x, y in ((7, 7), (10, 6), (5, 10), (10, 10)): d.point((x, y), fill=(150, 98, 50, 255))
+    return im
+
+
+def wheat_icon():
+    im = Image.new('RGBA', (16, 16)); px = im.load()
+    EAR = ['.Y.', 'YuY', 'uUu', 'YuY', 'uUu', 'YuY', '.U.']
+    for x, top in ((2, 2), (6, 0), (10, 2)):
+        for y in range(top + 7, 15): put(px, x + 1, y, 'b')
+        stamp(px, x, top, EAR)
+    for x in range(3, 13): put(px, x, 11, 'v' if False else 'b')
+    for x in range(4, 12): px[x, 11] = (220, 70, 60, 255)                                  # 빨간 끈
+    px[7, 12] = (220, 70, 60, 255); px[8, 12] = (220, 70, 60, 255)
+    return _outline16(im)
