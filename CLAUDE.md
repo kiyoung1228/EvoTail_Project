@@ -37,22 +37,28 @@ data/characters.json 캐릭터 30종 (이름, 단계별 이름·이미지, 능�
 data/role_caps.json  역할별 단계 MAX
 assets/              1단계 이미지 30장, assets/sprites/<ID>_s<단계>.png 75장
   map/               섬 마을 지도 낮·밤 + 클릭 영역 map.json
-  ui/                메뉴 아이콘
-docs/mockups/        확정된 화면 목업 (메인 낮·밤, 설정 창)
+  ui/                메뉴 아이콘. ui/kit/ = 도트 UI 키트 조각·아이콘 (docs/UI_KIT.md)
+  fonts/             갈무리 글꼴 (OFL)
+docs/mockups/        확정된 화면 목업 (메인 낮·밤, 설정 창, 내 동물 animals_v2)
+docs/UI_KIT.md       도트 UI 키트 규칙 (모든 화면이 따름). 조각 다시 만들기: tools/uikit.py
 gui/                 Pygame 화면 (아래 GUI 규칙)
 CHARACTERS.md        캐릭터 목록 · GUI.md 화면 구조 설명
 ```
 
 ## GUI 규칙
+- **모든 화면은 `docs/UI_KIT.md`(도트 UI 키트)를 따른다.** 기준 목업: `docs/mockups/animals_v2.png`, `main_day.png`, `main_night.png`
 - 게임 규칙을 GUI에 다시 구현하지 않는다. **읽기 `app.call('명령')`, 바꾸기 `app.act('명령', 성공문구, ...)`**
   - `act`는 실패하면 백엔드가 준 이유를 알림으로 띄우고, 성공하면 상태를 다시 읽는다.
   - 명령 목록: `roc/bridge.py`의 `ALLOWED_COMMANDS`
 - 이름·이미지는 백엔드가 **현재 진화 단계 기준**으로 준다 (`name`, `sprite`). 전투 화면의 적도 `name`, `sprite`가 있다.
 - 화면 갱신: 메인 루프가 `worker.poll()`로 알림을 확인하고 `app.refresh()`로 `get_snapshot`을 다시 읽는다. 스레드에서 화면을 직접 건드리지 않는다.
 - 새 화면: `gui/scenes/`에 `Scene` 상속 (`enter`, `handle`, `update`, `draw`) → `run_gui.py`에서 `PlaceholderScene` 대신 등록.
-- 화면 크기 1280×720, 상단 바 52px. 색과 한글 라벨은 `gui/theme.py`, 버튼·게이지는 `gui/widgets.py`.
-- 도트 이미지는 정수배로만 확대 (`SpriteCache.get(path, size)`), 픽셀이 뭉개지지 않게.
-- 한글 폰트: `assets/fonts/`의 ttf → 시스템 폰트(맑은 고딕 등) 순서로 찾는다.
+- 화면은 **640×360 논리 화면**에 그리고 App이 창(1280×720)에 2배로 붙인다. 장면 좌표·마우스 좌표는 전부 논리 픽셀 (상단 바 26 = 창 52px). 마우스 위치는 `widgets.mouse_pos()`
+- 색·글꼴·한글 라벨은 `gui/theme.py`, 키트 위젯(`panel`, `card`, `ribbon`, `chip`, `gauge`, `Button(색, icon, sub)`, `icon`)은 `gui/widgets.py`. 둥근 사각형·직접 고른 색으로 새로 그리지 말고 키트 조각을 쓴다
+- 지도가 아닌 화면의 배경은 `app.backdrop(surface)`(어둡게 깐 지도), 왼쪽 위 `◀ 지도` 갈색 버튼 + 빨간 리본 제목
+- 도트 이미지는 정수배로만 (`SpriteCache.get(path, size)`, size = 28의 배수: 28 원본, 56 = 2배, 84 = 3배). smoothscale 금지
+- 글꼴: 갈무리(`assets/fonts/`, OFL, `Galmuri_LICENSE.txt` 같이 배포). `T.font('title'|'body'|'small'|'big')`로만 쓴다 (크기 12/12/10/15 고정, 안티에일리어싱 끔)
+- 알림은 `app.toast(문구, 'ok'|'bad'|'info', 아이콘)`, `app.act(..., icon='home')`처럼 아이콘을 줄 수 있다
 - 화면을 만들면 직접 실행해서 확인한다.
 
 ## 도트 스타일
@@ -148,6 +154,7 @@ CHARACTERS.md        캐릭터 목록 · GUI.md 화면 구조 설명
 - 완료: 섬 마을 지도 낮·밤, 메뉴 아이콘, 화면 목업 (`assets/map`, `assets/ui`, `docs/mockups`)
 - 완료 (PR #3 merge됨, 기영): 마당 저장(`yard`), 요리 타이밍 판정(`cook(recipe, grade)`), 요리 숙련도 확정안
 - 진행 중 (브랜치 `main-map-screen`): 메인 화면 섬 마을 지도, 마당 백엔드 연결, 내 동물 화면 "마당에 내보내기/들여보내기"
+- 진행 중 (브랜치 `ui-kit`): 도트 UI 키트 적용 (640×360 논리 화면, 갈무리 글꼴), 내 동물 화면 animals_v2, 지도 메뉴·간판·알림
 
 ## 다음 할 일 (순서대로)
 1. **메인 화면을 목업대로**: `map_scene.py`의 텍스트 카드를 지도 이미지 + 간판 + 오른쪽 메뉴로 교체. 마당 동물은 `map.json`의 `yard` 안에서 움직이게. 지금의 "집" 화면(AnimalsScene)은 메뉴 "내 동물"로 연결

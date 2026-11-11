@@ -41,5 +41,9 @@ gui/
 2. `run_gui.py`에서 `PlaceholderScene` 대신 등록
 3. 지도 건물은 `map_scene.py`의 `PLACES`(키 = `assets/map/map.json`의 `places`), 오른쪽 메뉴는 `MENU`에 화면 이름이 이미 연결돼 있어요
 
+## 화면 키트
+모든 화면은 [docs/UI_KIT.md](docs/UI_KIT.md)를 따라요. 640×360 논리 화면에 그리고 창에 2배로 붙여요(좌표·마우스 전부 논리 픽셀).
+위젯은 `gui/widgets.py`: `panel`, `card`, `ribbon`, `chip`, `gauge`, `Button`, `icon`, `SpriteCache`.
+
 ## 폰트
-`assets/fonts/`에 ttf를 넣으면 그걸 쓰고, 없으면 시스템 한글 폰트(윈도우: 맑은 고딕, 맥: 애플 SD 고딕)를 찾아요.
+갈무리 도트 글꼴(`assets/fonts/`, OFL). `T.font('title' | 'body' | 'small' | 'big')`만 써요. 파일이 없으면 시스템 한글 폰트로 대신해요.
