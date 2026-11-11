@@ -571,8 +571,6 @@ class KitchenScene(Scene):
             rows = (len(dishes) + COLS - 1) // COLS
             more = f'{self.dish_scroll + 1}-{self.dish_scroll + GRID_ROWS} / {rows}줄 · 휠'
             text(surface, more, (LEFT.right - 6, LEFT.y + 4), 'small', T.TEXT_SOFT, anchor='topright')
-        elif F.BURNED in dishes and len(dishes) <= COLS * (GRID_ROWS - 1):     # 셋째 줄이 비어 있을 때만
-            text(surface, '탄 요리는 절반 확률로 거절', (LEFT.x + 10, LEFT.bottom - 16), 'body', T.TEXT_SOFT)
 
     def _draw_feed_detail(self, surface):
         x0 = RIGHT.x + 12

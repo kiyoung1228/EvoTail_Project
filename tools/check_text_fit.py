@@ -208,6 +208,37 @@ def scripted_run(self):
         fm.harvest_all(); frames(2)
         g._mutate(lambda s: s['inventory'].update(seed_potato=0, seed_cabbage=0) or True); self.refresh()
         fm.selected = 2; frames(2)
+        # 사냥터: 빈 사냥터(보낼 동물 목록·휠) / 사냥 중 / 완료(말풍선) / 불러오기 확인 창 / 보낼 동물 없음
+        def hunt_fixture(s):    # test fixture only (temp save)
+            v = s['clock']['virtual']
+            s['animals']['dealer_normal_01']['activity'] = {'kind': 'hunt', 'area': 'chicken_coop',
+                                                            'start': v - 100, 'end': v + 760}
+            s['hunts'] = {'chicken_coop': {'animal': 'dealer_normal_01', 'end': v + 760, 'ready': False},
+                          'pig_pen': {'animal': 'healer_special_05', 'end': v - 1, 'ready': True}}
+            return True
+        g._mutate(hunt_fixture); self.refresh()
+        self.go('hunting'); frames(2)
+        hu = self.scene
+        for area in list(hu.areas):
+            hu.selected = area; frames(1)
+            for k in range(0, len(self.state['animals']), 3):
+                hu.scroll = k; frames(1)
+            hu.scroll = 0
+        shot('real_hunt.png')
+        hu.selected = 'chicken_coop'; frames(1); hu.ask_recall(); frames(2); self.close_overlay()
+        def no_one(s):          # 보낼 동물 없음
+            for a in s['animals'].values():
+                a['fatigue'] = 100
+            return True
+        g._mutate(no_one); self.refresh()
+        hu.selected = 'ranch'; frames(2)
+        def rested(s):          # 뒤의 전투장 점검을 위해 되돌림
+            for a in s['animals'].values():
+                a['fatigue'] = 0
+                a['activity'] = None
+            s['hunts'] = {}
+            return True
+        g._mutate(rested); self.refresh()
         # 전투장: 스테이지 고르기(모든 단계) → 출전 준비 → 전투(대상 고르기·기록 펼침) → 결과
         self.go('battle'); frames(2)
         sp = self.scene
