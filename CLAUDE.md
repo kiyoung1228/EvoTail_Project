@@ -66,11 +66,11 @@ CHARACTERS.md        캐릭터 목록 · GUI.md 화면 구조 설명
 - 글꼴: 갈무리(`assets/fonts/`, OFL, `Galmuri_LICENSE.txt` 같이 배포). `T.font('title'|'body'|'small'|'big')`로만 쓴다 (크기 12/12/10/15 고정 = 획이 픽셀에 딱 맞는 크기, `tests/test_fonts.py`, 안티에일리어싱 끔)
 - **칸 안 글씨**(버튼·간판·메뉴·칩·리본·알림·툴팁 등)는 `widgets.text_in(surface, 글씨, 칸, ...)`: 실제 글자 모양(줄 높이 아님) 기준 정렬. 칸 크기는 글씨에 맞춰 넓힌다(`fit_width`, `Button.width_for`, `BUTTON_H` 20, `CHIP_H` 16, `CARD_LABEL_H` 20). **글자 크기를 줄여서 맞추지 않는다**
 - 화면을 바꾸면 `python tools/check_text_fit.py`로 모든 칸 글씨가 사방 2px 여백 안에 있는지 확인 (`shots`를 붙이면 실제 창 크기 스크린샷)
-- 알림은 `app.toast(문구, 'ok'|'bad'|'info', 아이콘)`, `app.act(..., icon='home')`처럼 아이콘을 줄 수 있다. **한 번에 1개**(새 알림이 바꿔 낌), 3.5초 뒤 사라짐. 자리는 화면의 `toast_anchor()` (지도는 왼쪽 아래)
+- 알림은 `app.toast(문구, 'ok'|'bad'|'info', 아이콘)`, `app.act(..., icon='home')`처럼 아이콘을 줄 수 있다. **한 번에 1개**(새 알림이 바꿔 낌), 3.5초 뒤 사라짐, **화면을 바꾸면 지움**(`App.go`). 자리는 화면의 `toast_anchor()`: 기본 오른쪽 위(◀ 버튼·제목 리본 피함), 지도 왼쪽 아래, 전투 명령창 바로 위, 결과 왼쪽 위
 - 이름 뒤 조사는 `T.josa(이름, '을'|'이'|'은'|'으로'|'과')`로 받침에 맞게. `을(를)`처럼 쓰지 않는다
 - 상태 단계(좋음·보통·나쁨)는 백엔드가 동물 행마다 주는 `status`(`{'fullness','mood','fatigue'}` → `'good'/'normal'/'bad'`)를 `T.level(a, kind)`, `T.any_bad(a)`로 읽는다. GUI에서 기준값으로 다시 계산하지 않는다
 - 남은 시간·진행 게이지는 `app.now()`(스냅샷 시각 + 그 뒤 흐른 시간 × 배속)로 계산
-- 설명 말풍선은 `widgets.tooltip`, 선택 강조는 `widgets.select_frame` (키트 스타일)
+- 설명 말풍선은 `widgets.tooltip`, 선택 강조는 `widgets.select_frame(색)` (키트 스타일). 말풍선은 화면 가장자리에서 4px 안쪽(`TIP_INSET`), `avoid`(예: 다른 동물 체력바)와 겹치면 반대쪽
 - 화면을 만들면 직접 실행해서 확인한다.
 
 ## 도트 스타일
@@ -172,12 +172,14 @@ CHARACTERS.md        캐릭터 목록 · GUI.md 화면 구조 설명
 - **출전 준비** (`TeamPrepScene`, stage_team_prep.png): 상대(`preview_stage`) vs 내 팀(`last_team`으로 미리 채움, ✕로 빼기). 다른 동물은 스냅샷 `participation`/`participation_reason`(백엔드 `_available`, `can_participate`와 같음)으로 출전 불가면 흐리게 + 이유. 전투 전 포션은 카드를 누를 때마다 팀원에게 차례로(한 마리에 하나). 출전 = `start_battle(stage, team, prebattle_potions)`
 - **전투** (`gui/scenes/battle_fight.py` `BattleScene`): 아군 왼쪽·적 오른쪽, 머리 위엔 체력바만(이름은 마우스), 보스는 원본 46 ×2. 명령창 = 고른 동물 정보 + 공격/특수기/방어/턴 넘기기, `get_battle_actions`가 준 행동만 켬
   - 딜러의 공격은 백엔드에서 **적 전체 공격**이라 대상 고르기 없음. 딜러는 특수기 버튼이 없음 (탱커 = 절대방어, 힐러 = 회복)
+  - 특수기 버튼은 역할 상관없이 **보라색**(방어 파랑과 구분). 쿨타임이면 회색(disabled) + "다음 턴에 사용"/"2턴 뒤 사용", 발밑 칩 "기술 쉼". cooldown 숫자의 정확한 뜻은 기영님께 확인 중
+  - 작은 기록 칸은 "주체 → 대상 숫자" 한 줄 ("야생" 빼고, 길면 이름만 줄임), 펼친 기록은 전체 문장
   - 대상 고르기: 위 안내 띠 + 꺾쇠(적 빨강·아군 초록·마우스 올린 대상 노랑), ESC·오른쪽 클릭 취소. 회복은 체력바에 회복 뒤 체력 미리보기
   - 백엔드는 한 번 호출에 내 행동 + 적 차례까지 처리 → 응답의 전투 기록(events)을 재생: 내 행동은 바로, 적 차례는 0.6초 간격. 체력바·숫자는 기록 값(피해·회복)으로만 움직이고 끝나면 백엔드 체력으로 맞춤
   - 전투 기록: 작은 칸, 마우스를 올리면 위로 펼침(라운드·"적" 칩). 도망가기 = `forfeit_battle`(확인 창)
   - 회복량 미리보기만 GUI 표(`HEAL_PREVIEW`, 1/2/3단계 100/300/500)를 씀 → 기영님께 `get_battle_actions`에 회복량(amount)을 넣어 달라고 요청할 것. 실제 회복은 백엔드 값
   - 전투 중 아이템(`battle_bandage`)은 화면에 없음
-- **결과** (`BattleResultScene`): 승/패, 보상 코인(`battle_result.reward`), 첫 대회 우승/처음 깸(`first_clear`), 팀 피로도 전→후(출전 직전 스냅샷과 지금 스냅샷, 둘 다 백엔드 값), 아픔 표시
+- **결과** (`BattleResultScene`): 승/패, 보상 코인(`battle_result.reward`), 첫 대회 우승/처음 깸(`first_clear`) + "다음 단계 열림"(get_stages의 다음 order), 팀 피로도 전→후(출전 직전 스냅샷과 지금 스냅샷, 둘 다 백엔드 값), 아픔 표시
 - 전투장 배경(관중석·벽·깃발·모래)은 그림 파일이 없어 코드로 그린 도트 (`arena_surface`)
 
 ## 진행 상황

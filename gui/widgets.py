@@ -183,14 +183,20 @@ def chip_width(label):
     return fit_width(label, 'small', shadow=True) + 2      # + 테두리 1px × 2
 
 
-def tooltip(surface, msg, target, side='right', bounds=None):
+TIP_INSET = 4          # 말풍선은 화면(bounds) 가장자리에서 이만큼 안쪽에
+
+
+def tooltip(surface, msg, target, side='right', bounds=None, avoid=()):
     """설명 말풍선 (키트 card 조각 + 같은 테두리 색 꼬리). target 옆에 붙인다.
 
-    side: 'right' / 'left' / 'above' / 'below'. 화면(bounds) 밖으로 나가면 반대쪽으로.
+    side: 'right' / 'left' / 'above' / 'below'. 화면(bounds) 밖으로 나가거나 avoid(가리면 안 되는 것,
+    예: 다른 동물 체력바)와 겹치면 반대쪽으로. 마지막에 bounds 안쪽 TIP_INSET px 안으로 밀어 넣는다.
     """
     target = pygame.Rect(target)
-    bounds = pygame.Rect(bounds or (0, T.HEADER_H, T.WIDTH, T.HEIGHT - T.HEADER_H))
+    bounds = pygame.Rect(bounds or (0, T.HEADER_H, T.WIDTH, T.HEIGHT - T.HEADER_H)).inflate(-2 * TIP_INSET,
+                                                                                         -2 * TIP_INSET)
     box = pygame.Rect(0, 0, fit_width(msg) + 4 + 4, CARD_LABEL_H)     # 글씨 + 여백 + card 테두리 2px×2
+    avoid = [pygame.Rect(r) for r in avoid]
 
     def place(s):
         if s == 'right':
@@ -202,9 +208,14 @@ def tooltip(surface, msg, target, side='right', bounds=None):
         else:
             box.midtop = (target.centerx, target.bottom + 5)
     place(side)
-    if not bounds.contains(box):
-        side = {'right': 'left', 'left': 'right', 'above': 'below', 'below': 'above'}[side]
-        place(side)
+    if not bounds.contains(box) or box.collidelist(avoid) >= 0:
+        other = {'right': 'left', 'left': 'right', 'above': 'below', 'below': 'above'}[side]
+        first = box.copy()
+        place(other)
+        if bounds.contains(box) or not bounds.contains(first):
+            side = other
+        else:
+            box = first
     box.clamp_ip(bounds)
     card(surface, box)
     edge, fill = (120, 80, 50), (252, 240, 214)        # card 조각의 테두리·안쪽 색

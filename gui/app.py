@@ -57,8 +57,9 @@ class Scene:
         pass
 
     def toast_anchor(self):
-        """알림 자리 (anchor 이름, 논리 좌표). 기본: 상단 바 바로 아래 가운데. 화면마다 바꿀 수 있다."""
-        return 'midtop', (T.WIDTH // 2, T.HEADER_H + 4)
+        """알림 자리 (anchor 이름, 논리 좌표). 기본: 상단 바 아래 오른쪽 (왼쪽 위 ◀ 버튼·제목 리본을 피함).
+        화면마다 바꿀 수 있다."""
+        return 'topright', (T.WIDTH - 8, T.HEADER_H + 4)
 
 
 class Overlay:
@@ -196,6 +197,8 @@ class App:
         self.scenes[name] = scene
 
     def go(self, name, **kwargs):
+        """화면 이동. 앞 화면의 알림은 지운다 (다른 화면까지 남지 않게)."""
+        self.toast_item = None
         self.scene = self.scenes[name]
         for k, v in kwargs.items():
             setattr(self.scene, k, v)

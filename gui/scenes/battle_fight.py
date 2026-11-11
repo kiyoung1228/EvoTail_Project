@@ -33,8 +33,15 @@ FLOAT_TIME = 0.9
 # 회복량 미리보기 (힐러 단계별, CLAUDE.md 규칙 표의 값). 미리보기 표시에만 쓰고, 실제 회복은 백엔드 기록 값.
 # TODO: 백엔드 get_battle_actions가 회복량(amount)을 주면 이 표를 지운다 (기영님께 요청)
 HEAL_PREVIEW = {1: 100, 2: 300, 3: 500}
-SPECIAL = {'tank': ('절대방어', 'shield', 'blue', '아군 1마리 · 다음 적 차례 피해 0'),
-           'healer': ('회복', 'heart', 'green', '아군 1마리 · 쓰면 1턴 쉼')}
+# 특수기: 역할 상관없이 보라색 버튼 (방어 버튼 파랑과 헷갈리지 않게)
+SPECIAL = {'tank': ('절대방어', 'shield', '아군 1마리 · 다음 적 차례 피해 0'),
+           'healer': ('회복', 'heart', '아군 1마리 · 쓰면 1턴 쉼')}
+
+
+def cooldown_label(cd):
+    """쿨타임 중 특수기 버튼 글씨. 백엔드 cooldown: 쓰면 2, 내 턴이 시작될 때마다 1씩 줄고 0이면 사용 가능.
+    (숫자의 정확한 뜻은 기영님께 확인 중)"""
+    return '다음 턴에 사용' if cd <= 1 else f'{cd}턴 뒤 사용'
 
 
 def shorten(msg, width, kind='small'):
@@ -105,7 +112,7 @@ class BattleScene(Scene):
         self.disp_hp = {}
         self.queue = []            # [(재생할 시각, 이벤트, 쪽 'player'|'enemy')]
         self.floats = []           # [(글씨, 색, x, y, 시작 시각)]
-        self.log = []              # [(라벨, 글씨, 색)]
+        self.log = []              # [(라벨 '1R'|'적'|'', 이벤트)] 글씨는 그릴 때 만든다
         self.selected = None
         self.mode = None           # None | 'attack' | 'special'
         self.actions = []
@@ -130,8 +137,7 @@ class BattleScene(Scene):
         self.queue, self.floats, self.result, self.banner, self.mode = [], [], None, None, None
         self.log_len = len(self.view.get('log', []))
         if self.fresh or not self.log:
-            self.log = [('', line, color) for line, color in
-                        (self._describe(e) for e in self.view.get('log', [])) if line]
+            self.log = [('', e) for e in self.view.get('log', []) if self._describe(e)[0]]
         self.fresh = False
         stages = self.app.call('get_stages') or []
         self.stage = next((s for s in stages if s['id'] == self.view.get('stage')), {})
@@ -190,6 +196,40 @@ class BattleScene(Scene):
             return f"{n(e['actor'])} → {n(e['target'])} 회복 +{e['amount']}", T.shade('green', 1)
         return None, None              # ai_decision 등은 기록에 안 씀
 
+    @staticmethod
+    def _short(name):
+        """작은 기록 칸용 짧은 이름: "야생 " 빼기."""
+        return name[3:] if name.startswith('야생 ') else name
+
+    def _compact(self, e, width):
+        """작은 기록 칸 한 줄: "주체 → 대상 숫자". 넓이가 모자라면 이름만 줄이고 화살표·숫자는 남긴다."""
+        t = e.get('type')
+        a = self._short(self._name(e.get('actor'))) if e.get('actor') else ''
+        b = self._short(self._name(e.get('target'))) if e.get('target') else ''
+        if t == 'hit':
+            tail, color = f"-{e['damage']}" + ('!' if e.get('critical') else ''), T.TEXT
+        elif t == 'heal':
+            tail, color = f"+{e['amount']}", T.shade('green', 1)
+        elif t == 'blocked':
+            tail, color = '막힘', T.shade('blue', 1)
+        elif t == 'shield':
+            tail, color = '절대방어', T.shade('blue', 1)
+        elif t == 'dodged':
+            a, b, tail, color = b, '', '피함', T.TEXT_SOFT
+        elif t == 'guard':
+            b, tail, color = '', '방어', T.shade('blue', 1)
+        else:
+            return '', T.TEXT
+
+        def build(x, y):
+            return f"{x} → {y} {tail}" if y else f"{x} {tail}"
+        msg = build(a, b)
+        n = max(len(a), len(b))
+        while glyph_box(msg, 'small').w > width and n > 1:
+            n -= 1
+            msg = build(a if len(a) <= n else a[:n] + '…', b if len(b) <= n else b[:n] + '…')
+        return msg, color
+
     # ---------- 이벤트 재생 ----------
     def _queue_events(self, events, side, start_delay=0.0):
         t = time.time() + start_delay
@@ -221,10 +261,9 @@ class BattleScene(Scene):
             self._float(e.get('actor'), '방어', T.shade('blue', 1))
         elif t == 'shield':
             self._float(target, '절대방어', T.shade('blue', 1))
-        line, color = self._describe(e)
-        if line:
+        if self._describe(e)[0]:
             label = '적' if side == 'enemy' else f"{self._round_now}R"
-            self.log.append((label, line, color))
+            self.log.append((label, e))            # 글씨는 그릴 때 칸에 맞춰 만든다 (작은 칸은 짧게)
             self.log = self.log[-60:]
 
     def _float(self, fid, msg, color):
@@ -356,6 +395,11 @@ class BattleScene(Scene):
         img, pos = self._pose(f)
         return img.get_bounding_rect().move(pos)
 
+    def _bar_rect(self, fid):
+        """머리 위 체력바 자리."""
+        art = self._art_rect(fid)
+        return pygame.Rect(art.centerx - 22, art.top - 11, 44, 8) if art else None
+
     def _fighter_at(self, pos):
         best = None
         for f in self._fighters():
@@ -394,19 +438,20 @@ class BattleScene(Scene):
         btns.append(Button((178, 314, 94, 26), '방어', self.do_defend, 'blue',
                            enabled=not busy and 'defend' in kinds, icon='shield'))
         if role in SPECIAL:
-            name, ic, color, _ = SPECIAL[role]
+            name, ic, _ = SPECIAL[role]
             if role == 'healer':
                 name = f"회복 +{HEAL_PREVIEW.get(f.get('stage', 1), '')}"
             cd = f.get('cooldown', 0) if f else 0
-            label = f'쿨타임 {cd}' if cd > 0 else name
-            btns.append(Button((278, 280, 114, 26), label, self.do_special, color,
-                               enabled=not busy and 'special' in kinds, icon=None if cd > 0 else ic))
+            label = cooldown_label(cd) if cd > 0 else name          # 쿨타임이면 회색(disabled) + 언제 쓰는지
+            btns.append(Button((278, 280, 114, 26), label, self.do_special, 'purple',
+                               enabled=not busy and cd == 0 and 'special' in kinds, icon=None if cd > 0 else ic))
         btns.append(Button((398, 280, 74, 26), '턴 넘기기', self.end_turn, 'brown', enabled=not busy))
         self.buttons = btns
 
     # ---------- 그리기 ----------
     def toast_anchor(self):
-        return 'midtop', (T.WIDTH // 2, 76)
+        """전투: 명령창 바로 위 가운데 (위쪽 라운드 리본·안내 띠, 동물 발밑 칩을 피함)."""
+        return 'midbottom', (T.WIDTH // 2, CMD.y - 3)
 
     def draw(self, surface):
         self._tip = None
@@ -427,7 +472,11 @@ class BattleScene(Scene):
         if self.log_open:
             self._draw_log_big(surface)
         if self._tip:
-            tooltip(surface, *self._tip, bounds=(0, T.HEADER_H, T.WIDTH, FIELD_BOTTOM - T.HEADER_H))
+            # 다른 동물 체력바를 가리면 반대쪽(아래)으로
+            msg, target, side = self._tip
+            bars = [self._bar_rect(f['id']) for f in self._fighters()]
+            bars = [b for b in bars if b and not b.colliderect(pygame.Rect(target).inflate(0, 30))]
+            tooltip(surface, msg, target, side, bounds=(0, T.HEADER_H, T.WIDTH, FIELD_BOTTOM - T.HEADER_H), avoid=bars)
 
     def _draw_fighter(self, surface, f, targets, hover_id):
         img, pos = self._pose(f)
@@ -472,7 +521,7 @@ class BattleScene(Scene):
         if f.get('guard'):
             chips.append(('방어', 'blue'))
         if f.get('cooldown', 0) > 0 and not down:
-            chips.append((f"쿨타임 {f['cooldown']}", 'gray'))
+            chips.append(('기술 쉼', 'gray'))
         if f['team'] == 'player' and f.get('acted') and not down and self.view.get('current') == 'player':
             chips.append(('행동 완료', 'gray'))
         total = sum(chip_width(c) for c, _ in chips) + 2 * max(0, len(chips) - 1)
@@ -564,7 +613,7 @@ class BattleScene(Scene):
                     (inner.x + 2, inner.y + 46, inner.w - 4, 14), 'small', T.TEXT_SOFT, align='left', pad=0,
                     check=inner, tag='battle')
             if role in SPECIAL:
-                text_in(surface, SPECIAL[role][3], (278, 309, 196, 15), 'small', T.TEXT_SOFT, align='left', pad=0,
+                text_in(surface, SPECIAL[role][2], (278, 309, 196, 15), 'small', T.TEXT_SOFT, align='left', pad=0,
                         log=False)
             elif role == 'dealer':
                 text_in(surface, '딜러 공격은 적 전체에', (278, 309, 196, 15), 'small', T.TEXT_SOFT, align='left',
@@ -576,8 +625,8 @@ class BattleScene(Scene):
                 tag='battle')
         text_in(surface, '자세히 ▲', (inner.x + 62, inner.y, inner.w - 62, 15), 'small', T.TEXT_SOFT, align='right',
                 pad=2, check=inner, tag='battle')
-        for i, (label, line, color) in enumerate(self.log[-3:]):
-            msg = shorten(line, inner.w - 6)
+        for i, (label, e) in enumerate(self.log[-3:]):
+            msg, color = self._compact(e, inner.w - 6)
             text_in(surface, msg, (inner.x + 2, inner.y + 16 + i * 15, inner.w - 4, 15), 'small', color, align='left',
                     pad=0, log=False)
 
@@ -590,7 +639,8 @@ class BattleScene(Scene):
         pygame.draw.line(surface, T.WOOD[3], (R.x + 10, R.y + 30), (R.right - 11, R.y + 30))
         rows = (R.h - 44) // 17
         lines = self.log[-rows:]
-        for i, (label, line, color) in enumerate(lines):
+        for i, (label, e) in enumerate(lines):
+            line, color = self._describe(e)
             y = R.y + 36 + i * 17
             if i % 2:
                 pygame.draw.rect(surface, (244, 230, 200), (R.x + 9, y - 1, R.w - 18, 17))
@@ -603,24 +653,43 @@ class BattleScene(Scene):
 
 # ======================================================================
 class BattleResultScene(Scene):
-    """결과: 승/패, 보상 코인, 피로도 변화, 첫 대회 우승. 값은 백엔드 결과(battle_result)와 스냅샷."""
-    PANEL = pygame.Rect(160, 52, 320, 300)
+    """결과: 승/패, 보상 코인, 첫 대회 우승·다음 단계 열림, 피로도 변화. 값은 백엔드 결과(battle_result)와 스냅샷."""
+    W = 320
+    ROW = 33
 
     def __init__(self, app):
         super().__init__(app)
         self.result = None
         self.before = {}
         self.buttons = []
+        self.PANEL = pygame.Rect(0, 0, self.W, 200)
+
+    def toast_anchor(self):
+        """결과 화면: 왼쪽 위 (가운데 결과 리본을 가리지 않게)."""
+        return 'topleft', (8, T.HEADER_H + 4)
 
     def enter(self):
         self.result = self.result or self.app.call('get_last_battle_result') or {}
-        stages = self.app.call('get_stages') or []
+        stages = sorted(self.app.call('get_stages') or [], key=lambda s: s.get('order', 0))
         self.stage = next((s for s in stages if s['id'] == self.result.get('stage')), {})
+        r = self.result
+        self.first = bool(r.get('win') and r.get('first_clear'))
+        # 처음 깼으면 다음 단계 (백엔드가 방금 연 단계: order + 1, unlocked)
+        nxt = next((s for s in stages if s.get('order') == self.stage.get('order', -9) + 1 and s.get('unlocked')), None)
+        self.next_stage = nxt if self.first else None
+        self.team = [k for k in (list(self.before.keys()) or list(self.app.state.get('last_team') or []))
+                     if self.app.animal(k)][:3]
+        # 패널 높이 = 들어가는 것만큼 (아래 빈 곳 없이)
+        h = 20 + 24                                    # 리본 아래 여백 + 제목 줄
+        h += (26 if self.first else 0) + (20 if self.next_stage else 0)
+        h += 30 + 18 + self.ROW * len(self.team) + 8 + 26 + 14
+        self.PANEL = pygame.Rect(0, 0, self.W, h)
+        self.PANEL.center = (T.WIDTH // 2, T.HEADER_H + (T.HEIGHT - T.HEADER_H) // 2 + 4)
         P = self.PANEL
         bw = (P.w - 40) // 2
         self.buttons = [
-            Button((P.x + 16, P.bottom - 38, bw, 26), '전투장으로', lambda: self.app.go('battle'), 'brown', icon='sword'),
-            Button((P.x + 24 + bw, P.bottom - 38, bw, 26), '지도로', lambda: self.app.go('map'), 'green', icon='home'),
+            Button((P.x + 16, P.bottom - 40, bw, 26), '전투장으로', lambda: self.app.go('battle'), 'brown', icon='sword'),
+            Button((P.x + 24 + bw, P.bottom - 40, bw, 26), '지도로', lambda: self.app.go('map'), 'green', icon='home'),
         ]
 
     def handle(self, event):
@@ -643,14 +712,19 @@ class BattleResultScene(Scene):
         name = f"{st.get('label', '')}{' 대회' if st.get('mode') == 'rank' else ''}"
         text_in(surface, f"{name} · {r.get('rounds', 1)}라운드", (P.x, P.y + 20, P.w, 18), 'big', log=False)
         y = P.y + 44
-        # 첫 대회 우승 / 첫 승리
-        if win and r.get('first_clear'):
+        # 첫 대회 우승 / 처음 깸 + 다음 단계 열림
+        if self.first:
             msg = '첫 대회 우승!' if st.get('mode') == 'rank' else '처음 깼어요!'
             cw = fit_width(msg, 'title', shadow=True) + 10
             box = pygame.Rect(0, y, cw, 20); box.centerx = P.centerx
             nine(surface, 'button_orange_normal', box)
             text_in(surface, msg, button_face(box), 'title', T.WHITE, shadow=T.shade('orange', 0), tag='result')
             y += 26
+        if self.next_stage:
+            ns = self.next_stage
+            label = f"다음 단계 열림: {ns['label']}{' 대회' if ns.get('mode') == 'rank' else ''}"
+            text_in(surface, label, (P.x, y, P.w, 16), 'title', T.OK, log=False)
+            y += 20
         # 보상
         reward = r.get('reward', 0)
         box = pygame.Rect(P.x + 40, y, P.w - 80, 22)
@@ -665,11 +739,8 @@ class BattleResultScene(Scene):
         # 팀 피로도 변화 (전투 전 스냅샷 → 지금 스냅샷, 둘 다 백엔드 값)
         text_in(surface, '내 팀', (P.x + 20, y, 60, 16), 'title', align='left', pad=0, log=False)
         y += 18
-        team = list(self.before.keys()) or list(self.app.state.get('last_team') or [])
-        for key in team[:3]:
+        for key in self.team:
             a = self.app.animal(key)
-            if not a:
-                continue
             row = pygame.Rect(P.x + 20, y, P.w - 40, 30)
             card(surface, row)
             inner = card_inner(row)
@@ -688,6 +759,6 @@ class BattleResultScene(Scene):
                     'small', T.shade(T.LEVEL_KIT[lvl], 1), align='left', pad=0, check=inner, tag='result')
             if a.get('sick'):
                 chip(surface, (inner.right, inner.centery), '아픔', 'gray', anchor='midright')
-            y += 33
+            y += self.ROW
         for b in self.buttons:
             b.draw(surface)
