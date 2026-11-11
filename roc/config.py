@@ -8,7 +8,7 @@ NATURES = ('glutton', 'sleepy', 'playful', 'balanced', 'picky')
 
 # Actual per-role, per-stat, per-evolution caps are in data/role_caps.json.
 # GameService.caps is the ONLY source for evolution/training limits.
-YARD_MAX_ANIMALS = 6
+YARD_MAX_ANIMALS = 5
 EVOLUTION_COST = {2: 800, 3: 3000}
 TRAINING = {'easy': (600, 10, 10), 'medium': (1800, 30, 30), 'hard': (3600, 65, 65)} # sec, stat gain, fatigue+ / mood-fullness-
 # Agreement: avoid taking impossible state values or exceeding 100; easy/medium and hard requirements are provisional.
@@ -70,9 +70,11 @@ FOOD_EFFECTS = {
 }
 COOK_XP = {stars: stars * 10 for stars in range(1, 6)}
 COOK_LEVEL_XP = (0,100,300,600,1000)
+COOK_LEVELS = COOK_LEVEL_XP  # cumulative XP thresholds, levels 1..5
 COOK_MISS_RESCUE_BY_LEVEL = (0.0, .10, .20, .30, .40)
 COOK_MISS_RESCUE_MAX_STAR = 3
-COOK_GRADES = ('Perfect', 'Good', 'Miss')
+COOK_JUDGMENTS = ('perfect', 'good', 'miss')
+COOK_GRADES = ('Perfect', 'Good', 'Miss')  # legacy UI labels
 COOK_PERFECT_MULTIPLIER = 1.5
 # Normalized cursor coordinate: 0..100. GUI measures the timing grade;
 # the backend owns Miss rescue odds, inventory, XP and food effects.
