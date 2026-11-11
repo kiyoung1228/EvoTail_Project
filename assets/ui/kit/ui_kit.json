@@ -228,10 +228,12 @@
  },
  "icons": [
   "back",
+  "check",
   "coin",
   "frown",
   "heart",
   "home",
+  "lock",
   "meat",
   "shield",
   "smile",

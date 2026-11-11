@@ -41,7 +41,7 @@ assets/              1단계 이미지 30장, assets/sprites/<ID>_s<단계>.png 
   map/               섬 마을 지도 낮·밤 + 클릭 영역 map.json
   ui/                메뉴 아이콘. ui/kit/ = 도트 UI 키트 조각·아이콘 (docs/UI_KIT.md)
   fonts/             갈무리 글꼴 (OFL)
-docs/mockups/        확정된 화면 목업 (메인 낮·밤, 설정 창, 내 동물 animals_v2)
+docs/mockups/        확정된 화면 목업 (메인 낮·밤, 설정 창, 내 동물 animals_v2, battle/ 전투장)
 docs/UI_KIT.md       도트 UI 키트 규칙 (모든 화면이 따름). 조각 다시 만들기: tools/uikit.py
 gui/                 Pygame 화면 (아래 GUI 규칙)
 CHARACTERS.md        캐릭터 목록 · GUI.md 화면 구조 설명
@@ -61,14 +61,16 @@ CHARACTERS.md        캐릭터 목록 · GUI.md 화면 구조 설명
 - 색·글꼴·한글 라벨은 `gui/theme.py`, 키트 위젯(`panel`, `card`, `ribbon`, `chip`, `gauge`, `Button(색, icon, sub)`, `icon`)은 `gui/widgets.py`. 둥근 사각형·직접 고른 색으로 새로 그리지 말고 키트 조각을 쓴다
 - 지도가 아닌 화면의 배경은 `app.backdrop(surface)`(어둡게 깐 지도), 왼쪽 위 `◀ 지도` 갈색 버튼 + 빨간 리본 제목
 - 도트 이미지는 정수배로만 (`SpriteCache.get(path, size)`, size = 28의 배수: 28 원본, 56 = 2배, 84 = 3배). smoothscale 금지
+- **적 몬스터** (`assets/enemies`, `data/enemies.json`): 졸개 12종 원본 28×28, 보스 9종(스테이지마다 1) 원본 46×46, 파일은 4배. 화면에서는 둘 다 원본 ×2 (`SpriteCache.scaled(path, 2)` → 졸개 56, 보스 92). 보스 여부는 백엔드 `boss` 값, 없으면 그림 크기(`SpriteCache.is_boss`). 칸이 정해진 곳은 `SpriteCache.fit(path, w, h)` (들어가는 정수배, 안 들어가는 보스는 위쪽을 잘라 초상). 표시 정보(스테이지별 보스)는 `gui/enemies.py`
+  - 기영님이 백엔드 적 name/sprite/boss를 enemies.json 기준으로 바꿔 줄 예정. 그 전에는 백엔드가 주는 sprite(동물 그림)를 그대로 그림
 - 글꼴: 갈무리(`assets/fonts/`, OFL, `Galmuri_LICENSE.txt` 같이 배포). `T.font('title'|'body'|'small'|'big')`로만 쓴다 (크기 12/12/10/15 고정 = 획이 픽셀에 딱 맞는 크기, `tests/test_fonts.py`, 안티에일리어싱 끔)
 - **칸 안 글씨**(버튼·간판·메뉴·칩·리본·알림·툴팁 등)는 `widgets.text_in(surface, 글씨, 칸, ...)`: 실제 글자 모양(줄 높이 아님) 기준 정렬. 칸 크기는 글씨에 맞춰 넓힌다(`fit_width`, `Button.width_for`, `BUTTON_H` 20, `CHIP_H` 16, `CARD_LABEL_H` 20). **글자 크기를 줄여서 맞추지 않는다**
 - 화면을 바꾸면 `python tools/check_text_fit.py`로 모든 칸 글씨가 사방 2px 여백 안에 있는지 확인 (`shots`를 붙이면 실제 창 크기 스크린샷)
-- 알림은 `app.toast(문구, 'ok'|'bad'|'info', 아이콘)`, `app.act(..., icon='home')`처럼 아이콘을 줄 수 있다. **한 번에 1개**(새 알림이 바꿔 낌), 3.5초 뒤 사라짐. 자리는 화면의 `toast_anchor()` (지도는 왼쪽 아래)
+- 알림은 `app.toast(문구, 'ok'|'bad'|'info', 아이콘)`, `app.act(..., icon='home')`처럼 아이콘을 줄 수 있다. **한 번에 1개**(새 알림이 바꿔 낌), 3.5초 뒤 사라짐, **화면을 바꾸면 지움**(`App.go`). 자리는 화면의 `toast_anchor()`: 기본 오른쪽 위(◀ 버튼·제목 리본 피함), 지도 왼쪽 아래, 전투 명령창 바로 위, 결과 왼쪽 위
 - 이름 뒤 조사는 `T.josa(이름, '을'|'이'|'은'|'으로'|'과')`로 받침에 맞게. `을(를)`처럼 쓰지 않는다
 - 상태 단계(좋음·보통·나쁨)는 백엔드가 동물 행마다 주는 `status`(`{'fullness','mood','fatigue'}` → `'good'/'normal'/'bad'`)를 `T.level(a, kind)`, `T.any_bad(a)`로 읽는다. GUI에서 기준값으로 다시 계산하지 않는다
 - 남은 시간·진행 게이지는 `app.now()`(스냅샷 시각 + 그 뒤 흐른 시간 × 배속)로 계산
-- 설명 말풍선은 `widgets.tooltip`, 선택 강조는 `widgets.select_frame` (키트 스타일)
+- 설명 말풍선은 `widgets.tooltip`, 선택 강조는 `widgets.select_frame(색)` (키트 스타일). 말풍선은 화면 가장자리에서 4px 안쪽(`TIP_INSET`), `avoid`(예: 다른 동물 체력바)와 겹치면 반대쪽
 - 화면을 만들면 직접 실행해서 확인한다.
 
 ## 도트 스타일
@@ -141,7 +143,7 @@ CHARACTERS.md        캐릭터 목록 · GUI.md 화면 구조 설명
 내 동물(`my_animals`, 지금의 AnimalsScene) · 도감(`pokedex`) · 가방(`bag`, 인벤토리) · 마이룸(`my_room`, 처음엔 "준비 중") · 설정(`settings`)
 
 **설정 창** (`gui/scenes/settings.py`, 지도 메뉴 "설정" → 지도 위 창): 시간 속도(보통 / 빠르게 5배), 시연 모드(60배, 영상용), 저장하기(`save_game`), 불러오기(`load_game`, 확인 창 먼저), 도움말, 게임 종료, 마지막 저장 시각.
-- 백엔드는 모든 변경을 바로 SQLite에 저장(자동 저장), 종료할 때도 `App.run`이 `save_game`을 부름. 백엔드가 마지막 저장 시각을 주지 않아서, 이번 실행에서 "저장하기"를 누른 실제 시각(`app.last_saved`)을 표시
+- 백엔드는 모든 변경을 바로 SQLite에 저장(자동 저장), 종료할 때도 `App.run`이 `save_game`을 부름. 마지막 저장 시각은 스냅샷 `last_saved`(실제 Unix 시각, 자동 저장 포함, PR #9)를 표시
 배경음·효과음은 아직 백엔드·에셋이 없음 → 팀 결정 전까지 목업에만 있음.
 
 **상단 바**: "1일차 · 낮 14:20 · 맑음" 순서(낮은 해, 밤은 달 아이콘) + 빠르게면 "· 5배속", 오른쪽 코인. 날짜·시각은 백엔드 `clock['day']`, `clock['time']`('HH:MM')
@@ -156,7 +158,7 @@ CHARACTERS.md        캐릭터 목록 · GUI.md 화면 구조 설명
 - 백엔드: `get_yard_animals()` → `{'keys', 'max'}`, `set_yard_animals(keys)`(**list만** 받음, 보유 동물 0~`yard_max`마리, 중복 불가, 순서 = 표시 순서, 세이브에 저장). 새 게임은 빈 목록으로 시작 → 화면 자동 채우기. 스냅샷에도 `yard`(ID 목록)와 `yard_max`가 있다
 - `yard`는 화면 표시용일 뿐 훈련·전투·자율행동에는 영향 없음
 1. 플레이어가 "마당에 내보내기"로 고른 동물 = 스냅샷 `yard` (내 동물 화면 버튼 → `set_yard_animals`)
-2. `yard`가 `yard_max`보다 적으면 남는 자리는 **화면에서만** 자동으로 채움 (세이브에 안 씀): 전투 팀 3마리 → 돌봐야 하는 동물(배고픔·기분 나쁨, 질병) → 최근에 얻은 동물
+2. `yard`가 `yard_max`보다 적으면 남는 자리는 **화면에서만** 자동으로 채움 (세이브에 안 씀): 마지막 전투 팀 3마리(스냅샷 `last_team`, PR #9) → 돌봐야 하는 동물(배고픔·기분 나쁨, 질병) → 최근에 얻은 동물
 3. 나머지는 마당 입구에 "+N마리" 표지판 → 누르면 내 동물 화면
 - 활동 중인 동물은 마당 대신 그 장소 앞에 작게: 사냥 중 → 사냥터, 훈련 중 → 집, 아픔 → 병원
 - 마당에 안 보여도 백엔드는 모든 동물의 자율행동·상태를 계속 계산한다 (화면 표시만의 문제)
@@ -165,6 +167,21 @@ CHARACTERS.md        캐릭터 목록 · GUI.md 화면 구조 설명
   - 언제 눕는지는 GUI가 정하지 않고 백엔드 값(`action`, 동물 행의 `status`)만 읽는다
   - 누운 그림은 `SpriteCache.lying()` 하나에서 만든다. 지금은 "엎드리기": 서 있는 도트를 세로만 원본 28줄 → 20줄로 고르게 줄 빼서 납작하게, 바닥에 붙임 (90° 회전은 쓰러진 것처럼 보여서 안 씀). `assets/sprites/<ID>_s<단계>_lying.png`를 그려 넣으면 자동으로 그 그림을 씀
 
+## 전투장 (목업 `docs/mockups/battle/`, 팀 결정 = 스테이지 2화면 + 전투 A안 + A2_1~3)
+- **스테이지 고르기** (`gui/scenes/battle_stage.py` `StagePickScene`, stage_pick.png): 9단계를 뱀 모양 길로 잇고 동그라미 안에 보스 얼굴(`gui/enemies.py` → data/enemies.json). 깬 곳 초록 체크, 잠긴 곳 자물쇠(못 고름), 대회는 메달 색 테두리. 오른쪽에 보스 그림·대회·전투력·보상·상대 성향, "팀 정하기"
+- **출전 준비** (`TeamPrepScene`, stage_team_prep.png): 상대(`preview_stage`) vs 내 팀(`last_team`으로 미리 채움, ✕로 빼기). 다른 동물은 스냅샷 `participation`/`participation_reason`(백엔드 `_available`, `can_participate`와 같음)으로 출전 불가면 흐리게 + 이유. 전투 전 포션은 카드를 누를 때마다 팀원에게 차례로(한 마리에 하나). 출전 = `start_battle(stage, team, prebattle_potions)`
+- **전투** (`gui/scenes/battle_fight.py` `BattleScene`): 아군 왼쪽·적 오른쪽, 머리 위엔 체력바만(이름은 마우스), 보스는 원본 46 ×2. 명령창 = 고른 동물 정보 + 공격/특수기/방어/턴 넘기기, `get_battle_actions`가 준 행동만 켬
+  - 딜러의 공격은 백엔드에서 **적 전체 공격**이라 대상 고르기 없음. 딜러는 특수기 버튼이 없음 (탱커 = 절대방어, 힐러 = 회복)
+  - 특수기 버튼은 역할 상관없이 **보라색**(방어 파랑과 구분). 쿨타임이면 회색(disabled) + "다음 턴에 사용"/"2턴 뒤 사용", 발밑 칩 "기술 쉼". cooldown 숫자의 정확한 뜻은 기영님께 확인 중
+  - 작은 기록 칸은 "주체 → 대상 숫자" 한 줄 ("야생" 빼고, 길면 이름만 줄임), 펼친 기록은 전체 문장
+  - 대상 고르기: 위 안내 띠 + 꺾쇠(적 빨강·아군 초록·마우스 올린 대상 노랑), ESC·오른쪽 클릭 취소. 회복은 체력바에 회복 뒤 체력 미리보기
+  - 백엔드는 한 번 호출에 내 행동 + 적 차례까지 처리 → 응답의 전투 기록(events)을 재생: 내 행동은 바로, 적 차례는 0.6초 간격. 체력바·숫자는 기록 값(피해·회복)으로만 움직이고 끝나면 백엔드 체력으로 맞춤
+  - 전투 기록: 작은 칸, 마우스를 올리면 위로 펼침(라운드·"적" 칩). 도망가기 = `forfeit_battle`(확인 창)
+  - 회복량 미리보기만 GUI 표(`HEAL_PREVIEW`, 1/2/3단계 100/300/500)를 씀 → 기영님께 `get_battle_actions`에 회복량(amount)을 넣어 달라고 요청할 것. 실제 회복은 백엔드 값
+  - 전투 중 아이템(`battle_bandage`)은 화면에 없음
+- **결과** (`BattleResultScene`): 승/패, 보상 코인(`battle_result.reward`), 첫 대회 우승/처음 깸(`first_clear`) + "다음 단계 열림"(get_stages의 다음 order), 팀 피로도 전→후(출전 직전 스냅샷과 지금 스냅샷, 둘 다 백엔드 값), 아픔 표시
+- 전투장 배경(관중석·벽·깃발·모래)은 그림 파일이 없어 코드로 그린 도트 (`arena_surface`)
+
 ## 진행 상황
 - 완료: 백엔드 1차(기영), 캐릭터 30종 데이터, 역할별 MAX, 도트 75장 (PR #1 merge됨)
 - 완료 (PR #2 merge됨): 진화 단계별 이름·이미지를 백엔드가 반환, GUI 뼈대, 텍스트 카드 지도(임시), 집 화면(상태·능력치·간식·훈련·진화), 시간 속도 F5/F12
@@ -172,8 +189,10 @@ CHARACTERS.md        캐릭터 목록 · GUI.md 화면 구조 설명
 - 완료 (PR #3 merge됨, 기영): 마당 저장(`yard`), 요리 타이밍 판정(`cook(recipe, grade)`), 요리 숙련도 확정안
 - 완료 (PR #5 merge됨): 메인 화면 섬 마을 지도, 마당 백엔드 연결, 내 동물 화면 "마당에 내보내기/들여보내기"
 - 완료 (PR #6 merge됨, 기영): 강제 휴식(피로도 80 초과), 게임 시계 day/time, 동물 status
+- 완료 (PR #9 merge됨, 기영): 스냅샷 `last_team`(마지막 출전 팀 ID 3개, `start_battle` 때 저장), `last_saved`(실제 시각, 자동 저장 포함)
 - 진행 중 (브랜치 `ui-kit`): 도트 UI 키트 적용 (640×360 논리 화면, 갈무리 글꼴), 내 동물 화면 animals_v2, 지도 메뉴·간판·알림
 - 진행 중 (브랜치 `settings`, ui-kit에서 만듦): 설정 창 (속도·시연 모드·저장·불러오기·도움말·종료)
+- 진행 중 (브랜치 `battle`): PR #9 반영, 적 몬스터 그림, 전투장(스테이지 고르기·출전 준비·전투·결과)
 
 ## 다음 할 일 (순서대로)
 1. **메인 화면을 목업대로**: `map_scene.py`의 텍스트 카드를 지도 이미지 + 간판 + 오른쪽 메뉴로 교체. 마당 동물은 `map.json`의 `yard` 안에서 움직이게. 지금의 "집" 화면(AnimalsScene)은 메뉴 "내 동물"로 연결

@@ -183,14 +183,20 @@ def chip_width(label):
     return fit_width(label, 'small', shadow=True) + 2      # + 테두리 1px × 2
 
 
-def tooltip(surface, msg, target, side='right', bounds=None):
+TIP_INSET = 4          # 말풍선은 화면(bounds) 가장자리에서 이만큼 안쪽에
+
+
+def tooltip(surface, msg, target, side='right', bounds=None, avoid=()):
     """설명 말풍선 (키트 card 조각 + 같은 테두리 색 꼬리). target 옆에 붙인다.
 
-    side: 'right' / 'left' / 'above' / 'below'. 화면(bounds) 밖으로 나가면 반대쪽으로.
+    side: 'right' / 'left' / 'above' / 'below'. 화면(bounds) 밖으로 나가거나 avoid(가리면 안 되는 것,
+    예: 다른 동물 체력바)와 겹치면 반대쪽으로. 마지막에 bounds 안쪽 TIP_INSET px 안으로 밀어 넣는다.
     """
     target = pygame.Rect(target)
-    bounds = pygame.Rect(bounds or (0, T.HEADER_H, T.WIDTH, T.HEIGHT - T.HEADER_H))
+    bounds = pygame.Rect(bounds or (0, T.HEADER_H, T.WIDTH, T.HEIGHT - T.HEADER_H)).inflate(-2 * TIP_INSET,
+                                                                                         -2 * TIP_INSET)
     box = pygame.Rect(0, 0, fit_width(msg) + 4 + 4, CARD_LABEL_H)     # 글씨 + 여백 + card 테두리 2px×2
+    avoid = [pygame.Rect(r) for r in avoid]
 
     def place(s):
         if s == 'right':
@@ -202,9 +208,14 @@ def tooltip(surface, msg, target, side='right', bounds=None):
         else:
             box.midtop = (target.centerx, target.bottom + 5)
     place(side)
-    if not bounds.contains(box):
-        side = {'right': 'left', 'left': 'right', 'above': 'below', 'below': 'above'}[side]
-        place(side)
+    if not bounds.contains(box) or box.collidelist(avoid) >= 0:
+        other = {'right': 'left', 'left': 'right', 'above': 'below', 'below': 'above'}[side]
+        first = box.copy()
+        place(other)
+        if bounds.contains(box) or not bounds.contains(first):
+            side = other
+        else:
+            box = first
     box.clamp_ip(bounds)
     card(surface, box)
     edge, fill = (120, 80, 50), (252, 240, 214)        # card 조각의 테두리·안쪽 색
@@ -224,10 +235,12 @@ def tooltip(surface, msg, target, side='right', bounds=None):
     return box
 
 
-def select_frame(surface, rect):
-    """선택·강조 표시: 네 모서리에 도트 꺾쇠 (검은 테두리 + 노란 안쪽)."""
+def select_frame(surface, rect, color=None):
+    """선택·강조 표시: 네 모서리에 도트 꺾쇠 (검은 테두리 + 색 안쪽, 기본 노랑).
+    color: 키트 색 이름(red, green, ...)이면 그 밝은색."""
     r = pygame.Rect(rect)
-    gold, ink, n = T.shade('orange', 3), T.INK, 6
+    gold = T.shade(color, 3) if color else T.shade('orange', 3)
+    ink, n = T.INK, 6
     for (x, y, dx, dy) in ((r.left, r.top, 1, 1), (r.right - 1, r.top, -1, 1),
                            (r.left, r.bottom - 1, 1, -1), (r.right - 1, r.bottom - 1, -1, -1)):
         for off, col in ((0, ink), (1, gold), (2, ink)):
@@ -320,8 +333,15 @@ class Button:
 # ---------- 도트 캐릭터 ----------
 LYING_ROWS = 20         # 엎드린 모습: 원본 28줄 중 20줄만 남김
 
+BOSS_MIN_ORIGINAL = 29     # 원본 폭이 이보다 크면 보스 (졸개·동물 28, 보스 46)
+
+
 class SpriteCache:
-    """assets/sprites(112×112 = 원본 28×28의 4배)를 원본 28로 줄인 뒤 정수배로만 키운다."""
+    """도트 그림 파일(원본의 4배로 저장)을 원본 크기로 줄인 뒤 정수배로만 키운다.
+
+    - 동물 assets/sprites: 112×112 → 원본 28
+    - 적 assets/enemies: 졸개 112×112 → 원본 28, 보스 184×184 → 원본 46
+    """
 
     def __init__(self):
         self._base = {}
@@ -333,7 +353,7 @@ class SpriteCache:
             if path and os.path.exists(path):
                 img = pygame.image.load(path).convert_alpha()
                 w, h = img.get_size()
-                self._base[rel_path] = pygame.transform.scale(img, (w * 28 // 112, h * 28 // 112))
+                self._base[rel_path] = pygame.transform.scale(img, (w // 4, h // 4))     # 4배 저장 → 원본
             else:
                 ph = pygame.Surface((28, 28), pygame.SRCALPHA)
                 pygame.draw.rect(ph, T.shade('gray', 2), (6, 6, 16, 16))
@@ -347,6 +367,44 @@ class SpriteCache:
             base = self._load(rel_path)
             n = max(1, size // 28)
             self._scaled[key] = pygame.transform.scale(base, (base.get_width() * n, base.get_height() * n))
+        return self._scaled[key]
+
+    # ---------- 적 몬스터 (졸개·보스 공통) ----------
+    def original_size(self, rel_path):
+        """원본 도트 크기 (파일 ÷ 4). 졸개·동물 (28, 28), 보스 (46, 46)."""
+        return self._load(rel_path).get_size()
+
+    def is_boss(self, rel_path, flag=None):
+        """보스인지. 백엔드가 boss를 주면 그 값, 아니면 그림 크기(원본 폭 46)로 판단."""
+        if flag is not None:
+            return bool(flag)
+        return self.original_size(rel_path)[0] >= BOSS_MIN_ORIGINAL
+
+    def scaled(self, rel_path, n=2):
+        """원본 × n (정수). 전투 화면은 졸개·보스 모두 ×2 → 졸개 56, 보스 92 (논리 px)."""
+        key = (rel_path, 'x', n)
+        if key not in self._scaled:
+            base = self._load(rel_path)
+            self._scaled[key] = pygame.transform.scale(base, (base.get_width() * n, base.get_height() * n))
+        return self._scaled[key]
+
+    def fit(self, rel_path, box_w, box_h, max_n=2):
+        """정해진 칸(도감·카드 등)에 들어가는 그림. 들어가는 가장 큰 정수배(최대 max_n)로,
+        ×1도 안 들어가면(칸보다 큰 보스) ×1에서 그림 위쪽을 칸 크기만큼 잘라 초상으로."""
+        key = (rel_path, 'fit', box_w, box_h, max_n)
+        if key not in self._scaled:
+            w, h = self.original_size(rel_path)
+            n = min(max_n, box_w // w, box_h // h)
+            if n >= 1:
+                img = self.scaled(rel_path, n)
+            else:
+                base = self._load(rel_path)
+                art = base.get_bounding_rect()
+                cw, ch = min(box_w, w), min(box_h, h)
+                x = max(0, min(w - cw, art.centerx - cw // 2))
+                y = max(0, min(h - ch, art.top))                    # 머리부터 (위쪽 초상)
+                img = base.subsurface((x, y, cw, ch)).copy()
+            self._scaled[key] = img
         return self._scaled[key]
 
     def lying(self, rel_path, size):

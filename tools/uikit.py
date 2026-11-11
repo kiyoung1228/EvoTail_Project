@@ -182,6 +182,8 @@ ICON_ROWS = {
  'meat': ("............", "......OOOO..", ".....ORRRRO.", "....ORRWRRRO", "....ORRRRRRO", "....ORRRRRRO", "...OORRRRRO.", "..OWWOOOOO..", ".OWWO.......", ".OWO........", "..O.........", "............"),
  'smile': ("............", "...OOOOOO...", "..OYYYYYYO..", ".OYYYYYYYYO.", ".OYOYYYOYYO.", ".OYYYYYYYYO.", ".OYOYYYYOYO.", ".OYYOOOOYYO.", "..OYYYYYYO..", "...OOOOOO...", "............", "............"),
  'frown': ("............", "...OOOOOO...", "..OSSSSSSO..", ".OSSSSSSSSO.", ".OSOSSSOSSO.", ".OSSSSSSSSO.", ".OSSOOOOSSO.", ".OSOSSSSOSO.", "..OSSSSSSO..", "...OOOOOO...", "............", "............"),  # 기분 나쁨 (회색 찡그린 얼굴)
+ 'lock': ("............", "....OOOO....", "...O....O...", "...O....O...", "..OOOOOOOO..", "..OYYYYYYO..", "..OYYOOYYO..", "..OYYOOYYO..", "..OYYYYYYO..", "..OOOOOOOO..", "............", "............"),  # 잠김
+ 'check': ("............", "...OOOOOO...", "..OKKKKKKO..", ".OKKKKKKWKO.", ".OKKKKKWWKO.", ".OKWKKWWKKO.", ".OKWWWWKKKO.", ".OKKWWKKKKO.", "..OKKKKKKO..", "...OOOOOO...", "............", "............"),  # 깬 단계
  'zzz': ("............", "......OOOOO.", "......OBBO..", ".......OO...", "......OBBOO.", "..OOOO.OOOO.", "..OBBO......", "...OO.......", "..OBBOO.....", "..OOOOO.....", "............", "............"),
  'coin': ("............", "...OOOOO....", "..OYYYYYO...", ".OYWYYYYYO..", ".OYWYOOYYO..", ".OYYYOYYYO..", ".OYYYOYYYO..", ".OYYOOOYYO..", "..OYYYYYO...", "...OOOOO....", "............", "............"),
  'sun': ("....Y..Y....", ".Y........Y.", "...OOOOO....", "..OYYYYYO...", "Y.OYWYYYO..Y", "..OYYYYYO...", "..OYYYYYO...", "Y.OYYYYYO..Y", "...OOOOO....", ".Y........Y.", "....Y..Y....", "............"),
@@ -190,7 +192,7 @@ ICON_ROWS = {
  'back': ("............", "....O.......", "...OO.......", "..OWO.......", ".OWWOOOOOOO.", "OWWWWWWWWWO.", ".OWWOOOOOOO.", "..OWO.......", "...OO.......", "....O.......", "............", "............"),
 }
 ICON_COL = {'O': INK, 'R': (228, 76, 76), 'W': (255, 252, 240), 'B': (120, 160, 220), 'Y': (250, 204, 70),
-            'G': (200, 210, 230), 'P': (240, 150, 170), 'D': (140, 90, 60), 'S': BTN['gray'][2]}
+            'G': (200, 210, 230), 'P': (240, 150, 170), 'D': (140, 90, 60), 'S': BTN['gray'][2], 'K': BTN['green'][2]}
 
 
 def icon(name):
