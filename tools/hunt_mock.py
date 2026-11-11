@@ -250,7 +250,8 @@ if __name__ == '__main__':
 def stage_box(base, key, x, y, w, h, dim=1.0):
     z = Z2.zone(key, 208, 140)
     cx = {'rabbit_hill': 46, 'chicken_coop': 5, 'pig_pen': 4, 'ranch': 14}[key]   # gui/scenes/hunting.py STAGE_CROP_X와 같음
-    crop = z.crop((cx, 140 - h - 18, cx + w, 140 - 18))
+    cy = {'chicken_coop': 12, 'pig_pen': 20, 'ranch': 8, 'rabbit_hill': 8}[key]      # gui/scenes/hunting.py STAGE_CROP_Y와 같음
+    crop = z.crop((cx, cy, cx + w, cy + h))
     if dim != 1.0: crop = ImageEnhance.Brightness(crop).enhance(dim)
     d = ImageDraw.Draw(base); d.rectangle((x - 1, y - 1, x + w, y + h), outline=INK)
     paste(base, crop, (x, y))

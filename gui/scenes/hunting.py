@@ -39,7 +39,8 @@ STAGE = pygame.Rect(PANEL.x + 13, 92, 162, 84)           # 오른쪽 칸 무대 
 # 상자 왼쪽·오른쪽 끝에 잘리는 소품이 없게 고른 값 (최대 208 - 162 = 46): 달토끼 절구(x 22~44)는 상자 밖, 닭장(6~90)·여물통(8~58)은
 # 통째로 안, 목장은 건초(14~)와 풍차 기둥(~175)이 딱 들어가게
 STAGE_CROP_X = {'rabbit_hill': 46, 'chicken_coop': 5, 'pig_pen': 4, 'ranch': 14}
-STAGE_CROP_BOTTOM = 18
+# 세로 시작 y (높이는 상자 그대로 84): 4곳 모두 상자 아래가 울타리 위(y 104 이하)에서 끝나고 위쪽 소품(지붕·사과·쉼터·풍차)이 안 잘리게
+STAGE_CROP_Y = {'chicken_coop': 12, 'pig_pen': 20, 'ranch': 8, 'rabbit_hill': 8}
 ROW_H, ROW_STEP, ROWS = 32, 33, 3
 LIST_Y = 198
 ACTIVITY_LABEL = {'training': '훈련 중'}
@@ -305,12 +306,13 @@ class HuntScene(Scene):
 
     # ---------- 오른쪽 칸 무대 (목업 hunt_A4_running_v2 / hunt_A5_return_v2) ----------
     def stage_bg(self, area):
-        """무대 배경 = 그 사냥터 풍경의 아래쪽(울타리 위)을 무대 크기로 자른 것 (tools/hunt_mock.py stage_box()와 같은 자리)."""
+        """무대 배경 = 그 사냥터 풍경을 무대 크기로 자른 것. 자리는 사냥터마다 STAGE_CROP_X·STAGE_CROP_Y
+        (tools/hunt_mock.py stage_box()와 같은 값)."""
         key = ('stage', area)
         if key not in self._img:
             z = self.image('zones', area)
             cx = STAGE_CROP_X.get(area, 30)
-            y0 = z.get_height() - STAGE.h - STAGE_CROP_BOTTOM
+            y0 = STAGE_CROP_Y.get(area, 12)
             self._img[key] = z.subsurface((cx, y0, STAGE.w, STAGE.h)).copy()
         return self._img[key]
 
