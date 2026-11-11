@@ -112,6 +112,7 @@ class App:
         self.scene = None
         self.overlays = []        # 화면 위에 뜬 창들 (맨 뒤가 맨 위)
         self.last_saved = None    # 이번 실행에서 "저장하기"로 저장한 실제 시각 (time.time)
+        self.speed_before_demo = 1  # 시연 모드를 켜기 직전 속도 (끄면 이 속도로 돌아감)
         self._maps = {}
         self._dim = pygame.Surface((T.WIDTH, T.HEIGHT), pygame.SRCALPHA)
         self._dim.fill(DIM)
@@ -224,13 +225,25 @@ class App:
             top.handle(event)
 
     def toggle_speed(self, target):
-        """F5: 보통 ↔ 빠르게(5배), F12: 보통 ↔ 시연 모드(60배)."""
+        """F5: 보통 ↔ 빠르게(5배), F12: 시연 모드(60배) 켜기 ↔ 켜기 직전 속도로 돌아가기.
+
+        설정 창의 속도 버튼·시연 모드 스위치도 이 함수를 쓴다.
+        """
         rate = self.state.get('clock', {}).get('rate', 1) or 1
-        if rate == target:
+        if rate == target:          # 끄기
+            back = self.speed_before_demo if target == T.SPEED_DEMO else 1
+            self._set_speed(back)
+        else:                       # 켜기
+            if target == T.SPEED_DEMO:
+                self.speed_before_demo = rate
+            self._set_speed(target)
+
+    def _set_speed(self, rate):
+        if rate == 1:
             self.act('set_demo_mode', '시간: 보통 속도', icon='sun', enabled=False)
         else:
-            label = '시연 모드 (60배)' if target == T.SPEED_DEMO else f'빠르게 ({target}배)'
-            self.act('set_demo_mode', f'시간: {label}', icon='sun', enabled=True, rate=target)
+            label = '시연 모드 (60배)' if rate == T.SPEED_DEMO else f'빠르게 ({int(rate)}배)'
+            self.act('set_demo_mode', f'시간: {label}', icon='sun', enabled=True, rate=rate)
 
     # ---- loop ----
     def _poll_worker(self):

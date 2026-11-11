@@ -35,7 +35,7 @@ def _title(surface, rect, label, icon_img=None):
 
 class SettingsOverlay(Overlay):
     def __init__(self, app):
-        super().__init__(app, (196, 66, 248, 218))
+        super().__init__(app, (196, 60, 248, 230))
         P = self.rect
         path = os.path.join(T.ROOT, 'assets', 'ui', 'icon_settings.png')
         self.icon = pygame.transform.scale(pygame.image.load(path).convert_alpha(), (24, 24)) \
@@ -46,14 +46,14 @@ class SettingsOverlay(Overlay):
         fast_w = max(fit_width(fast_label, 'title', shadow=True), fit_width(fast_label)) + 4 + 4
         self.speed_normal = pygame.Rect(P.x + 92, P.y + 46, P.w - 12 - 92 - 6 - fast_w, CARD_LABEL_H)
         self.speed_fast = pygame.Rect(self.speed_normal.right + 6, P.y + 46, fast_w, CARD_LABEL_H)
-        self.demo_toggle = pygame.Rect(P.x + 92, P.y + 78, 26, 14)
-        self.demo_row = pygame.Rect(P.x + 12, P.y + 74, P.w - 24, 22)
+        self.demo_toggle = pygame.Rect(P.x + 92, P.y + 90, 26, 14)
+        self.demo_row = pygame.Rect(P.x + 12, P.y + 86, P.w - 24, 22)
         bw = (P.w - 40) // 2
         self.buttons = [
-            Button((P.x + 16, P.y + 116, bw, 24), '저장하기', self.save, 'blue'),
-            Button((P.x + 24 + bw, P.y + 116, bw, 24), '불러오기', self.ask_load, 'purple'),
-            Button((P.x + 16, P.y + 148, bw, 24), '도움말', lambda: app.open_overlay(HelpOverlay(app)), 'orange'),
-            Button((P.x + 24 + bw, P.y + 148, bw, 24), '게임 종료', self.quit, 'red'),
+            Button((P.x + 16, P.y + 128, bw, 24), '저장하기', self.save, 'blue'),
+            Button((P.x + 24 + bw, P.y + 128, bw, 24), '불러오기', self.ask_load, 'purple'),
+            Button((P.x + 16, P.y + 160, bw, 24), '도움말', lambda: app.open_overlay(HelpOverlay(app)), 'orange'),
+            Button((P.x + 24 + bw, P.y + 160, bw, 24), '게임 종료', self.quit, 'red'),
         ]
 
     # ---------- 동작 ----------
@@ -78,7 +78,7 @@ class SettingsOverlay(Overlay):
 
     def ask_load(self):
         self.app.open_overlay(ConfirmOverlay(
-            self.app, '불러올까요?', '저장 안 한 내용은 사라져요', '불러오기', 'purple', self.load))
+            self.app, '불러올까요?', '마지막으로 저장된 상태를 다시 불러와요', '불러오기', 'purple', self.load))
 
     def load(self):
         if self.app.call('load_game') is not None:
@@ -99,9 +99,10 @@ class SettingsOverlay(Overlay):
             if b.handle(event):
                 return True
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-            if self.speed_normal.collidepoint(event.pos):
+            demo = self._rate() >= T.SPEED_DEMO       # 시연 모드 중에는 속도 버튼을 막는다
+            if not demo and self.speed_normal.collidepoint(event.pos):
                 self.set_normal()
-            elif self.speed_fast.collidepoint(event.pos):
+            elif not demo and self.speed_fast.collidepoint(event.pos):
                 self.set_fast()
             elif self.demo_row.collidepoint(event.pos):
                 self.toggle_demo()
@@ -111,8 +112,18 @@ class SettingsOverlay(Overlay):
         return False
 
     # ---------- 그리기 ----------
-    def _option(self, surface, rect, label, selected):
-        """선택지 버튼: 고른 것 = 초록 키트 버튼, 아닌 것 = card 칸 (마우스 올리면 강조)."""
+    def _option(self, surface, rect, label, selected, disabled=False):
+        """선택지 버튼: 고른 것 = 초록 키트 버튼, 아닌 것 = card 칸 (마우스 올리면 강조).
+        disabled: 회색 버튼(돌아갈 속도) / 흐린 글씨 card."""
+        if disabled:
+            if selected:
+                nine(surface, 'button_green_disabled', rect)
+                text_in(surface, label, button_face(rect), 'title', (226, 220, 210), shadow=T.shade('gray', 0),
+                        tag='option')
+            else:
+                card(surface, rect)
+                text_in(surface, label, card_inner(rect), 'body', T.TEXT_SOFT, tag='option')
+            return
         if selected:
             nine(surface, 'button_green_normal', rect)
             text_in(surface, label, button_face(rect), 'title', T.WHITE, shadow=T.shade('green', 0), tag='option')
@@ -143,14 +154,19 @@ class SettingsOverlay(Overlay):
         demo = rate >= T.SPEED_DEMO
         # 시간 속도
         text(surface, '시간 속도', (P.x + 16, self.speed_normal.centery), 'title', T.TEXT, 'midleft')
-        self._option(surface, self.speed_normal, '보통', rate == 1)
-        self._option(surface, self.speed_fast, f'빠르게 ({T.SPEED_FAST}배)', rate == T.SPEED_FAST)
+        shown = self.app.speed_before_demo if demo else rate     # 시연 중엔 끄면 돌아갈 속도를 표시
+        self._option(surface, self.speed_normal, '보통', shown == 1, disabled=demo)
+        self._option(surface, self.speed_fast, f'빠르게 ({T.SPEED_FAST}배)', shown == T.SPEED_FAST, disabled=demo)
+        if demo:
+            back = '보통' if shown == 1 else f'{int(shown)}배'
+            text(surface, f'시연 모드 중 · 끄면 {back}로', (self.speed_normal.x, P.y + 68), 'small',
+                 T.shade('red', 1))
         # 시연 모드
         text(surface, '시연 모드', (P.x + 16, self.demo_toggle.centery), 'title', T.TEXT, 'midleft')
         self._toggle(surface, self.demo_toggle, demo)
         text(surface, f'{T.SPEED_DEMO}배 · 영상 촬영용 (F12)', (self.demo_toggle.right + 6, self.demo_toggle.centery),
              'small', T.shade('red', 1) if demo else T.TEXT_SOFT, 'midleft')
-        pygame.draw.line(surface, T.WOOD[3], (P.x + 12, P.y + 106), (P.right - 13, P.y + 106))
+        pygame.draw.line(surface, T.WOOD[3], (P.x + 12, P.y + 118), (P.right - 13, P.y + 118))
         for b in self.buttons:
             b.draw(surface)
         # 마지막 저장
