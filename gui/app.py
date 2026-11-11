@@ -18,7 +18,9 @@ from roc import GameService
 from roc.bridge import GameBridge
 from roc.worker import GameWorker
 from . import theme as T
-from .widgets import text, text_width, card, chip, icon, moon_icon, SpriteCache
+from .widgets import (text, text_width, text_in, glyph_box, fit_width, record, card, card_inner, chip, icon,
+                      moon_icon, SpriteCache)
+from .display import setup_window_scale
 
 EVENT_TEXT = {
     'training_complete': lambda e, n: f"{n(e.get('animal'))} 훈련 완료! {T.STAT_LABEL.get(e.get('stat'), '')} +{e.get('gain', '')}",
@@ -90,6 +92,7 @@ DIM = (24, 16, 24, 120)        # 창이 열렸을 때 뒤 화면을 어둡게
 
 class App:
     def __init__(self, save_path='saves/game.db'):
+        setup_window_scale()              # DPI 인식 + 창 배율(정수배). pygame 창을 만들기 전에
         pygame.init()
         pygame.display.set_caption('EvoTail')
         self.window = pygame.display.set_mode(T.WINDOW)
@@ -260,21 +263,28 @@ class App:
         info = f"{'밤' if night else '낮'} · {'태풍' if clock.get('storm') else '맑음'}"
         if 1 < rate < T.SPEED_DEMO:
             info += f" · {int(rate)}배속"
-        box = pygame.Rect(0, 3, 158, 19); box.centerx = T.WIDTH // 2
+        # 상단 바의 작은 칸: 안쪽 17 = 글자 11(쉼표 등 아래로 내려오는 글자 13) + 여백 4 → card 21
+        box = pygame.Rect(0, 2, max(158, fit_width(info, extra=14) + 4), 21); box.centerx = T.WIDTH // 2
         card(surface, box)
-        w = 14 + text_width(info)
-        x = box.centerx - w // 2
+        inner = card_inner(box)
+        w = 14 + glyph_box(info).w
+        x = inner.x + (inner.w - w) // 2
         if night:
-            surface.blit(moon_icon(), (x, box.y + 4))
+            surface.blit(moon_icon(), (x, inner.y + 2))
         else:
-            icon(surface, 'sun', (x, box.y + 4))
-        text(surface, info, (x + 14, box.centery), 'body', T.TEXT, 'midleft')
+            icon(surface, 'sun', (x, inner.y + 2))
+        g = text_in(surface, info, (x + 14, inner.y, w - 14, inner.h), 'body', log=False)
+        record(info, pygame.Rect(x, g.y, w, g.h), inner, 'header')
         if rate >= T.SPEED_DEMO:
             chip(surface, (box.right + 6, box.centery), f'시연 모드 {int(rate)}배', 'red', anchor='midleft')
-        coin = pygame.Rect(T.WIDTH - 98, 3, 90, 19)
+        coins = f"{self.state.get('coins', 0):,}"
+        coin = pygame.Rect(0, 2, max(90, fit_width(coins, 'title', extra=16) + 4), 21)
+        coin.right = T.WIDTH - 8
         card(surface, coin)
-        icon(surface, 'coin', (coin.x + 5, coin.y + 4))
-        text(surface, f"{self.state.get('coins', 0):,}", (coin.right - 6, coin.centery), 'title', T.TEXT, 'midright')
+        inner = card_inner(coin)
+        icon(surface, 'coin', (inner.x + 2, inner.y + 2))
+        g = text_in(surface, coins, inner, 'title', align='right', log=False)
+        record(coins, pygame.Rect(inner.x + 2, g.y, g.right - inner.x - 2, g.h), inner, 'header')
 
     def draw_toasts(self, surface):
         """알림 1개: card 조각 + 왼쪽 4px 색 막대 + 아이콘 + 글씨. 자리는 화면이 정한다 (toast_anchor)."""
@@ -283,7 +293,8 @@ class App:
         if not self.toast_item:
             return
         msg, _, kind, icon_name = self.toast_item
-        w = text_width(msg) + 22 + (14 if icon_name else 0)
+        # 카드 테두리 2 + 색 막대 4 + 여백 5 + (아이콘 14) + 글씨 + 여백 + 테두리 2
+        w = 2 + 4 + 5 + (14 if icon_name else 0) + fit_width(msg) - 2 + 2
         box = pygame.Rect(0, 0, w, 20)
         anchor, pos = self.scene.toast_anchor() if self.scene else Scene.toast_anchor(None)
         setattr(box, anchor, pos)
@@ -291,11 +302,14 @@ class App:
         color = TOAST_BAR.get(kind, 'orange')
         pygame.draw.rect(surface, T.shade(color, 2), (box.x + 2, box.y + 2, 4, box.h - 4))
         pygame.draw.line(surface, T.shade(color, 3), (box.x + 2, box.y + 2), (box.x + 5, box.y + 2))
+        inner = card_inner(box)
+        content = pygame.Rect(box.x + 6, inner.y, inner.right - box.x - 6, inner.h)    # 색 막대 오른쪽
         x = box.x + 11
         if icon_name:
-            icon(surface, icon_name, (x, box.y + 4))
-            x += 14
-        text(surface, msg, (x, box.centery), 'body', T.TEXT, 'midleft')
+            icon(surface, icon_name, (x, inner.y + 2))
+        g = text_in(surface, msg, (x + (14 if icon_name else 0), inner.y, glyph_box(msg).w, inner.h), 'body',
+                    log=False)
+        record(msg, pygame.Rect(x, g.y, g.right - x, g.h), content, 'toast')
 
     def _to_logical(self, event):
         if event.type in MOUSE_EVENTS:

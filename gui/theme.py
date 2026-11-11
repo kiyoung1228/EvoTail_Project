@@ -12,8 +12,15 @@ KIT_DIR = os.path.join(ROOT, 'assets', 'ui', 'kit')
 FONT_DIR = os.path.join(ROOT, 'assets', 'fonts')
 
 WIDTH, HEIGHT = 640, 360          # 논리 화면
-SCALE = 2                         # 창 = 논리 × 2
+SCALE = 2                         # 창 = 논리 × SCALE (정수). 시작할 때 display.setup_window_scale이 정함
 WINDOW = (WIDTH * SCALE, HEIGHT * SCALE)
+
+
+def set_scale(n):
+    """창 배율을 정한다 (정수만). 마우스 좌표·창 크기가 모두 이 값을 따른다."""
+    global SCALE, WINDOW
+    SCALE = max(1, int(n))
+    WINDOW = (WIDTH * SCALE, HEIGHT * SCALE)
 HEADER_H = 26                     # 상단 바 (창에서 52px)
 FPS = 30
 
@@ -103,6 +110,8 @@ def josa(word, particle):
 
 
 # ---- 글꼴 (갈무리, 정해진 크기로만) ----
+# 크기는 획이 픽셀 격자에 딱 맞는 값 (기준 ±2 렌더 비교: 이 크기에서만 반투명 픽셀 0%, ±1이면 47~99%).
+# tests/test_fonts.py가 확인한다. 바꾸지 말 것
 FONTS = {
     'title': ('Galmuri11-Bold.ttf', 12),   # 제목·버튼·이름
     'body': ('Galmuri11.ttf', 12),         # 본문

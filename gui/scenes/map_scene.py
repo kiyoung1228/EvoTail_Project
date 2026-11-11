@@ -16,7 +16,8 @@ import pygame
 
 from .. import theme as T
 from ..app import Scene
-from ..widgets import text, text_width, panel, card, tooltip, select_frame, Kit
+from ..widgets import (text, text_width, text_in, fit_width, glyph_box, panel, card, card_inner, tooltip,
+                       select_frame, Kit, CARD_LABEL_H)
 from .settings import SettingsOverlay
 
 MAP_DIR = os.path.join(T.ROOT, 'assets', 'map')
@@ -40,9 +41,19 @@ MENU = [
     ('my_room', '마이룸', 'my_room'),
     ('settings', '설정', None),           # 화면 이동 대신 설정 창 (SettingsOverlay)
 ]
-MENU_PANEL = pygame.Rect(589, 40, 46, 270)
-MENU_BTN = 36          # 버튼 한 변
+MENU_BTN_H = 2 + 1 + 24 + 13 + 2                           # 테두리 + 아이콘 + 글씨 줄(9 + 여백 4) + 테두리
 MENU_STEP = 51         # 버튼 간격
+MENU_BTN_W = 36        # _size_menu()가 글씨에 맞춰 다시 정함
+MENU_PANEL = pygame.Rect(589, 40, 46, 270)
+
+
+def _size_menu():
+    """메뉴 버튼 폭을 글씨에 맞춘다: 가장 긴 라벨("내 동물")이 2px 여백을 두고 들어가는 폭 + card 테두리.
+    글꼴이 준비된 뒤(MapScene을 만들 때) 부른다."""
+    global MENU_BTN_W, MENU_PANEL
+    MENU_BTN_W = max(max(fit_width(label, 'small') for _, label, _ in MENU) + 4, 24 + 8)
+    MENU_PANEL = pygame.Rect(0, 40, MENU_BTN_W + 12, 270)     # 버튼 양옆에 패널 테두리(나무) 6px
+    MENU_PANEL.right = T.WIDTH - 5
 
 YARD_SIZE = 56         # 마당 동물: 원본 28px 도트 × 2 (지도와 같은 배율)
 PLACE_SIZE = 28        # 장소 앞에 작게: 원본 그대로
@@ -63,10 +74,10 @@ ACTIVITY_PLACE = {'hunting': 'hunting', 'training': 'home'}
 
 
 def _load_map():
-    """map.json은 1280×720 기준 → 논리 화면(½) 좌표로."""
+    """map.json은 1280×720 기준(지도 그림의 scale 2) → 논리 화면(640×360) 좌표로. 창 배율과는 상관없음."""
     with open(os.path.join(MAP_DIR, 'map.json'), encoding='utf-8') as f:
         data = json.load(f)
-    s = T.SCALE
+    s = data.get('scale', 2)
 
     def rect(v):
         return pygame.Rect(v[0] // s, v[1] // s, (v[2] - v[0]) // s, (v[3] - v[1]) // s)
@@ -78,6 +89,7 @@ def _load_map():
 class MapScene(Scene):
     def __init__(self, app):
         super().__init__(app)
+        _size_menu()
         self.places, self.yard = _load_map()
         self.icons = {}
         for key, _, _ in MENU:      # 48×48(2배 도트) → 논리 24×24
@@ -90,13 +102,13 @@ class MapScene(Scene):
 
     # ---------- 배치 ----------
     def _sign_rect(self, key):
-        w = text_width(PLACES[key][0], 'title') + 14
+        w = fit_width(PLACES[key][0], 'title') + 4 + 4          # 글씨 + 여백 + card 테두리, 양옆 2px 더
         dx, dy = self.places[key]['door']
-        return pygame.Rect(dx - w // 2, dy + 4, w, 18)
+        return pygame.Rect(dx - w // 2, dy + 4, w, CARD_LABEL_H)
 
     def menu_rect(self, key):
         i = [m[0] for m in MENU].index(key)
-        return pygame.Rect(MENU_PANEL.centerx - MENU_BTN // 2, MENU_PANEL.y + 7 + i * MENU_STEP, MENU_BTN, MENU_BTN + 8)
+        return pygame.Rect(MENU_PANEL.centerx - MENU_BTN_W // 2, MENU_PANEL.y + 7 + i * MENU_STEP, MENU_BTN_W, MENU_BTN_H)
 
     def _layout(self):
         """누가 마당에, 누가 장소 앞에 보이는지. 반환: (마당 목록, {장소: [동물]}, 안 보이는 수).
@@ -263,8 +275,8 @@ class MapScene(Scene):
         return out
 
     def _more_rect(self):
-        w = text_width('+99마리', 'title') + 12
-        return pygame.Rect(self.yard.x + 3, self.yard.bottom + 2, w, 18)
+        w = fit_width('+99마리', 'title') + 4 + 4
+        return pygame.Rect(self.yard.x + 3, self.yard.bottom + 2, w, CARD_LABEL_H)
 
     # ---------- 입력 ----------
     def _hit(self, pos):
@@ -345,7 +357,7 @@ class MapScene(Scene):
     def _draw_sign(self, surface, key, hot=False):
         r = self.signs[key]
         card(surface, r, hot)
-        text(surface, PLACES[key][0], r.center, 'title', T.TEXT, 'center')
+        text_in(surface, PLACES[key][0], card_inner(r), 'title', tag='sign')
 
     def _tint(self, img, night, sick=False, dim=False):
         """밤: 살짝 푸르게 어둡게(약 80%, 지도보다 덜 어둡게 해서 동물이 잘 보이게) / 아픔: 푸르스름하게 /
@@ -499,14 +511,16 @@ class MapScene(Scene):
     def _draw_more(self, surface, hidden):
         r = self._more_rect()
         card(surface, r, self.hover == ('more', None))
-        text(surface, f'+{hidden}마리', r.center, 'title', T.TEXT, 'center')
+        text_in(surface, f'+{hidden}마리', card_inner(r), 'title', tag='sign')
 
     def _draw_menu(self, surface):
         panel(surface, MENU_PANEL)
         for key, label, _ in MENU:
             r = self.menu_rect(key)
             card(surface, r, self.hover == ('menu', key))
+            inner = card_inner(r)
             img = self.icons.get(key)
             if img:
-                surface.blit(img, img.get_rect(midtop=(r.centerx, r.y + 3)))
-            text(surface, label, (r.centerx, r.bottom - 3), 'small', T.TEXT, 'midbottom')
+                surface.blit(img, img.get_rect(midtop=(inner.centerx, inner.y + 1)))
+            strip = pygame.Rect(inner.x, inner.bottom - 13, inner.w, 13)    # 아이콘 아래 글씨 줄
+            text_in(surface, label, strip, 'small', check=inner, tag='menu')

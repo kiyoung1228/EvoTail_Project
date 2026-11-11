@@ -12,7 +12,8 @@ import pygame
 
 from .. import theme as T
 from ..app import Overlay
-from ..widgets import text, text_width, panel, card, chip, nine, Button, mouse_pos
+from ..widgets import (text, text_width, text_in, fit_width, panel, card, card_inner, button_face, chip, nine,
+                       Button, mouse_pos, BUTTON_H, CARD_LABEL_H)
 
 
 def clock_text(ts):
@@ -39,10 +40,12 @@ class SettingsOverlay(Overlay):
         path = os.path.join(T.ROOT, 'assets', 'ui', 'icon_settings.png')
         self.icon = pygame.transform.scale(pygame.image.load(path).convert_alpha(), (24, 24)) \
             if os.path.exists(path) else None
-        self.close_btn = Button((P.right - 32, P.y + 10, 20, 19), 'X', self.close, 'red')
-        fast_w = text_width(f'빠르게 ({T.SPEED_FAST}배)') + 14
-        self.speed_normal = pygame.Rect(P.x + 92, P.y + 46, P.w - 12 - 92 - 6 - fast_w, 20)
-        self.speed_fast = pygame.Rect(self.speed_normal.right + 6, P.y + 46, fast_w, 20)
+        self.close_btn = Button((P.right - 32, P.y + 9, 20, BUTTON_H), 'X', self.close, 'red')
+        # 선택지 폭: 굵은 글씨+그림자(고른 것)와 보통 글씨(안 고른 것) 중 넓은 쪽 + card 테두리
+        fast_label = f'빠르게 ({T.SPEED_FAST}배)'
+        fast_w = max(fit_width(fast_label, 'title', shadow=True), fit_width(fast_label)) + 4 + 4
+        self.speed_normal = pygame.Rect(P.x + 92, P.y + 46, P.w - 12 - 92 - 6 - fast_w, CARD_LABEL_H)
+        self.speed_fast = pygame.Rect(self.speed_normal.right + 6, P.y + 46, fast_w, CARD_LABEL_H)
         self.demo_toggle = pygame.Rect(P.x + 92, P.y + 78, 26, 14)
         self.demo_row = pygame.Rect(P.x + 12, P.y + 74, P.w - 24, 22)
         bw = (P.w - 40) // 2
@@ -112,11 +115,10 @@ class SettingsOverlay(Overlay):
         """선택지 버튼: 고른 것 = 초록 키트 버튼, 아닌 것 = card 칸 (마우스 올리면 강조)."""
         if selected:
             nine(surface, 'button_green_normal', rect)
-            text(surface, label, (rect.centerx, rect.centery - 1), 'title', T.WHITE, 'center',
-                 shadow=T.shade('green', 0))
+            text_in(surface, label, button_face(rect), 'title', T.WHITE, shadow=T.shade('green', 0), tag='option')
         else:
             card(surface, rect, rect.collidepoint(mouse_pos()))
-            text(surface, label, rect.center, 'body', T.TEXT, 'center')
+            text_in(surface, label, card_inner(rect), 'body', tag='option')
 
     def _toggle(self, surface, rect, on):
         """켜기/끄기 스위치: 게이지 틀 + 켜지면 초록 채움, 손잡이는 card 칸."""

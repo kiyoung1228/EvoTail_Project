@@ -55,11 +55,14 @@ CHARACTERS.md        캐릭터 목록 · GUI.md 화면 구조 설명
 - 화면 갱신: 메인 루프가 `worker.poll()`로 알림을 확인하고 `app.refresh()`로 `get_snapshot`을 다시 읽는다. 스레드에서 화면을 직접 건드리지 않는다.
 - 새 화면: `gui/scenes/`에 `Scene` 상속 (`enter`, `handle`, `update`, `draw`) → `run_gui.py`에서 `PlaceholderScene` 대신 등록.
 - 화면 위에 뜨는 창(설정·확인·도움말 등)은 `app.Overlay` 상속 → `app.open_overlay(창)`. 열려 있으면 입력은 맨 위 창만 받고, 뒤는 어둡게. ESC·창 밖 클릭으로 닫힘 (`close_outside`). 확인 창은 `settings.ConfirmOverlay` 재사용
-- 화면은 **640×360 논리 화면**에 그리고 App이 창(1280×720)에 2배로 붙인다. 장면 좌표·마우스 좌표는 전부 논리 픽셀 (상단 바 26 = 창 52px). 마우스 위치는 `widgets.mouse_pos()`
+- 시작할 때 `gui/display.py`가 Windows DPI 인식을 켜고(배율 125% 등에서 Windows가 창을 늘려 글씨가 뭉개지는 것 방지), 창은 640×360의 정수배 중 작업 영역에 들어가는 가장 큰 크기(1~3배, `T.SCALE`). 창 확대는 `pygame.transform.scale`(정수배)만
+- 화면은 **640×360 논리 화면**에 그리고 App이 창(보통 1280×720)에 정수배로 붙인다. 장면 좌표·마우스 좌표는 전부 논리 픽셀 (상단 바 26 = 창 52px). 마우스 위치는 `widgets.mouse_pos()`
 - 색·글꼴·한글 라벨은 `gui/theme.py`, 키트 위젯(`panel`, `card`, `ribbon`, `chip`, `gauge`, `Button(색, icon, sub)`, `icon`)은 `gui/widgets.py`. 둥근 사각형·직접 고른 색으로 새로 그리지 말고 키트 조각을 쓴다
 - 지도가 아닌 화면의 배경은 `app.backdrop(surface)`(어둡게 깐 지도), 왼쪽 위 `◀ 지도` 갈색 버튼 + 빨간 리본 제목
 - 도트 이미지는 정수배로만 (`SpriteCache.get(path, size)`, size = 28의 배수: 28 원본, 56 = 2배, 84 = 3배). smoothscale 금지
-- 글꼴: 갈무리(`assets/fonts/`, OFL, `Galmuri_LICENSE.txt` 같이 배포). `T.font('title'|'body'|'small'|'big')`로만 쓴다 (크기 12/12/10/15 고정, 안티에일리어싱 끔)
+- 글꼴: 갈무리(`assets/fonts/`, OFL, `Galmuri_LICENSE.txt` 같이 배포). `T.font('title'|'body'|'small'|'big')`로만 쓴다 (크기 12/12/10/15 고정 = 획이 픽셀에 딱 맞는 크기, `tests/test_fonts.py`, 안티에일리어싱 끔)
+- **칸 안 글씨**(버튼·간판·메뉴·칩·리본·알림·툴팁 등)는 `widgets.text_in(surface, 글씨, 칸, ...)`: 실제 글자 모양(줄 높이 아님) 기준 정렬. 칸 크기는 글씨에 맞춰 넓힌다(`fit_width`, `Button.width_for`, `BUTTON_H` 20, `CHIP_H` 16, `CARD_LABEL_H` 20). **글자 크기를 줄여서 맞추지 않는다**
+- 화면을 바꾸면 `python tools/check_text_fit.py`로 모든 칸 글씨가 사방 2px 여백 안에 있는지 확인 (`shots`를 붙이면 실제 창 크기 스크린샷)
 - 알림은 `app.toast(문구, 'ok'|'bad'|'info', 아이콘)`, `app.act(..., icon='home')`처럼 아이콘을 줄 수 있다. **한 번에 1개**(새 알림이 바꿔 낌), 3.5초 뒤 사라짐. 자리는 화면의 `toast_anchor()` (지도는 왼쪽 아래)
 - 이름 뒤 조사는 `T.josa(이름, '을'|'이'|'은'|'으로'|'과')`로 받침에 맞게. `을(를)`처럼 쓰지 않는다
 - 상태 단계(좋음·보통·나쁨)는 백엔드가 동물 행마다 주는 `status`(`{'fullness','mood','fatigue'}` → `'good'/'normal'/'bad'`)를 `T.level(a, kind)`, `T.any_bad(a)`로 읽는다. GUI에서 기준값으로 다시 계산하지 않는다
