@@ -17,7 +17,7 @@ from .. import widgets as W
 from .. import items as I
 from ..app import Scene
 from ..widgets import (text, text_in, glyph_box, fit_width, panel, card, card_inner, ribbon, chip, chip_width, icon,
-                       gauge, select_frame, nine, record, Button, BUTTON_H)
+                       gauge, select_frame, nine, record, wrap2, Button, BUTTON_H)
 from .settings import ConfirmOverlay
 from .farm import mmss
 
@@ -111,7 +111,7 @@ class HuntScene(Scene):
         return pygame.Rect(x + (i % 2) * (w + gx), y + (i // 2) * (h + gy), w, h)
 
     def row_rect(self, i):
-        return pygame.Rect(PANEL.x + 12, LIST_Y + i * ROW_STEP, PANEL.w - 24, ROW_H)
+        return pygame.Rect(PANEL.x + 12, LIST_Y + getattr(self, 'list_shift', 0) + i * ROW_STEP, PANEL.w - 24, ROW_H)
 
     # ---------- 명령 ----------
     def send(self):
@@ -265,19 +265,27 @@ class HuntScene(Scene):
             self._title(surface, spec['label'], f"{spec['duration'] // 60}분", 'brown')
             text(surface, '받는 것', (x, 90), 'small', T.TEXT_SOFT)
             surface.blit(self.icons.get(spec['item'], 2), (x, 102))
-            text(surface, f"{meat} ×{spec['count']}", (x + 38, 118), 'big', anchor='midleft')
+            # 고기 이름: 그림 옆 폭에 안 들어가면 두 줄 ("행운의" / "토끼고기 ×3"). 글자 크기는 그대로
+            lines = wrap2(f"{meat} ×{spec['count']}", right - (x + 38), 'big')
+            top = 118 - (len(lines) * 16 - 2) // 2
+            for k, line in enumerate(lines):
+                self._line(surface, line, (x + 38, top + k * 16), 'big', T.TEXT, right)
+            bottom = top + len(lines) * 16 - 2
+            dy = max(0, bottom - 134)                     # 그림(102~134)보다 길어지면 아래 줄을 그만큼 내림
+            self.list_shift = dy
             after = HUNT_DISPLAY['after'].get(spec['duration'], {})
-            text(surface, '다녀오면', (x, 140), 'small', T.TEXT_SOFT)
-            text(surface, f"포만감 {after.get('fullness', 0):+d} · 기분 {after.get('mood', 0):+d}", (x, 152), 'body')
-            text(surface, f"피로도 {after.get('fatigue', 0):+d} · 질병 {round(HUNT_DISPLAY['disease'] * 100)}%",
-                 (x, 166), 'body', T.BAD)
-            text(surface, '보낼 동물', (x, 183), 'title')
+            text(surface, '다녀오면', (x, 140 + dy), 'small', T.TEXT_SOFT)
+            self._line(surface, f"포만감 {after.get('fullness', 0):+d} · 기분 {after.get('mood', 0):+d}", (x, 152 + dy),
+                       'body', T.TEXT, right)
+            self._line(surface, f"피로도 {after.get('fatigue', 0):+d} · 질병 {round(HUNT_DISPLAY['disease'] * 100)}%",
+                       (x, 166 + dy), 'body', T.BAD, right)
+            text(surface, '보낼 동물', (x, 183 + dy), 'title')
             animals = self.animals()
             for i, a in enumerate(animals[self.scroll:self.scroll + ROWS]):
                 self._draw_row(surface, self.row_rect(i), a)
             if len(animals) > ROWS:
                 more = f"{self.scroll + 1}-{min(len(animals), self.scroll + ROWS)} / {len(animals)} · 휠"
-                text(surface, more, (right, 185), 'small', T.TEXT_SOFT, anchor='topright')
+                text(surface, more, (right, 185 + dy), 'small', T.TEXT_SOFT, anchor='topright')
             return
         a = self.app.animal(job['animal'])
         name = a['name'] if a else self.app.name_of(job['animal'])
@@ -292,11 +300,16 @@ class HuntScene(Scene):
             text(surface, f"{name} 귀환", (x, 184), 'title')
             have = self.have(spec['item'])
             got = f"{meat} ×{spec['count']} · 가방 보유 {have} → {have + spec['count']}"
-            g = text(surface, got, (x, 201), 'small')
-            record(got, g, pygame.Rect(x - 2, g.y - 2, right - x + 4, g.h + 4), 'hunt-panel')    # 칸 밖 넘침 점검
+            if glyph_box(got, 'small').w > right - x:     # 칸 폭을 넘으면 두 줄 (고기 이름 / 가방 보유)
+                got_lines = [f"{meat} ×{spec['count']}", f"가방 보유 {have} → {have + spec['count']}"]
+            else:
+                got_lines = [got]
+            for k, line in enumerate(got_lines):
+                self._line(surface, line, (x, 201 + k * 12), 'small', T.TEXT, right)
+            dy = 12 * (len(got_lines) - 1)                 # 두 줄이면 아래 상태 게이지를 한 줄만큼 내림
             if a:
-                text(surface, '지금 상태', (x, 218), 'small', T.TEXT_SOFT)
-                y = 230
+                text(surface, '지금 상태', (x, 218 + dy), 'small', T.TEXT_SOFT)
+                y = 230 + dy
                 for kind, lab in (('fatigue', '피로도'), ('fullness', '포만감')):
                     lv = T.level(a, kind)
                     text(surface, lab, (x, y), 'body')
@@ -314,7 +327,13 @@ class HuntScene(Scene):
             text(surface, mmss(rem), (x, 214), 'big')
             gauge(surface, (x, 236, right - x, 10), spec['duration'] - rem, spec['duration'], 'green')
             surface.blit(self.icons.get(spec['item'], 1), (x, 256))
-            text(surface, f"다녀오면 {meat} ×{spec['count']}", (x + 20, 258), 'small')
+            self._line(surface, f"다녀오면 {meat} ×{spec['count']}", (x + 20, 258), 'small', T.TEXT, right)
+
+    def _line(self, surface, msg, pos, kind, color, right):
+        """오른쪽 칸 안 글씨 한 줄 + 넘침 점검 기록 (칸 오른쪽 끝 right를 넘으면 check_text_fit 위반)."""
+        g = text(surface, msg, pos, kind, color)
+        record(msg, g, pygame.Rect(pos[0] - 2, g.y - 2, right - pos[0] + 4, g.h + 4), 'hunt-panel')
+        return g
 
     def have(self, item):
         return self.app.state.get('inventory', {}).get('stackable', {}).get(item, 0)

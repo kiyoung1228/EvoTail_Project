@@ -225,6 +225,18 @@ def scripted_run(self):
                 hu.scroll = k; frames(1)
             hu.scroll = 0
         shot('real_hunt.png')
+        # 달토끼 언덕(이름이 가장 긴 고기): 사냥 중 / 완료 (가방 보유 두 자리)
+        def rabbit(ready):
+            def fn(s):
+                v = s['clock']['virtual']
+                s['inventory']['lucky_rabbit'] = 10
+                s['hunts']['rabbit_hill'] = {'animal': 'tank_special_05', 'end': v + (-1 if ready else 3000),
+                                             'ready': ready}
+                return True
+            return fn
+        for ready in (False, True):
+            g._mutate(rabbit(ready)); self.refresh()
+            hu.selected = 'rabbit_hill'; frames(2)
         hu.selected = 'chicken_coop'; frames(1); hu.ask_recall(); frames(2); self.close_overlay()
         def no_one(s):          # 보낼 동물 없음
             for a in s['animals'].values():
