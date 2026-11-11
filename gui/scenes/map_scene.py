@@ -4,7 +4,7 @@
 - 건물 클릭 영역·문·마당: assets/map/map.json
 - 간판(나무 판 + 글자)은 여기서 문 아래에 그린다. 마우스를 올리면 노란 테두리 + 설명 말풍선
 - 오른쪽 메뉴 5개: assets/ui/icon_*.png
-- 마당 동물 최대 6마리. 활동 중인 동물은 그 장소 앞에 작게 (사냥터 / 집 / 병원)
+- 마당 동물: 스냅샷 yard(플레이어가 고른 동물) + 빈자리 자동 채우기, 최대 yard_max마리. 활동 중인 동물은 그 장소 앞에 작게 (사냥터 / 집 / 병원)
 게임 규칙은 없다. 동물 상태·자율행동은 app.state, app.auto(백엔드 값)를 그대로 읽는다.
 """
 import json
@@ -42,7 +42,6 @@ MENU_PANEL = pygame.Rect(1180, 82, 88, 534)
 MENU_BTN = 76          # 버튼 한 변
 MENU_STEP = 104        # 버튼 간격
 
-YARD_MAX = 6           # 마당에 보여줄 최대 마릿수
 YARD_SIZE = 112        # 마당 동물: 스프라이트 파일 그대로 (28px 도트 × 4, 그림은 약 64px)
 PLACE_SIZE = 56        # 장소 앞에 작게 (파일의 ½ = 28px 도트 × 2)
 FEET = 8               # 스프라이트 상자 바닥과 발 사이 여백 (투명 영역)
@@ -99,8 +98,17 @@ class MapScene(Scene):
         return pygame.Rect(MENU_PANEL.centerx - MENU_BTN // 2, MENU_PANEL.y + 8 + i * MENU_STEP, MENU_BTN, MENU_BTN)
 
     def _layout(self):
-        """누가 마당에, 누가 장소 앞에 보이는지. 반환: (마당 목록, {장소: [동물]}, 안 보이는 수)."""
-        animals = self.app.state.get('animals', [])
+        """누가 마당에, 누가 장소 앞에 보이는지. 반환: (마당 목록, {장소: [동물]}, 안 보이는 수).
+
+        1. 스냅샷 ``yard`` (플레이어가 "마당에 내보내기"로 고른 동물, 그 순서대로)
+        2. ``yard_max``보다 적으면 빈자리는 화면에서만 채움 (세이브에는 안 씀):
+           전투 팀 → 돌봐야 하는 동물(배고픔·기분 나쁨) → 최근에 얻은 동물
+        활동 중인 동물(훈련·사냥)과 아픈 동물은 마당 대신 그 장소 앞에 작게 보인다.
+        """
+        state = self.app.state
+        animals = state.get('animals', [])
+        by_id = {a['id']: a for a in animals}
+        yard_max = state.get('yard_max') or 0
         at_place = {}
         free = []
         for a in animals:
@@ -109,14 +117,23 @@ class MapScene(Scene):
             if where:
                 at_place.setdefault(where, []).append(a)
             else:
-                free.append(a)
-        # 자동 채우기: 돌봐야 하는 동물 → 최근에 얻은 동물 (목록 뒤쪽이 최근)
-        # TODO: 플레이어가 고른 "마당에 내보내기"(백엔드 yard)와 전투 팀이 생기면 맨 앞에 넣는다
-        def needs_care(a):
+                free.append(a['id'])
+        free_set = set(free)
+        chosen = [k for k in state.get('yard', []) if k in free_set]
+        team = [f['id'] for f in (state.get('battle') or {}).get('player', [])]
+
+        def needs_care(key):
+            a = by_id[key]
             return T.status_level('fullness', a['fullness']) == '나쁨' or T.status_level('mood', a['mood']) == '나쁨'
-        order = [a for a in reversed(free) if needs_care(a)] + [a for a in reversed(free) if not needs_care(a)]
-        yard = order[:YARD_MAX]
-        yard.sort(key=lambda a: [x['id'] for x in animals].index(a['id']))   # 자리 순서는 고정
+        recent = list(reversed(free))                       # 목록 뒤쪽이 최근에 얻은 동물
+        fill = team + [k for k in recent if needs_care(k)] + recent
+        shown = list(chosen)
+        for key in fill:
+            if len(shown) >= yard_max:
+                break
+            if key in free_set and key not in shown:
+                shown.append(key)
+        yard = [by_id[k] for k in shown[:yard_max]]
         hidden = len(free) - len(yard)
         for k, group in at_place.items():     # 장소 앞에는 3마리까지
             hidden += max(0, len(group) - 3)
