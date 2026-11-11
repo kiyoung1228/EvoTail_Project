@@ -105,7 +105,8 @@ class AnimalsScene(Scene):
                                    'orange', enabled=snacks > 0 and not busy, icon='snack'))
         # 장비 (장착·해제 = equip(key, item) / equip(key, None). 전투 중·활동 중이면 백엔드가 거절)
         eq_label = self._equip_label(a)
-        self.buttons.append(Button((339, 322, 143, 24), eq_label, lambda: app.open_overlay(EquipOverlay(app, key)),
+        eq_rect = pygame.Rect(339, 322, 143, 24)
+        self.buttons.append(Button(eq_rect, eq_label, lambda: app.open_overlay(EquipOverlay(app, key, eq_rect)),
                                    'blue', enabled=not busy, icon='shield'))
         # 진화
         ready = a['stage'] < a['max_stage'] and all(a['stats'][s] >= a['caps'][s] for s in T.STATS)
@@ -320,13 +321,19 @@ class EquipOverlay(Overlay):
     """장비 고르기: 가방에 있는 장비 장착 / 지금 장비 해제. 숫자·이름은 get_shop_catalog 값."""
     ROW_H, W = 40, 220
 
-    def __init__(self, app, key):
+    def __init__(self, app, key, anchor=None):
         self.key = key
         self.catalog = app.call('get_shop_catalog') or {}
         self.app = app
         rows = len(self._rows())
         h = 30 + max(1, rows) * self.ROW_H + 8
-        super().__init__(app, (T.WIDTH // 2 - self.W // 2, 320 - h, self.W, h))
+        rect = pygame.Rect(0, 0, self.W, h)
+        if anchor:          # "장비" 버튼 바로 위, 버튼 가운데에 맞춤
+            rect.midbottom = (anchor.centerx, anchor.y - 4)
+        else:
+            rect.midbottom = (T.WIDTH // 2, 318)
+        rect.clamp_ip(pygame.Rect(4, T.HEADER_H + 4, T.WIDTH - 8, T.HEIGHT - T.HEADER_H - 8))   # 화면 밖으로 안 나가게
+        super().__init__(app, rect)
         self.buttons = []
 
     def _rows(self):

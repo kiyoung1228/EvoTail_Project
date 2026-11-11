@@ -127,7 +127,7 @@ class HospitalScene(Scene):
         r = pygame.Rect(TRAY.x + 434, TRAY.y + 26, 178, 46)
         self.buttons = [Button(r, '치료하기', self.treat, 'green' if (a and n) else 'gray', enabled=bool(a and n),
                                icon='heart',
-                               sub=f"{label} 1개 사용" if n else f"{label} 없음")]
+                               sub='환자 없음' if not a else (f"{label} 1개 사용" if n else f"{label} 없음"))]
 
     # ---------- 그리기 ----------
     def draw(self, surface):

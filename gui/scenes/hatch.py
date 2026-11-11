@@ -162,7 +162,7 @@ class HatchOverlay(Overlay):
         screen = pygame.Rect(0, T.HEADER_H, T.WIDTH, T.HEIGHT - T.HEADER_H)
         egg = self._egg_img()
         shade = pygame.Surface((T.WIDTH, T.HEIGHT), pygame.SRCALPHA)
-        shade.fill((20, 12, 20, 90))                        # 연출 동안 뒤를 더 어둡게 (스토리보드)
+        shade.fill((26, 16, 32, 215))                       # 연출 동안 화면 전체를 짙은 보라·검정으로 (스토리보드)
         surface.blit(shade, (0, 0))
         if t < SHAKE_END:                                   # ① 흔들흔들
             p = t / SHAKE_END
@@ -190,8 +190,9 @@ class HatchOverlay(Overlay):
             text(surface, '알에 금이 간다!', (cx, 300), 'title', T.WHITE, 'center', shadow=T.INK)
         else:                                               # ③ 빛 폭발 + 껍질 조각
             p = (t - CRACK_END) / (BURST_END - CRACK_END)
-            rays(surface, screen, (cx, cy), t * 0.5, LIGHT, 150, n=16, width=0.7)
-            glow(surface, (cx, cy), int(60 + 120 * p), (255, 252, 230), 200)
+            rays(surface, screen, (cx, cy), t * 0.5, GOLD, 130, n=16, width=0.7)
+            rays(surface, screen, (cx, cy), t * 0.5 + 0.1, LIGHT, 70, n=16, width=0.3)
+            glow(surface, (cx, cy), int(50 + 70 * p), (255, 250, 220), 210)
             w, h = egg.get_size()
             top = pygame.transform.rotate(egg.subsurface((0, 0, w, h * 9 // 20)), 25 * p)
             bot = pygame.transform.rotate(egg.subsurface((0, h * 9 // 20, w, h - h * 9 // 20)), -20 * p)
@@ -199,9 +200,8 @@ class HatchOverlay(Overlay):
             surface.blit(bot, bot.get_rect(center=(cx + 90 * p, cy + 24 + 50 * p)))
             for sx, sy in self.sparks:
                 sparkle(surface, (cx + int(sx * (1 + p)), cy + int(sy * (1 + p))), 2, T.WHITE)
-            flash = pygame.Surface((T.WIDTH, T.HEIGHT), pygame.SRCALPHA)
-            flash.fill((255, 255, 255, int(180 * (1 - abs(p - 0.3) / 0.7))))
-            surface.blit(flash, (0, 0))
+            # 빛 폭발: 화면 전체를 하얗게 덮지 않고 알 자리에서 둥글게 (어두운 바탕은 그대로)
+            glow(surface, (cx, cy), int(40 + 60 * p), (255, 255, 255), int(230 * (1 - abs(p - 0.3) / 0.7)))
 
     def _draw_result(self, surface):
         res, info, evo = self.result, self.info, self.evo
@@ -240,8 +240,11 @@ class HatchOverlay(Overlay):
         for label, color in chips:
             r = chip(surface, (cx, 88), label, color)
             cx = r.right + 3
-        for i, line in enumerate(wrap_lines(info.get('description', ''), right - x, 'body')[:2]):
-            text(surface, line, (x, 108 + i * 14), 'body', T.TEXT_SOFT)
+        # 설명: 칩 줄(아래 끝 104)과 도감 칸(140) 사이 가운데 (한 줄 116, 두 줄 110 = 칩에서 4px 이상)
+        lines = wrap_lines(info.get('description', ''), right - x, 'body')[:2]
+        top = 104 + (36 - (11 + 13 * (len(lines) - 1))) // 2
+        for i, line in enumerate(lines):
+            text(surface, line, (x, top + i * 13), 'body', T.TEXT_SOFT)
         box = pygame.Rect(x, 140, right - x, 20)
         card(surface, box)
         if res.get('duplicate'):
