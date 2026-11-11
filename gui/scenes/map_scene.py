@@ -16,7 +16,7 @@ import pygame
 
 from .. import theme as T
 from ..app import Scene
-from ..widgets import text, text_width, panel, card
+from ..widgets import text, text_width, panel, card, tooltip, select_frame, Kit
 
 MAP_DIR = os.path.join(T.ROOT, 'assets', 'map')
 UI_DIR = os.path.join(T.ROOT, 'assets', 'ui')
@@ -47,11 +47,10 @@ YARD_SIZE = 56         # 마당 동물: 원본 28px 도트 × 2 (지도와 같�
 PLACE_SIZE = 28        # 장소 앞에 작게: 원본 그대로
 FEET = 4               # 스프라이트 상자 바닥과 발 사이 여백 (투명 영역)
 
-HOVER = (255, 226, 92)
-TIP_BG = T.INK
 BUBBLE_EDGE = T.INK
+MIN_GAP = 26           # 마당 동물 발 사이 최소 거리 (논리 px). 그림 폭 ≈ 32라 말풍선이 안 겹침
 
-# 밤에는 말풍선 문구만 바꾼다 (표시 문구, 규칙 아님)
+# 마우스를 올렸을 때 글씨 말풍선 (밤에는 문구만 바꾼다. 표시 문구, 규칙 아님)
 NIGHT_LABEL = {'rest': '잠자는 중 zZ', 'idle': '꾸벅꾸벅…', 'play': '밤 산책', 'eat': '야식 찾는 중'}
 DAY_LABEL = {'rest': '휴식 중 z'}
 
@@ -138,16 +137,36 @@ class MapScene(Scene):
             at_place[k] = group[:3]
         return yard, at_place, hidden
 
+    def _slots(self, n):
+        """처음 자리(발 위치) n개: 울타리 안 타원에 고르게, 앞줄·뒷줄 지그재그. 이웃끼리 MIN_GAP 이상."""
+        cx, cy, rx, ry = self._feet_area()
+        out = []
+        for i in range(n):
+            x = cx if n == 1 else cx - rx * 0.85 + i * (rx * 1.7) / (n - 1)
+            y = cy + (ry * 0.6 if i % 2 == 0 else -ry * 0.6)
+            out.append((x, y))
+        return out
+
+    def _too_close(self, key, x, y, gap=MIN_GAP):
+        """다른 동물(지금 자리와 가려는 자리)과 gap보다 가까운지."""
+        for other, w in self.walkers.items():
+            if other == key:
+                continue
+            for ox, oy in (w['pos'], w['target']):
+                if math.hypot(ox - x, oy - y) < gap:
+                    return True
+        return False
+
     def _walker(self, key, i, n):
         w = self.walkers.get(key)
         if w is None:
             rng = random.Random(key)
-            # 처음 자리(발 위치): 앞줄·뒷줄 지그재그로 고르게
-            cx, cy, rx, ry = self._feet_area()
-            cols = (n + 1) // 2
-            col, back = divmod(i, 2)
-            x = cx - rx + (col + (0.25 if back else 0.75)) * 2 * rx / max(1, cols)
-            y = cy + (-ry * 0.8 if back else ry * 0.8)
+            # 비어 있는 자리 중 다른 동물과 가장 먼 곳
+            slots = self._slots(n)
+            def free_space(p):
+                return min((math.hypot(p[0] - o['pos'][0], p[1] - o['pos'][1]) for o in self.walkers.values()),
+                           default=999)
+            x, y = slots[i] if not self.walkers else max(slots, key=free_space)
             w = self.walkers[key] = {'pos': [x, y], 'target': [x, y], 'rng': rng, 'wait': rng.uniform(0, 2)}
         return w
 
@@ -176,16 +195,21 @@ class MapScene(Scene):
             if dist < 1:
                 w['wait'] -= dt
                 if w['wait'] <= 0:
-                    for _ in range(20):
-                        nx = w['rng'].uniform(self.yard.left, self.yard.right)
-                        ny = w['rng'].uniform(self.yard.top, self.yard.bottom)
-                        if self._inside_yard(nx, ny):
+                    # 새 목표: 울타리 안 + 다른 동물(자리·목표)과 MIN_GAP 이상. 짧게 짧게 이동
+                    for _ in range(30):
+                        nx = px + w['rng'].uniform(-30, 30)
+                        ny = py + w['rng'].uniform(-12, 12)
+                        if self._inside_yard(nx, ny) and not self._too_close(key, nx, ny):
                             w['target'] = [nx, ny]
                             break
                     w['wait'] = w['rng'].uniform(1.5, 4)
             elif speed:
                 step = min(dist, speed * dt)
-                w['pos'] = [px + (tx - px) / dist * step, py + (ty - py) / dist * step]
+                nx, ny = px + (tx - px) / dist * step, py + (ty - py) / dist * step
+                if self._too_close(key, nx, ny, MIN_GAP - 4) and not self._too_close(key, px, py, MIN_GAP - 4):
+                    w['target'] = [px, py]              # 가다가 너무 가까워지면 멈추고 다음에 다른 곳으로
+                else:
+                    w['pos'] = [nx, ny]
         for key in list(self.walkers):
             if key not in keep:
                 del self.walkers[key]
@@ -267,14 +291,16 @@ class MapScene(Scene):
                 self.app.go('animals')
 
     # ---------- 그리기 ----------
+    def toast_anchor(self):
+        """지도에서는 알림을 왼쪽 아래(하늘·섬 가장자리)에 띄워 건물을 가리지 않는다."""
+        return 'bottomleft', (6, T.HEIGHT - 6)
+
     def draw(self, surface):
         night = bool(self.app.state.get('clock', {}).get('night'))
         surface.blit(self.app.map_image(night), (0, 0))
         hover_place = self.hover[1] if self.hover and self.hover[0] == 'place' else None
         if hover_place:
-            r = self.places[hover_place]['rect'].inflate(2, 2)
-            pygame.draw.rect(surface, T.INK, r.inflate(2, 2), 1)
-            pygame.draw.rect(surface, HOVER, r, 1)
+            select_frame(surface, self.places[hover_place]['rect'].inflate(4, 4))
         for key in self.places:
             self._draw_sign(surface, key, key == hover_place)
         yard, at_place, hidden = self._layout()
@@ -285,7 +311,10 @@ class MapScene(Scene):
             self._draw_more(surface, hidden)
         self._draw_menu(surface)
         if hover_place:
-            self._draw_tip(surface, PLACES[hover_place][1], self.places[hover_place]['rect'])
+            tooltip(surface, PLACES[hover_place][1], self.places[hover_place]['rect'], 'right',
+                    bounds=(0, T.HEADER_H, MENU_PANEL.x - 3, T.HEIGHT - T.HEADER_H))
+        elif self.hover and self.hover[0] == 'animal':
+            self._draw_animal_tip(surface, self.hover[1], night)
 
     def _draw_sign(self, surface, key, hot=False):
         r = self.signs[key]
@@ -299,34 +328,44 @@ class MapScene(Scene):
         img.fill((150, 156, 196, 255) if night else (180, 200, 255, 255), special_flags=pygame.BLEND_RGBA_MULT)
         return img
 
-    def _bubble(self, surface, label, midbottom, avoid=None, force=False):
-        """말풍선 (흰 칸 + 1px 테두리 + 갈무리9).
+    # ---------- 마당 말풍선: 12×12 키트 아이콘 ----------
+    def _mood_icon(self, a, night):
+        """동물 머리 위 아이콘 (이름, 회색 여부) 또는 None. 표시만, 규칙 아님.
 
-        ``avoid``(이미 그린 말풍선 목록)와 겹치면 한 칸 위로 올리고, 그래도 겹치면 그리지 않는다
-        (마당이 좁아서 탑처럼 쌓이지 않게). ``force``면 항상 그린다 (마우스를 올린 동물).
+        배고픔(포만감 나쁨·먹이 찾기) meat / 피곤함·휴식·밤잠 zzz / 기분 나쁨 회색 smile /
+        혼자 놀기 heart / 아픔 회색 heart. 평소 자유 행동은 말풍선 없음.
         """
-        img = T.font('small').render(label, False, T.TEXT)
-        box = img.get_rect().inflate(8, 4)
-        box.midbottom = midbottom
-        box.clamp_ip(pygame.Rect(0, T.HEADER_H, MENU_PANEL.x - 3, T.HEIGHT - T.HEADER_H))
-        if avoid is not None:
-            hit = box.collidelist(avoid)
-            if hit >= 0:
-                box.bottom = avoid[hit].top - 1
-                if box.collidelist(avoid) >= 0 and not force:
-                    return None
-            avoid.append(box)
-            if box.bottom < midbottom[1] - 1:     # 올라간 말풍선은 꼬리를 길게
-                pygame.draw.line(surface, BUBBLE_EDGE, (midbottom[0], box.bottom), midbottom)
-            midbottom = (midbottom[0], box.bottom)
+        if a.get('sick'):
+            return 'heart', True
+        action = self.app.auto.get(a['id'], {}).get('action', 'idle')
+        if T.status_level('fullness', a['fullness']) == '나쁨' or action == 'eat':
+            return 'meat', False
+        if T.status_level('fatigue', a['fatigue']) == '나쁨' or action == 'rest' or (night and action == 'idle'):
+            return 'zzz', False
+        if T.status_level('mood', a['mood']) == '나쁨':
+            return 'smile', True
+        if action == 'play':
+            return 'heart', False
+        return None
+
+    def _icon_bubble(self, surface, name, gray, midbottom, avoid):
+        """아이콘 말풍선 16×16 (흰 칸 + 검은 1px 테두리 + 꼬리). 다른 말풍선과 겹치면 그리지 않는다."""
+        box = pygame.Rect(0, 0, 16, 16)
+        box.midbottom = (midbottom[0], midbottom[1] - 3)
+        if box.collidelist(avoid) >= 0:
+            return
+        avoid.append(box.inflate(2, 2))
         pygame.draw.rect(surface, T.WHITE, box)
         pygame.draw.rect(surface, BUBBLE_EDGE, box, 1)
-        tx = max(box.left + 4, min(box.right - 5, midbottom[0]))
+        tx = box.centerx
         pygame.draw.polygon(surface, T.WHITE, [(tx - 2, box.bottom - 1), (tx + 2, box.bottom - 1), (tx, box.bottom + 2)])
         pygame.draw.line(surface, BUBBLE_EDGE, (tx - 3, box.bottom - 1), (tx, box.bottom + 2))
         pygame.draw.line(surface, BUBBLE_EDGE, (tx + 3, box.bottom - 1), (tx, box.bottom + 2))
-        surface.blit(img, img.get_rect(center=box.center))
-        return box
+        img = Kit.icon(name)
+        if gray:
+            img = img.copy()
+            img.fill((150, 150, 150, 255), special_flags=pygame.BLEND_RGBA_MULT)
+        surface.blit(img, (box.x + 2, box.y + 2))
 
     def _label(self, a, night):
         auto = self.app.auto.get(a['id'], {})
@@ -353,26 +392,58 @@ class MapScene(Scene):
             if self.walkers[key]['target'][0] < self.walkers[key]['pos'][0] - 1:
                 img = pygame.transform.flip(img, True, False)
             surface.blit(img, box.move(0, int(dy)))
-        # 말풍선은 동물을 다 그린 뒤에 (가려지지 않게). 마우스를 올리면 이름도
+        # 아이콘 말풍선은 동물을 다 그린 뒤에. 마우스를 올린 동물은 글씨 설명(툴팁)으로 대신
         placed = []
-        # 마우스를 올린 동물 먼저, 그다음 앞(아래) 동물부터 자리 잡기
-        order = sorted(drawn, key=lambda a: (self.hover != ('animal', a['id']), -self.walkers[a['id']]['pos'][1]))
-        for a in order:
-            rect = self._animal_rect(a['id'])
-            label = self._label(a, night)
-            hot = self.hover == ('animal', a['id'])
-            if hot:
-                label = f"{a['name']} · {label}"
-            self._bubble(surface, label, (rect.centerx, rect.top - 3), avoid=placed, force=hot)
+        if self.hover and self.hover[0] == 'animal':
+            placed.append(self._animal_tip_rect(self.hover[1], night))
+        for a in sorted(drawn, key=lambda a: -self.walkers[a['id']]['pos'][1]):   # 앞(아래) 동물부터 자리 잡기
+            if self.hover == ('animal', a['id']):
+                continue
+            mood = self._mood_icon(a, night)
+            if mood:
+                rect = self._animal_rect(a['id'])
+                self._icon_bubble(surface, mood[0], mood[1], (rect.centerx, rect.top), placed)
+
+    def _animal_tip_text(self, a, night):
+        if a.get('sick'):
+            what = '아파요 · 병원에서 치료'
+        else:
+            act = (a.get('activity') or {}).get('kind')
+            what = {'hunting': '사냥 중', 'training': '훈련 중'}.get(act) or self._label(a, night)
+        return f"{a['name']} · {what}"
+
+    def _animal_tip_target(self, key):
+        """툴팁을 붙일 그림 영역 (마당 동물 또는 장소 앞 작은 동물)."""
+        if key in self.walkers:
+            return self._animal_rect(key)
+        _, at_place, _ = self._layout()
+        for a, r in self._place_animal_rects(at_place):
+            if a['id'] == key:
+                art = self.app.sprites.get(a.get('sprite'), PLACE_SIZE).get_bounding_rect()
+                return art.move(r.topleft)
+        return None
+
+    def _animal_tip_rect(self, key, night):
+        """마우스를 올린 동물의 툴팁이 차지할 자리 (아이콘 말풍선이 피하도록)."""
+        a, target = self.app.animal(key), self._animal_tip_target(key)
+        if not a or not target:
+            return pygame.Rect(0, 0, 0, 0)
+        box = pygame.Rect(0, 0, text_width(self._animal_tip_text(a, night)) + 14, 25)
+        box.midbottom = (target.centerx, target.top)
+        return box
+
+    def _draw_animal_tip(self, surface, key, night):
+        a, target = self.app.animal(key), self._animal_tip_target(key)
+        if a and target:
+            tooltip(surface, self._animal_tip_text(a, night), target, 'above',
+                    bounds=(0, T.HEADER_H, MENU_PANEL.x - 3, T.HEIGHT - T.HEADER_H))
 
     def _draw_small_animal(self, surface, a, rect, night):
         img = self._tint(self.app.sprites.get(a.get('sprite'), PLACE_SIZE), night, a.get('sick'))
         surface.blit(img, rect)
-        if self.hover == ('animal', a['id']):
-            act = (a.get('activity') or {}).get('kind')
-            what = '아파요' if a.get('sick') else ('사냥 중' if act == 'hunting' else '훈련 중')
+        if a.get('sick') and self.hover != ('animal', a['id']):     # 아픔: 회색 하트 말풍선
             art = img.get_bounding_rect().move(rect.topleft)
-            self._bubble(surface, f"{a['name']} · {what}", (art.centerx, art.top - 2))
+            self._icon_bubble(surface, 'heart', True, (art.centerx, art.top), [])
 
     def _draw_more(self, surface, hidden):
         r = self._more_rect()
@@ -388,19 +459,3 @@ class MapScene(Scene):
             if img:
                 surface.blit(img, img.get_rect(midtop=(r.centerx, r.y + 3)))
             text(surface, label, (r.centerx, r.bottom - 3), 'small', T.TEXT, 'midbottom')
-
-    def _draw_tip(self, surface, msg, rect):
-        """설명 말풍선: 진한 칸 + 흰 글씨, 건물 오른쪽(자리가 없으면 왼쪽)."""
-        w = text_width(msg) + 12
-        box = pygame.Rect(0, 0, w, 18)
-        right = rect.right + 6 + w <= MENU_PANEL.x - 3
-        if right:
-            box.midleft = (rect.right + 6, rect.y + 20)
-        else:
-            box.midright = (rect.x - 6, rect.y + 20)
-        pygame.draw.rect(surface, TIP_BG, box)
-        pygame.draw.line(surface, T.TEXT_SOFT, (box.x + 1, box.y + 1), (box.right - 2, box.y + 1))
-        tx = box.left if right else box.right - 1
-        d = -1 if right else 1
-        pygame.draw.polygon(surface, TIP_BG, [(tx, box.centery - 3), (tx, box.centery + 3), (tx + d * 4, box.centery)])
-        text(surface, msg, box.center, 'body', T.WHITE, 'center')

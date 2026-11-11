@@ -65,6 +65,28 @@ def status_level(kind, value):
 
 LEVEL_KIT = {'좋음': 'green', '보통': 'orange', '나쁨': 'red'}
 
+# ---- 한국어 조사 ----
+_JOSA = {'을': ('을', '를'), '를': ('을', '를'), '이': ('이', '가'), '가': ('이', '가'),
+         '은': ('은', '는'), '는': ('은', '는'), '과': ('과', '와'), '와': ('과', '와'),
+         '으로': ('으로', '로'), '로': ('으로', '로'), '아': ('아', '야'), '야': ('아', '야')}
+
+
+def josa(word, particle):
+    """받침을 보고 조사를 붙인다. josa('불꽃매', '을') → '불꽃매를', josa('물방울수달', '이') → '물방울수달이'.
+
+    '으로/로'는 ㄹ받침이면 '로'. 마지막 글자가 한글이 아니면 '을(를)'처럼 둘 다 적는다.
+    """
+    word = str(word)
+    with_final, without = _JOSA[particle]
+    last = word[-1:] if word else ''
+    if not ('가' <= last <= '힣'):
+        return f"{word}{with_final}({without})" if particle not in ('으로', '로') else f"{word}(으)로"
+    final = (ord(last) - 0xAC00) % 28
+    if with_final == '으로':
+        return word + ('로' if final in (0, 8) else '으로')     # 받침 없음 또는 ㄹ받침 → 로
+    return word + (with_final if final else without)
+
+
 # ---- 글꼴 (갈무리, 정해진 크기로만) ----
 FONTS = {
     'title': ('Galmuri11-Bold.ttf', 12),   # 제목·버튼·이름

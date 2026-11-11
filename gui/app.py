@@ -23,9 +23,9 @@ from .widgets import text, text_width, card, chip, icon, moon_icon, SpriteCache
 EVENT_TEXT = {
     'training_complete': lambda e, n: f"{n(e.get('animal'))} 훈련 완료! {T.STAT_LABEL.get(e.get('stat'), '')} +{e.get('gain', '')}",
     'hunt_complete': lambda e, n: f"{n(e.get('animal'))} 사냥 완료! 사냥터에서 보상을 받으세요",
-    'disease': lambda e, n: f"{n(e.get('animal'))}이(가) 아파요. 병원에 데려가 주세요",
-    'evolve': lambda e, n: f"{n(e.get('animal'))}(으)로 진화했어요!",
-    'hatch': lambda e, n: f"알에서 {n(e.get('animal'))}이(가) 태어났어요!",
+    'disease': lambda e, n: f"{T.josa(n(e.get('animal')), '이')} 아파요. 병원에 데려가 주세요",
+    'evolve': lambda e, n: f"{T.josa(n(e.get('animal')), '으로')} 진화했어요!",
+    'hatch': lambda e, n: f"알에서 {T.josa(n(e.get('animal')), '이')} 태어났어요!",
     'crop_ready': lambda e, n: "밭의 작물을 수확할 수 있어요",
     'random_bonus': lambda e, n: f"행운 이벤트! 코인 +{e.get('coins', e.get('amount', ''))}",
     'battle_end': lambda e, n: "전투 승리!" if e.get('win') else "전투 패배...",
@@ -54,6 +54,13 @@ class Scene:
     def draw(self, surface):
         pass
 
+    def toast_anchor(self):
+        """알림 자리 (anchor 이름, 논리 좌표). 기본: 상단 바 바로 아래 가운데. 화면마다 바꿀 수 있다."""
+        return 'midtop', (T.WIDTH // 2, T.HEADER_H + 4)
+
+
+TOAST_SECONDS = 3.5
+
 
 class App:
     def __init__(self, save_path='saves/game.db'):
@@ -68,7 +75,8 @@ class App:
         self.worker = GameWorker(self.game, interval=1.0)
         self.state = {}
         self.auto = {}
-        self.toasts = []          # [(문구, 사라질 시각, 종류 ok/bad/info, 아이콘)]
+        self.toast_item = None    # (문구, 사라질 시각, 종류 ok/bad/info, 아이콘). 한 번에 1개만
+        self._refreshed_at = time.time()
         self.last_seq = None
         self.running = True
         self.scenes = {}
@@ -97,6 +105,7 @@ class App:
 
     def refresh(self):
         self.state = self.call('get_snapshot') or self.state
+        self._refreshed_at = time.time()
         self.auto = {a['id']: a for a in (self.call('get_autonomous_state') or [])}
 
     def animal(self, key):
@@ -109,11 +118,21 @@ class App:
         info = self.game.characters.get(key)
         return info['name'] if info else str(key)
 
+    def now(self):
+        """지금 게임 시각 (초). 스냅샷 시각 + 마지막으로 읽은 뒤 흐른 시간 × 배속.
+
+        월드 스레드가 1초마다 상태를 다시 읽게 하지만, 그 사이에도 남은 시간·게이지가
+        부드럽게 움직이도록 화면에서만 이어서 계산한다 (시연 모드 60배에서 1분씩 끊기지 않게).
+        """
+        clock = self.state.get('clock', {})
+        elapsed = min(2.0, time.time() - self._refreshed_at)       # 멈춰 있을 때 너무 앞서가지 않게
+        return clock.get('timestamp', 0) + elapsed * (clock.get('rate', 1) or 1)
+
     def toast(self, msg, kind='info', icon_name=None):
+        """알림은 한 번에 1개만. 새 알림이 오면 바꿔 끼우고, TOAST_SECONDS 뒤 사라진다."""
         if icon_name is None:
             icon_name = {'ok': 'heart', 'info': 'sun'}.get(kind)
-        self.toasts.append((msg, time.time() + 3.5, kind, icon_name))
-        self.toasts = self.toasts[-3:]
+        self.toast_item = (msg, time.time() + TOAST_SECONDS, kind, icon_name)
 
     # ---- 배경 ----
     def map_image(self, night):
@@ -206,23 +225,25 @@ class App:
         text(surface, f"{self.state.get('coins', 0):,}", (coin.right - 6, coin.centery), 'title', T.TEXT, 'midright')
 
     def draw_toasts(self, surface):
-        """알림: 상단 바 아래 가운데. card 조각 + 왼쪽 4px 색 막대 + 아이콘 + 글씨."""
-        now = time.time()
-        self.toasts = [t for t in self.toasts if t[1] > now]
-        y = T.HEADER_H + 4
-        for msg, _, kind, icon_name in reversed(self.toasts):
-            w = text_width(msg) + 22 + (14 if icon_name else 0)
-            box = pygame.Rect(0, y, w, 20); box.centerx = T.WIDTH // 2
-            card(surface, box)
-            color = TOAST_BAR.get(kind, 'orange')
-            pygame.draw.rect(surface, T.shade(color, 2), (box.x + 2, box.y + 2, 4, box.h - 4))
-            pygame.draw.line(surface, T.shade(color, 3), (box.x + 2, box.y + 2), (box.x + 5, box.y + 2))
-            x = box.x + 11
-            if icon_name:
-                icon(surface, icon_name, (x, box.y + 4))
-                x += 14
-            text(surface, msg, (x, box.centery), 'body', T.TEXT, 'midleft')
-            y = box.bottom + 2
+        """알림 1개: card 조각 + 왼쪽 4px 색 막대 + 아이콘 + 글씨. 자리는 화면이 정한다 (toast_anchor)."""
+        if self.toast_item and self.toast_item[1] <= time.time():
+            self.toast_item = None
+        if not self.toast_item:
+            return
+        msg, _, kind, icon_name = self.toast_item
+        w = text_width(msg) + 22 + (14 if icon_name else 0)
+        box = pygame.Rect(0, 0, w, 20)
+        anchor, pos = self.scene.toast_anchor() if self.scene else Scene.toast_anchor(None)
+        setattr(box, anchor, pos)
+        card(surface, box)
+        color = TOAST_BAR.get(kind, 'orange')
+        pygame.draw.rect(surface, T.shade(color, 2), (box.x + 2, box.y + 2, 4, box.h - 4))
+        pygame.draw.line(surface, T.shade(color, 3), (box.x + 2, box.y + 2), (box.x + 5, box.y + 2))
+        x = box.x + 11
+        if icon_name:
+            icon(surface, icon_name, (x, box.y + 4))
+            x += 14
+        text(surface, msg, (x, box.centery), 'body', T.TEXT, 'midleft')
 
     def _to_logical(self, event):
         if event.type in MOUSE_EVENTS:

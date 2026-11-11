@@ -106,6 +106,58 @@ def chip(surface, pos, label, color, anchor='topleft'):
     return rect
 
 
+def tooltip(surface, msg, target, side='right', bounds=None):
+    """설명 말풍선 (키트 card 조각 + 같은 테두리 색 꼬리). target 옆에 붙인다.
+
+    side: 'right' / 'left' / 'above' / 'below'. 화면(bounds) 밖으로 나가면 반대쪽으로.
+    """
+    target = pygame.Rect(target)
+    bounds = pygame.Rect(bounds or (0, T.HEADER_H, T.WIDTH, T.HEIGHT - T.HEADER_H))
+    box = pygame.Rect(0, 0, text_width(msg) + 14, 20)
+
+    def place(s):
+        if s == 'right':
+            box.midleft = (target.right + 6, target.centery)
+        elif s == 'left':
+            box.midright = (target.left - 6, target.centery)
+        elif s == 'above':
+            box.midbottom = (target.centerx, target.top - 5)
+        else:
+            box.midtop = (target.centerx, target.bottom + 5)
+    place(side)
+    if not bounds.contains(box):
+        side = {'right': 'left', 'left': 'right', 'above': 'below', 'below': 'above'}[side]
+        place(side)
+    box.clamp_ip(bounds)
+    card(surface, box)
+    edge, fill = (120, 80, 50), (252, 240, 214)        # card 조각의 테두리·안쪽 색
+    if side in ('right', 'left'):
+        x = box.left if side == 'right' else box.right - 1
+        d = -1 if side == 'right' else 1
+        cy = max(box.top + 5, min(box.bottom - 6, target.centery))
+        pts = [(x, cy - 3), (x, cy + 3), (x + d * 4, cy)]
+    else:
+        y = box.bottom - 1 if side == 'above' else box.top
+        d = 1 if side == 'above' else -1
+        cx = max(box.left + 5, min(box.right - 6, target.centerx))
+        pts = [(cx - 3, y), (cx + 3, y), (cx, y + d * 4)]
+    pygame.draw.polygon(surface, fill, pts)
+    pygame.draw.lines(surface, T.INK, False, [pts[0], pts[2], pts[1]])
+    text(surface, msg, box.center, 'body', T.TEXT, 'center')
+    return box
+
+
+def select_frame(surface, rect):
+    """선택·강조 표시: 네 모서리에 도트 꺾쇠 (검은 테두리 + 노란 안쪽)."""
+    r = pygame.Rect(rect)
+    gold, ink, n = T.shade('orange', 3), T.INK, 6
+    for (x, y, dx, dy) in ((r.left, r.top, 1, 1), (r.right - 1, r.top, -1, 1),
+                           (r.left, r.bottom - 1, 1, -1), (r.right - 1, r.bottom - 1, -1, -1)):
+        for off, col in ((0, ink), (1, gold), (2, ink)):
+            pygame.draw.line(surface, col, (x + dx * off, y + dy * off), (x + dx * (n + 2), y + dy * off))
+            pygame.draw.line(surface, col, (x + dx * off, y + dy * off), (x + dx * off, y + dy * (n + 2)))
+
+
 # ---------- 게이지 ----------
 def gauge(surface, rect, value, maximum, color):
     """틀(gauge_frame 9-slice) + 안쪽 2px 채움(윗줄 밝게, 아랫줄 어둡게) + 10%마다 1px 눈금."""
@@ -114,7 +166,8 @@ def gauge(surface, rect, value, maximum, color):
     inner = rect.inflate(-4, -4)
     frac = max(0.0, min(1.0, value / maximum)) if maximum else 0.0
     w = int(inner.w * frac)
-    if w > 0:
+    if frac > 0:
+        w = max(1, w)          # 조금이라도 진행됐으면 1px은 보이게
         dark, mid, base, light = T.PALETTE[color]
         pygame.draw.rect(surface, base, (inner.x, inner.y, w, inner.h))
         pygame.draw.line(surface, light, (inner.x, inner.y), (inner.x + w - 1, inner.y))

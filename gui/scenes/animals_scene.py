@@ -6,7 +6,7 @@ import pygame
 
 from .. import theme as T
 from ..app import Scene
-from ..widgets import text, text_width, panel, card, ribbon, chip, gauge, icon, Button, Kit, mouse_pos
+from ..widgets import text, text_width, panel, card, ribbon, chip, gauge, icon, tooltip, Button, Kit, mouse_pos
 
 LIST = pygame.Rect(9, 56, 174, 298)          # 왼쪽 목록 창
 LIST_INNER = LIST.inflate(-18, -18)          # 칸이 놓이는 영역 (창 테두리 안)
@@ -86,13 +86,13 @@ class AnimalsScene(Scene):
         yard_btn = pygame.Rect(DETAIL.right - 13 - bw, DETAIL.y + 11, bw, 18)
         if key in yard:
             self.buttons.append(Button(yard_btn, yard_label,
-                                       lambda: app.act('set_yard_animals', f"{app.name_of(key)}을(를) 집으로 들였어요",
+                                       lambda: app.act('set_yard_animals', f"{T.josa(app.name_of(key), '을')} 집으로 들였어요",
                                                        icon='home', keys=[k for k in yard if k != key]),
                                        'brown', icon='home'))
         else:
             full = len(yard) >= yard_max
             self.buttons.append(Button(yard_btn, yard_label,
-                                       lambda: app.act('set_yard_animals', f"{app.name_of(key)}을(를) 마당에 내보냈어요",
+                                       lambda: app.act('set_yard_animals', f"{T.josa(app.name_of(key), '을')} 마당에 내보냈어요",
                                                        icon='home', keys=yard + [key]),
                                        'green', enabled=not full, icon='home'))
 
@@ -107,7 +107,7 @@ class AnimalsScene(Scene):
         cost = costs.get(a['stage'] + 1, costs.get(str(a['stage'] + 1)))
         label = '최종 진화' if a['stage'] >= a['max_stage'] else (f'진화 {cost:,}' if cost else '진화')
         self.buttons.append(Button((486, 322, 134, 24), label,
-                                   lambda: app.act('evolve', lambda d: f"{app.name_of(key)}(으)로 진화!", icon='heart',
+                                   lambda: app.act('evolve', lambda d: f"{T.josa(d.get('name') or app.name_of(key), '으로')} 진화했어요!", icon='heart',
                                                    key=key),
                                    'purple', enabled=ready and not busy, icon='coin' if cost else None))
         # 훈련
@@ -132,6 +132,7 @@ class AnimalsScene(Scene):
 
     # ---------- 그리기 ----------
     def draw(self, surface):
+        self._tip = None
         self.app.backdrop(surface)
         ribbon(surface, (78, 33, 92, 18), '내 동물', 'red')
         self._draw_list(surface)
@@ -141,21 +142,32 @@ class AnimalsScene(Scene):
             self._draw_detail(surface, a)
         for b in self.buttons:
             b.draw(surface)
+        if self._tip:      # 상태 아이콘 설명 (마우스를 올렸을 때)
+            tooltip(surface, self._tip[0], self._tip[1], 'right')
 
     def _status_icon(self, a):
-        """목록 오른쪽 작은 아이콘: 지금 상태를 한눈에 (표시만, 규칙 아님)."""
-        act = (a.get('activity') or {}).get('kind')
-        if act == 'training':
-            return 'sword'
-        if act == 'hunting':
-            return 'meat'
+        """목록 오른쪽 상태 아이콘 (아이콘, 회색 여부, 설명). 표시만, 규칙 아님. 지도 말풍선과 같은 뜻.
+
+        아픔 회색 heart / 훈련 중 sword / 사냥 중 wing / 배고픔 meat / 피곤함 zzz /
+        기분 나쁨 회색 smile / 그 밖에 쉬어야 함 회색 heart / 건강 heart
+        """
+        act = a.get('activity') or {}
+        left = fmt_time(act.get('end', 0) - self.app.now()) if act else ''
+        if a.get('sick'):
+            return 'heart', True, '아파요 · 병원에서 치료해 주세요'
+        if act.get('kind') == 'training':
+            return 'sword', False, f"훈련 중 · 남은 시간 {left}"
+        if act.get('kind') == 'hunting':
+            return 'wing', False, f"사냥 나감 · 남은 시간 {left}"
         if T.status_level('fullness', a['fullness']) == '나쁨':
-            return 'meat'
-        if T.status_level('mood', a['mood']) == '나쁨':
-            return 'smile'
+            return 'meat', False, f"배고파요 · 포만감 {a['fullness']}"
         if T.status_level('fatigue', a['fatigue']) == '나쁨':
-            return 'zzz'
-        return 'heart'
+            return 'zzz', False, f"피곤해요 · 피로도 {a['fatigue']}"
+        if T.status_level('mood', a['mood']) == '나쁨':
+            return 'smile', True, f"기분이 나빠요 · 기분 {a['mood']}"
+        if not a.get('participation'):
+            return 'heart', True, f"쉬어야 해요 · {a.get('participation_reason') or '상태 확인'}"
+        return 'heart', False, '건강해요 · 훈련·전투 가능'
 
     def _draw_list(self, surface):
         panel(surface, LIST)
@@ -175,12 +187,11 @@ class AnimalsScene(Scene):
                  T.shade(role, 1))
             if a['id'] in yard:
                 chip(surface, (r.x + 101, r.y + 4), '마당', 'green')
-            ic = self._status_icon(a)
-            if a.get('sick'):     # 아픔: 아이콘을 회색으로
-                img = self._gray_icon(ic)
-                surface.blit(img, (r.right - 15, r.bottom - 15))
-            else:
-                icon(surface, ic, (r.right - 15, r.bottom - 15))
+            ic, gray, tip = self._status_icon(a)
+            spot = pygame.Rect(r.right - 15, r.bottom - 15, 12, 12)
+            surface.blit(self._gray_icon(ic) if gray else Kit.icon(ic), spot)
+            if spot.inflate(4, 4).collidepoint(mouse_pos()) and LIST_INNER.collidepoint(mouse_pos()):
+                self._tip = (tip, spot)
         surface.set_clip(clip)
         # 스크롤 막대
         track = pygame.Rect(LIST_INNER.right - 4, LIST_INNER.y, 4, LIST_INNER.h)
@@ -218,7 +229,7 @@ class AnimalsScene(Scene):
 
         auto = self.app.auto.get(a['id'], {})
         act = a.get('activity')
-        now = self.app.state.get('clock', {}).get('timestamp', 0)
+        now = self.app.now()
         if act:
             kind = '훈련 중' if act.get('kind') == 'training' else '사냥 중'
             what = T.STAT_LABEL.get(act.get('stat'), '') if act.get('kind') == 'training' else ''
@@ -238,7 +249,7 @@ class AnimalsScene(Scene):
         # 상태 3종
         for i, (kind, label, ic) in enumerate((('fullness', '포만감', 'meat'), ('mood', '기분', 'smile'),
                                                ('fatigue', '피로도', 'zzz'))):
-            y = 138 + i * 10
+            y = 136 + i * 12
             value = a[kind]
             level = T.status_level(kind, value)
             icon(surface, ic, (x, y - 1))
