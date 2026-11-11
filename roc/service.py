@@ -303,6 +303,12 @@ class GameService:
                 a['auto_reason']='전투 중: 자율 행동 일시 중지'
             return
 
+        # Forced rest must be visible in the next GUI snapshot, even when
+        # passive recovery would lower fatigue before the next minute tick.
+        if (a['fatigue'] > AUTO.FORCED_REST_FATIGUE_THRESHOLD
+                and a.get('auto_action') != 'rest'):
+            self._switch_auto(s,a,start)
+
         # Months away from the game must not require millions of behavior decisions.
         # Full metabolism/rest still elapse; the most recent 24h is replayed in detail.
         if until-start>C.AUTONOMOUS_OFFLINE_DETAIL_WINDOW:
@@ -341,6 +347,22 @@ class GameService:
         # 0-30 min day, 30-60 min night, repeating since world creation.
         return int((now-s['created'])//1800)%2==1
 
+    def _clock_view(self, s, now):
+        """GUI clock: one game day lasts 60 virtual minutes (30m day/night).
+
+        The first game day starts at 06:00. Each real/virtual 2.5 seconds
+        advances the display by one game minute. The day number advances at
+        the next 06:00, keeping its meaning as a completed day-night cycle.
+        Existing absolute ``timestamp`` and night/storm flags remain intact.
+        """
+        elapsed = max(0.0, now - s['created'])
+        day = 1 + int(elapsed // 3600)
+        game_minute = (6 * 60 + int((elapsed % 3600) * 1440 // 3600)) % 1440
+        return {'timestamp': now, 'day': day,
+                'time': f'{game_minute // 60:02d}:{game_minute % 60:02d}',
+                'night': self._is_night(s, now),
+                'storm': self._is_storm(s, now), 'rate': s['clock']['rate']}
+
     def _is_storm(self,s,now=None):
         if now is None:now=s['clock']['virtual']
         return ((now-s['created'])%C.STORM_CYCLE)>=C.STORM_CYCLE-C.STORM_DURATION
@@ -353,6 +375,10 @@ class GameService:
         value=a[stat]
         if stat=='fatigue':return 'good' if value<30 else ('normal' if value<=55 else 'bad')
         return 'bad' if value<30 else ('normal' if value<=55 else 'good')
+
+    def _animal_status(self,a):
+        """Three-tier GUI labels; reuse the exact gameplay permission thresholds."""
+        return {stat:self._status_label(a,stat) for stat in ('fullness','mood','fatigue')}
 
     def _available(self,s,key):
         a=self._check_animal(s,key)
@@ -440,8 +466,7 @@ class GameService:
         def read(s):
             now=s['clock']['virtual']
             return {'coins':s['coins'],'owned_count':len(s['animals']),
-                    'clock':{'timestamp':now,'night':self._is_night(s,now), 'storm':self._is_storm(s),
-                             'rate':s['clock']['rate']},
+                    'clock':self._clock_view(s,now),
                     'progress':s['progress'],'rank':s['rank'],
                     'yard':list(s['yard']), 'yard_max':C.YARD_MAX_ANIMALS,
                     'cook_xp':s['cook_xp'],
@@ -467,8 +492,8 @@ class GameService:
                            max_stage=info['max_stage'],
                            caps=copy.deepcopy(self.caps[info['role']][a['stage']]),
                            effective_stats=B.stats_for(a,a['equip']),
-                           participation=ok,participation_reason=reason,
-                           status={k:self._status_label(a,k) for k in ('fullness','mood','fatigue')})
+                           status=self._animal_status(a),
+                           participation=ok,participation_reason=reason)
                 if a['activity']:
                     row['remaining_seconds']=max(0,a['activity']['end']-now)
                 animals.append(row)
@@ -486,9 +511,7 @@ class GameService:
                      'cleared':key in s['cleared']}
                     for key in C.STAGE_ORDER]
             return {'schema':2,'rules_version':C.GAME_RULES_VERSION,
-                    'coins':s['coins'],'clock':{'timestamp':now,
-                    'night':self._is_night(s,now),'storm':self._is_storm(s,now),
-                    'rate':s['clock']['rate']},
+                    'coins':s['coins'],'clock':self._clock_view(s,now),
                     'progress':s['progress'],'rank':s['rank'],
                     'animals':animals,'owned_count':len(animals),
                     'yard':list(s['yard']), 'yard_max':C.YARD_MAX_ANIMALS,
@@ -512,8 +535,8 @@ class GameService:
                             'rarity':info['rarity'],'max_stage':info['max_stage'],
                             'caps':copy.deepcopy(self.caps[info['role']][a['stage']]),
                             'effective_stats':B.stats_for(a,a['equip']),
-                            'participation':self._available(s,key)[0],
-                            'status':{k:self._status_label(a,k) for k in ('fullness','mood','fatigue')}})
+                            'status':self._animal_status(a),
+                            'participation':self._available(s,key)[0]})
                 rows.append(row)
             return rows
         return self._read(read)
