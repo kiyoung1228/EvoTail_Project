@@ -168,7 +168,7 @@ class SettingsOverlay(Overlay):
         last = self.app.state.get('last_saved')
         saved = f"마지막 저장: {clock_text(last)} (자동 저장 켜짐)" if last else '자동 저장 켜짐'
         text(surface, saved, (P.centerx, P.bottom - 26), 'small', T.TEXT_SOFT, 'center')
-        text(surface, 'ESC · 창 밖을 누르면 닫힘', (P.centerx, P.bottom - 14), 'small', T.TEXT_SOFT, 'center')
+        text(surface, 'ESC · 창 밖 클릭 시 닫힘', (P.centerx, P.bottom - 14), 'small', T.TEXT_SOFT, 'center')
 
 
 class ConfirmOverlay(Overlay):
