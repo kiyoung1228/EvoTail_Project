@@ -43,7 +43,7 @@ assets/              1단계 이미지 30장, assets/sprites/<ID>_s<단계>.png 
   map/               섬 마을 지도 낮·밤 + 클릭 영역 map.json
   ui/                메뉴 아이콘. ui/kit/ = 도트 UI 키트 조각·아이콘 (docs/UI_KIT.md)
   fonts/             갈무리 글꼴 (OFL)
-docs/mockups/        확정된 화면 목업 (메인 낮·밤, 설정 창, 내 동물 animals_v2, battle/ 전투장, home/ 주방, shop/ 상점·부화, hospital/ 병원, farm/ 밭)
+docs/mockups/        확정된 화면 목업 (메인 낮·밤, 설정 창, 내 동물 animals_v2, battle/ 전투장, home/ 주방, shop/ 상점·부화, hospital/ 병원, farm/ 밭, hunt/ 사냥터)
 docs/UI_KIT.md       도트 UI 키트 규칙 (모든 화면이 따름). 조각 다시 만들기: tools/uikit.py
 gui/                 Pygame 화면 (아래 GUI 규칙)
 CHARACTERS.md        캐릭터 목록 · GUI.md 화면 구조 설명
@@ -200,12 +200,13 @@ CHARACTERS.md        캐릭터 목록 · GUI.md 화면 구조 설명
   - 한 줄 설명만 GUI 표시 문구 (`gui/food.py` `DESCRIPTION`, 백엔드에 설명 없음)
 - **미니게임** (home_2_bar): 난로 위 프라이팬 + 재료 그림, 위에 이름·별, 오른쪽 위 남은 시간. 아래 막대: 커서가 끝→끝 `travel_seconds`(레시피) 동안 왕복, 목표 중심은 `target_center_min~max` 무작위, 중심 ± `good_half_width` = Good(주황), ± `perfect_half_width` = Perfect(노랑). Space(또는 막대 클릭) 한 번에 판정 → `cook(recipe, judgment)`. `timeout_seconds` 안에 안 누르면 miss. ESC는 그만두기(cook 전이라 재료 그대로). 숫자는 전부 `get_rules()['cooking']['timing']`
 - **결과** (home_3_result): outcome별 `great` 대성공(초록 리본·빛줄기·PERFECT·효과 1.5배) / `success` 성공 / `rescued` "아슬아슬 성공! (경험치 없음)"(갈색) / `burnt` 탄 요리(빨강, MISS). 요리 그림·이름·효과(결과 `effects`), 레벨 게이지(이번에 오른 부분은 밝게, `xp`·`total_xp`), 레벨 업 칩. 버튼 "한 번 더"(재료 없으면 꺼짐) / "동물에게 주기"(음식 주기 탭에 방금 요리를 골라 둠)
-- **음식 주기** (home_4_feed): 왼쪽 = 가진 요리(`food_*`, `food_perfect_*`, `burned_food`) + 개수, 대성공은 별 배지. 오른쪽 = 고른 요리 효과 + 동물 목록(포만감 게이지, 고른 동물은 먹은 뒤 포만감을 연두색으로 미리보기 "42→87", "누구에게 줄까?", 포만감 나쁨이면 "배고픔" 칩, 활동 중(훈련·사냥·전투)이면 흐리게 + 이유, 4줄 넘으면 휠). "○○에게 주기" = `use_item(item, key)`. 탄 요리는 "탄 요리는 절반 확률로 거절", `refused`면 알림
+- **음식 주기** (home_4_feed): 왼쪽 = 가진 요리(`food_*`, `food_perfect_*`, `burned_food`) + 개수, 대성공은 별 배지. 오른쪽 = 고른 요리 효과 + 동물 목록(포만감 게이지, 고른 동물은 먹은 뒤 포만감을 연두색으로 미리보기 "42→87", "누구에게 줄까?", 포만감 나쁨이면 "배고픔" 칩, 활동 중(훈련·사냥·전투)이면 흐리게 + 이유, 4줄 넘으면 휠). "○○에게 주기" = `use_item(item, key)`. 탄 요리를 고르면 오른쪽 효과 아래에 "절반 확률로 거절"(한 번만), `refused`면 알림
 
 **음식 그림** (`assets/food/`, `gui/food.py`)
 - 원본 16×16, 파일은 4배(64). `FoodIcons.get(item, n)`으로 원본 × n (화면에서는 ×1~×4 정수배만)
 - 파일 이름 = 백엔드 id (재료 `potato.png`, 레시피 `butter_potato.png`). `food_<id>`, `food_perfect_<id>`는 레시피 그림을 쓰고 대성공은 그림을 가리지 않는 작은 별 배지(`star_badge`). 대성공 요리 이름은 "대성공 감자버터구이"
-- 이름: 재료는 백엔드 상점 목록 label (없으면 `assets/food/food_icons.json` name). 그림이 없는 재료(돼지고기·양배추)는 키트 아이콘으로 대신
+- 이름: 재료는 백엔드 상점 목록 label (없으면 `assets/food/food_icons.json` name). 그림 파일이 없는 재료만 키트 아이콘으로 대신 (지금은 재료 전부 그림 있음: 양배추 `cabbage.png`, 돼지고기 `pork.png`)
+  - **고기 재료 아이콘**(`beef.png` 꽃등심, `chicken.png` 닭다리, `pork.png` 삼겹살, `lucky_rabbit.png` 토끼발)은 `tools/meat_icons.py`(v2)로 만든다
 - 다시 만들기: `tools/food_icons.py`(음식 그림), `tools/home_mock.py`(주방 목업·배경)
   - **감자·양파·밀 재료 아이콘**(`potato.png`·`onion.png`·`wheat.png`, 밭 그림과 같은 모양)은 `tools/crops_v8.py`의 `potato_icon()`·`onion_icon()`·`wheat_icon()`, 쌀은 `tools/farm_icons.py`의 `rice_icon()`으로 만든다 (`tools/food_icons.py`의 같은 이름 그림은 옛 그림)
   - **쌀 재료 그림**(`assets/food/rice.png`, 삼베 자루 + 흰 쌀)은 `tools/farm_icons.py`의 `rice_icon()`으로 만든다. `tools/food_icons.py`의 `rice()`는 옛 그림이라 쓰지 않음. 다 자란 벼(`rice_ripe.png`, 고개 숙인 벼)도 `farm_icons.py`의 `ripe_rice()` v4
@@ -246,6 +247,22 @@ CHARACTERS.md        캐릭터 목록 · GUI.md 화면 구조 설명
 - 작물·씨앗 이름은 상점 목록 label. 양배추 재료 그림 `assets/food/cabbage.png`(food_icons.json에 추가)
 - 다시 만들기: `tools/farm_icons.py`(작물·성장 단계·씨앗 봉투), `tools/crops_v8.py`(감자·양파·밀 다 자람), `tools/farm_mock.py`(목업·배경)
 
+## 사냥터 (목업 `docs/mockups/hunt/`, `gui/scenes/hunting.py` `HuntScene`, A안)
+지도 "사냥터" 건물 → 사냥터. 배경 `assets/hunt/hunt.png`(1280×720, ½로 그대로, 위 26px 투명)
+- 위: ◀ 지도 + 리본 "사냥터" + 정보 칸 "사냥터마다 1마리씩"
+- 왼쪽 2×2 사냥터 칸(212×144): 나무 테두리 + 풍경 `assets/hunt/zones/<area>.png`(논리 208×140의 2배 → ½) + 사냥감 2마리 `assets/hunt/animals/<area>.png`(원본 28의 4배 → ×2 = 56, 두 번째는 좌우 뒤집기, 천천히 좌우 1~2px 흔들림) + 왼쪽 위 나무 간판 "닭장 · 30분"(키트 갈색 버튼 조각). area = 백엔드 HUNTS 키(chicken_coop, pig_pen, ranch, rabbit_hill)
+  - 좌표는 `assets/hunt/spots.json` (구역 그림 왼쪽 위 기준): critters(사냥감 2마리), animal(보낸 동물 자리, 그림 왼쪽 위 = (x, y-28), ×2), chip(남은 시간 칩), gauge_from_bottom. 숫자는 코드에 적지 않음
+  - 사냥 중(스냅샷 `hunts[area]`, ready False): 보낸 동물 + 갈색 칩 "남은 12:40" + 초록 게이지(남은 시간 = end - `app.now()`) / 완료(ready True): 초록 칩 "사냥 완료!" + 보낸 동물 머리 위 말풍선(고기 그림 + "×3") / 고른 칸 노란 꺾쇠
+- 오른쪽 칸: 빈 사냥터 = 이름 + 시간 칩, "받는 것" 고기 ×2 + "소고기 ×3", "다녀오면" 두 줄(포만감·기분 / 빨강 피로도·질병), "보낼 동물" 목록(얼굴 + 이름 + "보낼 수 있음" 또는 이유, 3줄 넘으면 휠), "○○ 보내기"(아래 "30분 뒤 소고기 3개") = `start_hunting(key, area)` / 사냥 중·완료 = 아래 무대 + 글씨 (목업 hunt_A4_running_v2, hunt_A5_return_v2, hunt_A6_return_sick)
+  - **무대**: 칸 위쪽 상자(162×84) = 그 사냥터 풍경 `zones/<area>.png`(208×140)를 사냥터마다 정한 자리에서 잘라 씀: 가로 시작 `hunting.STAGE_CROP_X`(닭장 5 · 돼지우리 4 · 목장 14 · 달토끼 46), 세로 시작 `STAGE_CROP_Y`(12 · 20 · 8 · 8). 상자 가장자리에 소품이 잘리지 않고 아래는 울타리 위(y 104 이하)에서 끝남 (목장 풍차 날개 끝 1~2px만 걸림). tools/hunt_mock.py `stage_box()`와 같은 값. 동물·사냥감은 상자 아래쪽 땅에, 정수배만
+  - **사냥 중**: 내 동물(×2, 오른쪽 보게 뒤집기)이 사냥감(×2)을 쫓아감. 자리는 사냥터마다 `hunting.STAGE_ACTORS` = (내 동물 x, 사냥감 x) (닭장 75·91 / 돼지우리 55·89 / 목장 30·89 / 달토끼 2·36, 동물 30종 모두 그림과 말풍선이 닭장·둥지·여물통·쉼터·건초·풍차·달을 가리지 않게 고른 값). 둘 다 1px씩 통통, 내 동물 발밑 흙먼지(작은 원 3개가 뒤로), "!" 말풍선(빨강)은 내 동물 머리 바로 위(그림 위쪽 가운데, 같이 통통, 상자 밖으로 나가면 안으로), 사냥감 뒤 흰 속도선 3줄. 아래 "○○ 사냥 중" + **진행 길**(왼쪽 출발 깃발 → 오른쪽 고기 그림, 동물 얼굴이 진행도 = 1 - 남은/전체 만큼 앞으로, 지나온 자리 발자국 점), "남은 시간"(왼쪽 작은 글씨) + 남은 시간(big, 오른쪽), 고기 그림 + "다녀오면 행운의 토끼고기 ×3", 빨강 "다녀오면 피로도 +35 · 질병 30%", 갈색 "불러오기"(아래 "보상 없음") → 확인 창 → `cancel_hunting(area)`
+  - **완료**: 무대 위 왼쪽 초록 리본 "귀환!", 무대 뒤 빛줄기(천천히 회전), 동물(×2) + 오른쪽 고기 3개(×2) 담긴 바구니, 반짝이 깜빡임. "○○ 귀환", "행운의 토끼고기 ×3"(왼쪽 작은 글씨) + 초록 "가방 1 → 4"(오른쪽), **다녀온 결과 칩**: 주황 "피로도 +35" "포만감 -20" / 다음 줄 "기분 -10" + 상태 칩(지금 스냅샷 동물 `sick`이면 빨강 "아픔 · 병원 치료", 아니면 초록 "건강함"), 칩이 칸 폭을 넘으면 다음 줄로. "지금 피로도 N 단계"(`T.level`), 주황 "보상 받기" = `collect_hunt(area)` → 알림 "돼지고기 +3"
+  - 긴 이름("행운의 토끼고기")이 칸 폭을 넘으면 줄을 나누고(글자 크기 그대로) 아래 줄을 그만큼 내림 (빈 사냥터 "받는 것"은 `wrap2`, 나머지는 `_text_lines`). 오른쪽 칸 글씨 줄은 전부 check_text_fit 넘침 점검에 기록(tag `hunt-panel`)
+- 보낼 수 있는지·이유는 스냅샷 `participation`/`participation_reason`(백엔드 `_available`, start_hunting도 같은 검사). 사냥 중이면 "사냥 중 · 닭장"(activity area), 훈련 중이면 "훈련 중"
+- 사냥터 이름·시간·보상 item·count는 `get_hunts()['areas']` 백엔드 값. 고기 이름은 상점 목록 label
+- **GUI 표시값** (`hunting.HUNT_DISPLAY`): "다녀오면" 상태 변화(30분: 포만감 -10·기분 -5·피로도 +20 / 60분: -20·-10·+35)와 질병 확률 30%. 백엔드 `service._finish_animal_job`·`config.DISEASE_CHANCE` 안에만 있고 API에 없어서 GUI에 둠 (get_rules에도 없음). 백엔드 값을 바꾸면 같이 바꿀 것 (기영님께 `get_rules`에 넣어 달라고 요청 가능)
+- 다시 만들기: `tools/hunt_zone2.py`(구역 풍경 v2), `tools/hunt_art.py`(사냥감 도트), `tools/meat_icons.py`(고기 재료 아이콘), `tools/hunt_mock.py`(목업)
+
 ## 진행 상황
 - 완료: 백엔드 1차(기영), 캐릭터 30종 데이터, 역할별 MAX, 도트 75장 (PR #1 merge됨)
 - 완료 (PR #2 merge됨): 진화 단계별 이름·이미지를 백엔드가 반환, GUI 뼈대, 텍스트 카드 지도(임시), 집 화면(상태·능력치·간식·훈련·진화), 시간 속도 F5/F12
@@ -258,12 +275,13 @@ CHARACTERS.md        캐릭터 목록 · GUI.md 화면 구조 설명
 - 완료 (PR #12 merge됨, 기영): 적 몬스터 enemies.json 연결, 전투 행동 회복량 `amount`, 스테이지 `ai_description`
 - 완료 (PR #13 merge됨): 집·주방 (레시피 북·재료 부족·요리 미니게임·결과·음식 주기), 전투 다음 동물 자동 선택
 - 완료 (PR #14 merge됨): 상점(탭 6개·구매·판매)·알 부화 연출·병원·내 동물 장비 장착, 키트 금색(gold)
-- 진행 중 (브랜치 `farm`): 밭(텃밭 6칸·씨앗 심기·수확·모두 수확·밭 넓히기), 작물별 씨앗 봉투, 양배추 그림
+- 완료 (PR #15 merge됨): 밭(텃밭 6칸·씨앗 심기·수확·모두 수확·밭 넓히기), 작물별 씨앗 봉투, 작물·재료 그림, 화면 문구 게임 말투
+- 진행 중 (브랜치 `hunting`): 사냥터(4곳·보내기·불러오기·보상 받기), 고기 재료 아이콘
 
 ## 다음 할 일 (순서대로)
 1. **메인 화면을 목업대로**: `map_scene.py`의 텍스트 카드를 지도 이미지 + 간판 + 오른쪽 메뉴로 교체. 마당 동물은 `map.json`의 `yard` 안에서 움직이게. 지금의 "집" 화면(AnimalsScene)은 메뉴 "내 동물"로 연결
 2. **설정 창** (시간 속도, 시연 모드, 저장·불러오기, 게임 종료)
 3. **전투장**: 스테이지 선택(적 미리보기 `preview_stage`), 팀 3마리 + 전투 전 포션 선택, 전투 화면(체력바, 행동 버튼은 `get_battle_actions`로), 결과 화면
-4. ~~상점(구매·판매·알 부화)~~, ~~병원(치료)~~ (완료, PR #14), ~~밭~~ (완료, 브랜치 `farm`), 사냥터, 도감(없는 동물은 실루엣), 가방. (집 주방 + 타이밍 미니게임 = 완료, PR #13)
+4. ~~상점(구매·판매·알 부화)~~, ~~병원(치료)~~ (완료, PR #14), ~~밭~~ (완료, PR #15), ~~사냥터~~ (완료, 브랜치 `hunting`), 도감(없는 동물은 실루엣), 가방. (집 주방 + 타이밍 미니게임 = 완료, PR #13)
 5. 마이룸(여유 있으면)
 6. 실행 파일(PyInstaller), 보고서, **시연 영상(F12 시연 모드)**
