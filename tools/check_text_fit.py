@@ -75,6 +75,17 @@ def scripted_run(self):
         for a in self.state['animals']:
             sc.selected = a['id']; sc.enter(); frames(2)
         sc.selected = 'dealer_special_02'; sc.enter(); frames(2)
+        # 자율행동 설명 (백엔드 roc/autonomy.py의 모든 이유 문장 + 행동 이름): 두 줄로 칸 안에
+        import roc.autonomy as _auto
+        reasons = ['피로도 80 초과: 상태가 나쁨, 성격과 관계없이 강제 휴식', '까칠한 성격: 상태가 나빠 자율 활동 거부',
+                   '모든 상태가 양호함', '포만감이 낮거나 먹보 성격으로 먹이 탐색 우선',
+                   '피로도가 높거나 잠꾸러기 성격으로 휴식 우선', '기분이 낮거나 장난꾸러기 성격으로 놀이 우선'] +                   [f'{k} 필요 상태가 나쁨' for k in ('eat', 'rest', 'play')]
+        for act in _auto.ACTION_LABELS:
+            for why in reasons:
+                def set_auto(s, act=act, why=why):    # test fixture only (temp save)
+                    s['animals']['dealer_special_02'].update(auto_action=act, auto_reason=why)
+                    return True
+                g._mutate(set_auto); self.refresh(); frames(1)
         idx = [a['id'] for a in self.state['animals']].index('tank_normal_01')
         sc.scroll = 0; r = sc._card_rect(1)
         move((r.right - 9, r.bottom - 9))
@@ -320,6 +331,13 @@ def scripted_run(self):
         for k in range(len(tp._potion_keys())):
             tp.cycle_potion(tp._potion_keys()[k]); frames(1)
         shot('real_prep.png')
+        # 팀에 출전 불가 동물이 있으면 출전 버튼을 미리 막음 + 지난번 팀에서 뺀 수 안내
+        unready = [a['id'] for a in self.state['animals'] if not a.get('participation')]
+        if unready:
+            keep = list(tp.team)
+            tp.team = (ready[:2] + unready[:1])
+            tp.from_last, tp.skipped = True, 1; frames(2)
+            tp.team, tp.from_last, tp.skipped = keep, False, 0; frames(1)
         if len(ready) == 3:
             tp.start(); frames(3)
             bs = self.scene
@@ -332,7 +350,8 @@ def scripted_run(self):
             move((550, 320)); frames(2)
             shot('real_battle.png')
             res = self.call('forfeit_battle'); self.refresh()
-            self.go('battle_result', result=res, before={k: 0 for k in ready}); frames(2)
+            self.go('battle_result', result=res, before={k: 0 for k in ready}, fled=True); frames(2)
+            self.scenes['battle_result'].fled = False; frames(1)
     finally:
         pygame.quit()
     # ---- 검사 ----

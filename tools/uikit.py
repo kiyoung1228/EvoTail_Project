@@ -218,7 +218,7 @@ def export_kit(out):
                 continue
             save(f'button_{c}_{st}', piece_button(c, st))
     save('gauge_frame', piece_gauge())
-    for c in ('red', 'brown', 'green'):
+    for c in ('red', 'brown', 'green', 'gray'):      # gray = 전투 결과 "도망쳤다"
         save(f'ribbon_{c}', piece_ribbon(c))
     (out / 'icons').mkdir(exist_ok=True)
     for n in ICON_ROWS:

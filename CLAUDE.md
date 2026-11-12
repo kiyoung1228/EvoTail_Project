@@ -191,7 +191,7 @@ CHARACTERS.md        캐릭터 목록 · GUI.md 화면 구조 설명
 
 ## 전투장 (목업 `docs/mockups/battle/`, 팀 결정 = 스테이지 2화면 + 전투 A안 + A2_1~3)
 - **스테이지 고르기** (`gui/scenes/battle_stage.py` `StagePickScene`, stage_pick.png): 9단계를 뱀 모양 길로 잇고 동그라미 안에 보스 얼굴(`gui/enemies.py` → data/enemies.json). 깬 곳 초록 체크, 잠긴 곳 자물쇠(못 고름), 대회는 메달 색 테두리. 오른쪽에 보스 그림·대회·전투력·보상·상대 성향, "팀 정하기"
-- **출전 준비** (`TeamPrepScene`, stage_team_prep.png): 상대(`preview_stage`) vs 내 팀(`last_team`으로 미리 채움, ✕로 빼기). 다른 동물은 스냅샷 `participation`/`participation_reason`(백엔드 `_available`, `can_participate`와 같음)으로 출전 불가면 흐리게 + 이유. 전투 전 포션은 카드를 누를 때마다 팀원에게 차례로(한 마리에 하나). 출전 = `start_battle(stage, team, prebattle_potions)`
+- **출전 준비** (`TeamPrepScene`, stage_team_prep.png): 상대(`preview_stage`) vs 내 팀(`last_team`으로 미리 채움, ✕로 빼기). 미리 채울 때 스냅샷 `participation`이 False인 동물(사냥·훈련 중, 아픔 등)은 빈 칸으로 두고 "지난번 팀 · 출전 불가 N마리 뺌". 팀에 출전 불가 동물이 있으면 출전 버튼을 미리 막고 두 줄 "출전 불가 / 산들오리 아픔"(백엔드 거절 전에). 다른 동물은 스냅샷 `participation`/`participation_reason`(백엔드 `_available`, `can_participate`와 같음)으로 출전 불가면 흐리게 + 이유. 전투 전 포션은 카드를 누를 때마다 팀원에게 차례로(한 마리에 하나). 출전 = `start_battle(stage, team, prebattle_potions)`
 - **전투** (`gui/scenes/battle_fight.py` `BattleScene`): 아군 왼쪽·적 오른쪽, 머리 위엔 체력바만(이름은 마우스), 보스는 원본 46 ×2. 명령창 = 고른 동물 정보 + 공격/특수기/방어/턴 넘기기, `get_battle_actions`가 준 행동만 켬
   - 딜러의 공격은 백엔드에서 **적 전체 공격**이라 대상 고르기 없음. 딜러는 특수기 버튼이 없음 (탱커 = 절대방어, 힐러 = 회복)
   - 특수기 버튼은 역할 상관없이 **보라색**(방어 파랑과 구분). `cooldown`이 0보다 크면 회색(disabled) + "재사용 대기: 1턴", 발밑 칩 "기술 쉼". 버튼 아래 설명 "아군 1마리 / 쓰면 다음 턴 1번 쉼"
@@ -204,7 +204,7 @@ CHARACTERS.md        캐릭터 목록 · GUI.md 화면 구조 설명
   - **전투 아이템**: 명령창 "아이템 N" 버튼(가방에 전투 아이템이 있을 때만 켜짐) → 버튼 위 목록(아이템 그림 ×1 + 이름 ×개수 · 회복량 · 팀 행동 1번 사용) → 고르면 아군 대상 고르기(초록 꺾쇠, 회복 뒤 체력 미리보기). `get_battle_actions(actor='battle_bandage')`의 `battle_item` 행동만 씀 → `battle_action(actor='battle_bandage', kind='battle_item', target)`
     - 백엔드 동작: 붕대는 팀 행동 1번(한 턴 2번 중)을 쓰지만 동물 한 마리의 "행동 완료"로 치지 않음. 회복량 = min(80, 모자란 체력), 기록 이벤트 `battle_item`의 `amount`
     - 미리보기 회복량은 `battle_item` 행동의 `amount` (없을 때만 상점 목록 `heal`)
-- **결과** (`BattleResultScene`): 승/패, 보상 코인(`battle_result.reward`), 첫 대회 우승/처음 깸(`first_clear`) + "다음 단계 열림"(get_stages의 다음 order), 팀 피로도 전→후(출전 직전 스냅샷과 지금 스냅샷, 둘 다 백엔드 값), 아픔 표시
+- **결과** (`BattleResultScene`): 승/패 (도망가기로 끝나면 회색 리본 "도망쳤다" = `fled`, 백엔드 battle_result는 도망과 패배를 같게 정산해서 GUI가 넘김. 키트 `ribbon_gray`), 보상 코인(`battle_result.reward`), 첫 대회 우승/처음 깸(`first_clear`) + "다음 단계 열림"(get_stages의 다음 order), 팀 피로도 전→후(전 = 출전 직전 스냅샷, 후 = 결과 화면 enter에서 refresh한 스냅샷, 둘 다 백엔드 값), 아픔 표시. 뉴비(`tutorial`) 스테이지는 백엔드가 전투 뒤 상태를 바꾸지 않아 승패·도망 모두 "+0"이 맞음
 - 전투장 배경(관중석·벽·깃발·모래)은 그림 파일이 없어 코드로 그린 도트 (`arena_surface`)
 
 ## 집 · 주방 (목업 `docs/mockups/home/`, `gui/scenes/home_kitchen.py` `KitchenScene`)
@@ -306,6 +306,9 @@ CHARACTERS.md        캐릭터 목록 · GUI.md 화면 구조 설명
 - 오른쪽 쪽 글씨 줄은 check_text_fit 넘침 점검에 기록(tag `dex-page`)
 - 다시 만들기(목업): `tools/dex_mock_d.py`(D안 책·태그·현황 쪽), `tools/dex_mock.py`(칸·칩·진화 줄·능력치)
 
+## 내 동물 화면 (`gui/scenes/animals_scene.py` `AnimalsScene`, animals_v2)
+- 정보 칸 "지금: 휴식 — (자율행동 이유)"는 길면 `wrap2`로 두 줄(글자 크기 그대로). 두 줄 자리는 늘 비워 둬서 동물마다 아래 줄이 흔들리지 않음. check_text_fit에 tag `animal-info`로 기록, 백엔드 이유 문장 전부 × 행동 이름으로 점검
+
 ## 진행 상황
 - 완료: 백엔드 1차(기영), 캐릭터 30종 데이터, 역할별 MAX, 도트 75장 (PR #1 merge됨)
 - 완료 (PR #2 merge됨): 진화 단계별 이름·이미지를 백엔드가 반환, GUI 뼈대, 텍스트 카드 지도(임시), 집 화면(상태·능력치·간식·훈련·진화), 시간 속도 F5/F12
@@ -322,7 +325,8 @@ CHARACTERS.md        캐릭터 목록 · GUI.md 화면 구조 설명
 - 완료 (PR #16 merge됨): 사냥터(4곳·보내기·불러오기·보상 받기, 무대·진행 길), 고기 재료 아이콘
 - 완료 (PR #17 merge됨): 가방(배낭 5×4 칸·탭 6개·쪽지에서 주기·치료·장착·부화·팔기), 전투 응급 붕대 그림(붕대 롤)
 - 완료 (PR #18 merge됨): 도감 D안(펼친 책·일반/특급 태그·현황 쪽·가진 동물·없는 동물)
-- 진행 중 (브랜치 `build-exe`): 실행 파일(PyInstaller onedir, 아이콘, exe 옆 세이브, error.log)
+- 완료 (PR #19 merge됨): 실행 파일(PyInstaller onedir, 아이콘, exe 옆 세이브, error.log)
+- 진행 중 (브랜치 `fix-polish`): 내 동물 자율행동 줄 두 줄, 출전 준비 출전 불가 동물 빼기·버튼 미리 막기, 전투 결과 "도망쳤다"
 
 ## 다음 할 일 (순서대로)
 1. **메인 화면을 목업대로**: `map_scene.py`의 텍스트 카드를 지도 이미지 + 간판 + 오른쪽 메뉴로 교체. 마당 동물은 `map.json`의 `yard` 안에서 움직이게. 지금의 "집" 화면(AnimalsScene)은 메뉴 "내 동물"로 연결
@@ -330,4 +334,4 @@ CHARACTERS.md        캐릭터 목록 · GUI.md 화면 구조 설명
 3. **전투장**: 스테이지 선택(적 미리보기 `preview_stage`), 팀 3마리 + 전투 전 포션 선택, 전투 화면(체력바, 행동 버튼은 `get_battle_actions`로), 결과 화면
 4. ~~상점(구매·판매·알 부화)~~, ~~병원(치료)~~ (완료, PR #14), ~~밭~~ (완료, PR #15), ~~사냥터~~ (완료, PR #16), ~~가방~~ (완료, PR #17), ~~도감~~ (완료, PR #18). (집 주방 + 타이밍 미니게임 = 완료, PR #13)
 5. 마이룸(여유 있으면)
-6. ~~실행 파일(PyInstaller)~~ (완료, 브랜치 `build-exe`), 보고서, **시연 영상(F12 시연 모드)**
+6. ~~실행 파일(PyInstaller)~~ (완료, PR #19), 보고서, **시연 영상(F12 시연 모드)**

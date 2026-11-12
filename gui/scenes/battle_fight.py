@@ -317,7 +317,7 @@ class BattleScene(Scene):
     def _after_queue(self):
         self.banner = None
         if self.result is not None:
-            self.app.go('battle_result', result=self.result, before=getattr(self.app, 'battle_before', {}))
+            self.app.go('battle_result', result=self.result, before=getattr(self.app, 'battle_before', {}), fled=False)
             return
         self.disp_hp = {f['id']: f['hp'] for f in self._fighters()}      # 백엔드 값으로 맞추기
         self._pick_next_actor()
@@ -383,7 +383,7 @@ class BattleScene(Scene):
         res = self.app.call('forfeit_battle')
         if res is not None:
             self.app.refresh()
-            self.app.go('battle_result', result=res, before=getattr(self.app, 'battle_before', {}))
+            self.app.go('battle_result', result=res, before=getattr(self.app, 'battle_before', {}), fled=True)
 
     def _targets(self):
         if not self.mode:
@@ -755,6 +755,7 @@ class BattleResultScene(Scene):
         super().__init__(app)
         self.result = None
         self.before = {}
+        self.fled = False         # 도망가기(forfeit_battle)로 끝남. 백엔드 결과는 패배와 같아서 GUI가 넘겨받음
         self.buttons = []
         self.PANEL = pygame.Rect(0, 0, self.W, 200)
 
@@ -763,6 +764,7 @@ class BattleResultScene(Scene):
         return 'topleft', (8, T.HEADER_H + 4)
 
     def enter(self):
+        self.app.refresh()          # 피로도 '후' = 결과 화면에 들어온 지금 스냅샷 ('전' = 출전 직전, TeamPrepScene.start)
         self.result = self.result or self.app.call('get_last_battle_result') or {}
         stages = sorted(self.app.call('get_stages') or [], key=lambda s: s.get('order', 0))
         self.stage = next((s for s in stages if s['id'] == self.result.get('stage')), {})
@@ -799,9 +801,14 @@ class BattleResultScene(Scene):
         panel(surface, P)
         r = self.result
         win = r.get('win')
-        title = '승리!' if win else '패배…'
+        if win:
+            title, color = '승리!', 'green'
+        elif self.fled:
+            title, color = '도망쳤다', 'gray'      # 패배와 구분 (피로도 등은 백엔드가 준 값 그대로)
+        else:
+            title, color = '패배…', 'red'
         rb = pygame.Rect(0, P.y - 6, fit_width(title, 'title', shadow=True) + 40, 18); rb.centerx = P.centerx   # 리본은 높이 18
-        ribbon(surface, rb, title, 'green' if win else 'red')
+        ribbon(surface, rb, title, color)
         st = self.stage
         name = f"{st.get('label', '')}{' 대회' if st.get('mode') == 'rank' else ''}"
         text_in(surface, f"{name} · {r.get('rounds', 1)}라운드", (P.x, P.y + 20, P.w, 18), 'big', log=False)
