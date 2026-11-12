@@ -245,6 +245,7 @@ class TeamPrepScene(Scene):
         self.potions = {}         # 동물 key → 포션 아이템 key
         self.page = 0
         self.from_last = False
+        self.skipped = 0          # 지난번 팀 중 출전 불가라 뺀 수
         self.items = {}
         self.buttons = []
         self._tip = None
@@ -255,10 +256,12 @@ class TeamPrepScene(Scene):
             return
         self.preview = self.app.call('preview_stage', stage=self.stage_id)
         self.items = self.app.call('get_shop_catalog') or {}
-        owned = {a['id'] for a in self.app.state.get('animals', [])}
-        last = [k for k in (self.app.state.get('last_team') or []) if k in owned]
-        self.team = last[:3]
-        self.from_last = bool(self.team)
+        animals = {a['id']: a for a in self.app.state.get('animals', [])}
+        last = [k for k in (self.app.state.get('last_team') or []) if k in animals]
+        # 지난번 팀 중 지금 출전 불가(사냥·훈련 중, 아픔 등 = 스냅샷 participation False)는 빈 칸으로
+        self.team = [k for k in last if animals[k].get('participation')][:3]
+        self.skipped = len(last[:3]) - len(self.team)
+        self.from_last = bool(last)
         self.potions = {}
         self.page = 0
 
@@ -344,7 +347,18 @@ class TeamPrepScene(Scene):
         if nxt:
             self.potions[nxt] = item
 
+    def blocked(self):
+        """팀 안의 지금 출전 불가 동물 (화면에 있는 동안 상태가 바뀔 수 있어서 매번 스냅샷으로)."""
+        animals = {a['id']: a for a in self.app.state.get('animals', [])}
+        return [animals[k] for k in self.team if k in animals and not animals[k].get('participation')]
+
     def start(self):
+        bad = self.blocked()
+        if bad:                                    # 백엔드 거절 전에 미리 막음
+            a = bad[0]
+            self.app.toast(f"{T.josa(a['name'], '은')} 지금 출전 불가 · {a.get('participation_reason') or ''}",
+                           'bad', 'heart')
+            return
         before = {a['id']: a['fatigue'] for a in self.app.state.get('animals', []) if a['id'] in self.team}
         data = self.app.act('start_battle', None, stage=self.stage_id, team=list(self.team),
                             prebattle_potions=dict(self.potions))
@@ -383,11 +397,16 @@ class TeamPrepScene(Scene):
         self.title_w = fit_width(title, 'title', shadow=True) + 14
         self.title = title
         go = pygame.Rect(self.POTIONS.x + 13, self.POTIONS.bottom - 42, self.POTIONS.w - 26, 28)
-        ready = len(self.team) == 3
+        bad = self.blocked()
+        ready = len(self.team) == 3 and not bad
+        if bad:
+            label, sub = '출전 불가', f"{bad[0]['name']} {self._short_reason(bad[0])}"
+            go = pygame.Rect(go.x, self.POTIONS.bottom - 45, go.w, 34)      # 두 줄 버튼 (포션 카드 아래 4px)
+        else:
+            label, sub = ('출전!' if ready else f'{3 - len(self.team)}마리 더 고르기'), None
         self.buttons = [
             Button((12, 32, back_w, BUTTON_H), '스테이지', lambda: app.go('battle'), 'brown', icon='back'),
-            Button(go, '출전!' if ready else f'{3 - len(self.team)}마리 더 고르기', self.start, 'red',
-                   enabled=ready, icon='sword' if ready else None),
+            Button(go, label, self.start, 'red', enabled=ready, icon='sword' if ready else None, sub=sub),
         ]
         if pages > 1:
             y = self.OTHERS.y + 8
@@ -417,7 +436,8 @@ class TeamPrepScene(Scene):
         text_in(surface, '상대', (self.FOE_BOX.x, self.TOP.y + 8, 60, 16), 'title', align='left', pad=0, log=False)
         text_in(surface, '내 팀', (self.TEAM_BOX.x, self.TOP.y + 8, 60, 16), 'title', align='left', pad=0, log=False)
         if self.from_last:
-            text_in(surface, '지난번 팀으로 채움', (self.TEAM_BOX.x, self.TOP.y + 8, self.TEAM_BOX.w, 16), 'small',
+            note = f"지난번 팀 · 출전 불가 {self.skipped}마리 뺌" if self.skipped else '지난번 팀으로 채움'
+            text_in(surface, note, (self.TEAM_BOX.x, self.TOP.y + 8, self.TEAM_BOX.w, 16), 'small',
                     T.TEXT_SOFT, align='right', pad=0, log=False)
         text_in(surface, 'VS', (self.FOE_BOX.right, self.FOE_BOX.y, self.TEAM_BOX.x - self.FOE_BOX.right,
                                  self.FOE_BOX.h), 'big', T.shade('orange', 1), shadow=T.WOOD[3], tag='prep')

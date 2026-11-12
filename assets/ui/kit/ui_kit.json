@@ -252,6 +252,13 @@
     16
    ],
    "margin": 9
+  },
+  "ribbon_gray": {
+   "size": [
+    40,
+    16
+   ],
+   "margin": 9
   }
  },
  "icons": [

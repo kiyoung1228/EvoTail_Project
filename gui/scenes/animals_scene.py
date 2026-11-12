@@ -7,7 +7,7 @@ import pygame
 from .. import theme as T
 from ..app import Scene, Overlay
 from ..widgets import (text, text_width, text_in, panel, card, card_inner, ribbon, chip, gauge, icon, tooltip,
-                       Button, Kit, mouse_pos, shorten, fit_width, BUTTON_H)
+                       Button, Kit, mouse_pos, shorten, fit_width, wrap2, record, BUTTON_H)
 
 LIST = pygame.Rect(9, 56, 174, 298)          # 왼쪽 목록 창
 LIST_INNER = LIST.inflate(-18, -18)          # 칸이 놓이는 영역 (창 테두리 안)
@@ -260,20 +260,24 @@ class AnimalsScene(Scene):
             line = f"지금: {kind} {what} · 남은 시간 {fmt_time(act.get('end', 0) - now)}"
         else:
             line = f"지금: {auto.get('label', '-')} — {auto.get('reason', '')}"
-        text(surface, line, (x, 106), 'body', T.TEXT_SOFT)
+        # 자율행동 설명은 길면 두 줄 (글자 크기 그대로). 두 줄 자리를 늘 비워 둬서 동물마다 아래 줄이 흔들리지 않게
+        info_w = DETAIL.right - 13 - x
+        for i, part in enumerate(wrap2(line, info_w, 'body')):
+            g = text(surface, part, (x, 104 + i * 13), 'body', T.TEXT_SOFT)
+            record(part, g, pygame.Rect(x - 2, g.y - 2, info_w + 4, g.h + 4), 'animal-info')
         if act:
             msg, color = '활동이 끝나면 다시 훈련·전투 가능', T.TEXT_SOFT
         elif a.get('participation'):
             msg, color = '훈련 · 전투 가능', T.OK
         else:
             msg, color = f"휴식 필요: {a.get('participation_reason') or '상태 확인'}", T.BAD
-        icon(surface, 'heart', (x, 123))
-        text(surface, msg, (x + 15, 129), 'title', color, 'midleft')
+        icon(surface, 'heart', (x, 133))
+        text(surface, msg, (x + 15, 139), 'title', color, 'midleft')
 
         # 상태 3종
         for i, (kind, label, ic) in enumerate((('fullness', '포만감', 'meat'), ('mood', '기분', 'smile'),
                                                ('fatigue', '피로도', 'zzz'))):
-            y = 136 + i * 12
+            y = 147 + i * 11
             value = a[kind]
             level = T.level(a, kind)
             icon(surface, ic, (x, y - 1))
