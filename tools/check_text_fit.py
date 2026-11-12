@@ -281,6 +281,32 @@ def scripted_run(self):
         g._mutate(empty_bag); self.refresh(); bg._fix(); frames(2)
         g._mutate(lambda s: s['inventory'].update(battle_bandage=12, potion_attack=1, potion_hp=1) or True)   # 전투장 점검용
         self.refresh()
+        # 도감: D0(현황 쪽) · 가진 동물(일반 2단계) · 없는 동물 · 특급 3단계, 두 태그의 모든 칸
+        dex_extra = {'dealer_normal_02': 2, 'tank_special_02': 2, 'dealer_special_01': 3, 'healer_special_05': 1}
+        def dex_fixture(s):    # test fixture only (temp save)
+            for k in [k for k in dex_extra if k in s['animals']]:
+                dex_extra.pop(k)                 # 이미 가진 동물은 그대로 둠
+            for k, st in dex_extra.items():
+                s['animals'][k] = g._new_animal(k, s['clock']['virtual'])
+                s['animals'][k]['stage'] = st
+            return True
+        g._mutate(dex_fixture); self.refresh()
+        self.go('pokedex'); frames(2)
+        dx = self.scene
+        for rar in ('normal', 'special'):
+            dx.rarity = rar; dx.selected = None; frames(1)
+            for role in ('dealer', 'tank', 'healer'):
+                for key in dx.page_keys(role):
+                    dx.selected = key; frames(1)
+        dx.rarity = 'special'; dx.selected = 'dealer_special_01'; frames(1)
+        shot('real_pokedex.png')
+        def dex_restore(s):
+            for k in dex_extra:
+                s['animals'].pop(k, None)
+            s['yard'] = [k for k in s.get('yard', []) if k in s['animals']]
+            s['last_team'] = [k for k in s.get('last_team', []) if k in s['animals']]
+            return True
+        g._mutate(dex_restore); self.refresh()
         # 전투장: 스테이지 고르기(모든 단계) → 출전 준비 → 전투(대상 고르기·기록 펼침) → 결과
         self.go('battle'); frames(2)
         sp = self.scene
