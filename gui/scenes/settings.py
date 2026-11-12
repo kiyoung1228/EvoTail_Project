@@ -3,7 +3,7 @@
 - 시간 속도 보통 / 빠르게(5배), 시연 모드(60배) 토글: F5·F12와 같은 App.toggle_speed
 - 저장하기(save_game), 불러오기(load_game, 확인 창 먼저), 도움말, 게임 종료
 - 마지막 저장 시각. 백엔드는 모든 변경을 바로 SQLite에 저장하므로(자동 저장) "자동 저장 켜짐"도 표시
-- 배경음·효과음은 팀 결정 전이라 없음
+- 배경음 크기(끔 / 작게 / 보통 / 크게) + 효과음악 켬/끔: gui/audio.py, 바꾸면 바로 적용·settings.json에 저장
 - ESC나 창 밖 클릭으로 닫기 (App.Overlay)
 """
 import os
@@ -12,6 +12,7 @@ import pygame
 
 from .. import theme as T
 from ..app import Overlay
+from ..audio import LEVELS
 from ..widgets import (text, text_width, text_in, fit_width, panel, card, card_inner, button_face, chip, nine,
                        Button, mouse_pos, BUTTON_H, CARD_LABEL_H)
 
@@ -34,9 +35,23 @@ def _title(surface, rect, label, icon_img=None):
 
 
 class SettingsOverlay(Overlay):
+    SOUND_H = 58              # 위쪽 소리 두 줄 (배경음·효과음악) + 구분선 높이
+
     def __init__(self, app):
-        super().__init__(app, (196, 60, 248, 230))
+        # 배경음 선택지 4개 폭 = 고른 것(굵은 글씨+그림자)·안 고른 것 중 넓은 쪽 + card 테두리
+        self.level_w = [max(fit_width(label, 'title', shadow=True), fit_width(label)) + 8 for _, label, _ in LEVELS]
+        w = max(248, 92 + sum(self.level_w) + 4 * (len(LEVELS) - 1) + 12)
+        h = 230 + self.SOUND_H
+        super().__init__(app, ((T.WIDTH - w) // 2, T.HEADER_H + (T.HEIGHT - T.HEADER_H - h) // 2, w, h))
         P = self.rect
+        x = P.x + 92
+        self.level_rects = []
+        for lw in self.level_w:
+            self.level_rects.append(pygame.Rect(x, P.y + 46, lw, CARD_LABEL_H))
+            x += lw + 4
+        self.jingle_toggle = pygame.Rect(P.x + 92, P.y + 75, 26, 14)
+        self.jingle_row = pygame.Rect(P.x + 12, P.y + 71, P.w - 24, 22)
+        D = self.SOUND_H                     # 아래 줄들은 소리 줄만큼 내림
         path = os.path.join(T.ROOT, 'assets', 'ui', 'icon_settings.png')
         self.icon = pygame.transform.scale(pygame.image.load(path).convert_alpha(), (24, 24)) \
             if os.path.exists(path) else None
@@ -44,16 +59,16 @@ class SettingsOverlay(Overlay):
         # 선택지 폭: 굵은 글씨+그림자(고른 것)와 보통 글씨(안 고른 것) 중 넓은 쪽 + card 테두리
         fast_label = f'빠르게 ({T.SPEED_FAST}배)'
         fast_w = max(fit_width(fast_label, 'title', shadow=True), fit_width(fast_label)) + 4 + 4
-        self.speed_normal = pygame.Rect(P.x + 92, P.y + 46, P.w - 12 - 92 - 6 - fast_w, CARD_LABEL_H)
-        self.speed_fast = pygame.Rect(self.speed_normal.right + 6, P.y + 46, fast_w, CARD_LABEL_H)
-        self.demo_toggle = pygame.Rect(P.x + 92, P.y + 90, 26, 14)
-        self.demo_row = pygame.Rect(P.x + 12, P.y + 86, P.w - 24, 22)
+        self.speed_normal = pygame.Rect(P.x + 92, P.y + 46 + D, P.w - 12 - 92 - 6 - fast_w, CARD_LABEL_H)
+        self.speed_fast = pygame.Rect(self.speed_normal.right + 6, P.y + 46 + D, fast_w, CARD_LABEL_H)
+        self.demo_toggle = pygame.Rect(P.x + 92, P.y + 90 + D, 26, 14)
+        self.demo_row = pygame.Rect(P.x + 12, P.y + 86 + D, P.w - 24, 22)
         bw = (P.w - 40) // 2
         self.buttons = [
-            Button((P.x + 16, P.y + 128, bw, 24), '저장하기', self.save, 'blue'),
-            Button((P.x + 24 + bw, P.y + 128, bw, 24), '불러오기', self.ask_load, 'purple'),
-            Button((P.x + 16, P.y + 160, bw, 24), '도움말', lambda: app.open_overlay(HelpOverlay(app)), 'orange'),
-            Button((P.x + 24 + bw, P.y + 160, bw, 24), '게임 종료', self.quit, 'red'),
+            Button((P.x + 16, P.y + 128 + D, bw, 24), '저장하기', self.save, 'blue'),
+            Button((P.x + 24 + bw, P.y + 128 + D, bw, 24), '불러오기', self.ask_load, 'purple'),
+            Button((P.x + 16, P.y + 160 + D, bw, 24), '도움말', lambda: app.open_overlay(HelpOverlay(app)), 'orange'),
+            Button((P.x + 24 + bw, P.y + 160 + D, bw, 24), '게임 종료', self.quit, 'red'),
         ]
 
     # ---------- 동작 ----------
@@ -98,6 +113,13 @@ class SettingsOverlay(Overlay):
             if b.handle(event):
                 return True
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            for (key, _, _), r in zip(LEVELS, self.level_rects):
+                if r.collidepoint(event.pos):
+                    self.app.audio.set_bgm_level(key)      # 바로 적용 + settings.json
+                    return True
+            if self.jingle_row.collidepoint(event.pos):
+                self.app.audio.set_jingle(not self.app.audio.settings['jingle'])
+                return True
             demo = self._rate() >= T.SPEED_DEMO       # 시연 모드 중에는 속도 버튼을 막는다
             if not demo and self.speed_normal.collidepoint(event.pos):
                 self.set_normal()
@@ -147,6 +169,18 @@ class SettingsOverlay(Overlay):
         self.close_btn.draw(surface)
         rate = self._rate()
         demo = rate >= T.SPEED_DEMO
+        D = self.SOUND_H
+        # 배경음 크기 · 효과음악 (gui/audio.py)
+        audio = self.app.audio
+        text(surface, '배경음', (P.x + 16, self.level_rects[0].centery), 'title', T.TEXT, 'midleft')
+        for (key, label, _), r in zip(LEVELS, self.level_rects):
+            self._option(surface, r, label, audio.settings['bgm'] == key)
+        text(surface, '효과음악', (P.x + 16, self.jingle_toggle.centery), 'title', T.TEXT, 'midleft')
+        on = audio.settings['jingle']
+        self._toggle(surface, self.jingle_toggle, on)
+        text(surface, '승리 · 패배 · 부화' if on else '끔', (self.jingle_toggle.right + 6, self.jingle_toggle.centery),
+             'small', T.TEXT_SOFT, 'midleft')
+        pygame.draw.line(surface, T.WOOD[3], (P.x + 12, P.y + 99), (P.right - 13, P.y + 99))
         # 시간 속도
         text(surface, '시간 속도', (P.x + 16, self.speed_normal.centery), 'title', T.TEXT, 'midleft')
         shown = self.app.speed_before_demo if demo else rate     # 시연 중엔 끄면 돌아갈 속도를 표시
@@ -154,14 +188,14 @@ class SettingsOverlay(Overlay):
         self._option(surface, self.speed_fast, f'빠르게 ({T.SPEED_FAST}배)', shown == T.SPEED_FAST, disabled=demo)
         if demo:
             back = '보통' if shown == 1 else f'{int(shown)}배'
-            text(surface, f'시연 모드 중 · 끄면 {back}로', (self.speed_normal.x, P.y + 68), 'small',
+            text(surface, f'시연 모드 중 · 끄면 {back}로', (self.speed_normal.x, P.y + 68 + D), 'small',
                  T.shade('red', 1))
         # 시연 모드
         text(surface, '시연 모드', (P.x + 16, self.demo_toggle.centery), 'title', T.TEXT, 'midleft')
         self._toggle(surface, self.demo_toggle, demo)
         text(surface, f'{T.SPEED_DEMO}배 · 영상 촬영용 (F12)', (self.demo_toggle.right + 6, self.demo_toggle.centery),
              'small', T.shade('red', 1) if demo else T.TEXT_SOFT, 'midleft')
-        pygame.draw.line(surface, T.WOOD[3], (P.x + 12, P.y + 118), (P.right - 13, P.y + 118))
+        pygame.draw.line(surface, T.WOOD[3], (P.x + 12, P.y + 118 + D), (P.right - 13, P.y + 118 + D))
         for b in self.buttons:
             b.draw(surface)
         # 마지막 저장: 백엔드 last_saved (실제 시각, 자동 저장 포함, PR #9)

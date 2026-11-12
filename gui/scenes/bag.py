@@ -83,6 +83,7 @@ class _CureHost:
 
 
 class BagScene(Scene):
+    music = None          # 배경음: 지금 곡 그대로 (지도 곡 이어서)
     def __init__(self, app):
         super().__init__(app)
         self.cat = 'all'

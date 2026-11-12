@@ -50,6 +50,7 @@ ACTIVITY_LABEL = {'training': '훈련 중'}
 
 
 class HuntScene(Scene):
+    music = 'hunt'        # 배경음: gui/audio.py TRACKS
     def __init__(self, app):
         super().__init__(app)
         self.selected = None          # 고른 사냥터 (area)

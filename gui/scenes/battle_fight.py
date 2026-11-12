@@ -95,18 +95,16 @@ def arena_surface():
         if tx < W:
             pygame.draw.rect(s, (90, 60, 40), (tx - 1, 92, 3, 22))
             pygame.draw.rect(s, (255, 190, 80), (tx - 2, 88, 5, 5)); pygame.draw.rect(s, (255, 236, 160), (tx - 1, 89, 3, 3))
-    # 모래 바닥
-    pygame.draw.rect(s, (234, 206, 150), (0, 121, W, H - 121))
-    for _ in range(900):
-        x, y = rng.randrange(W), rng.randrange(122, H)
-        s.set_at((x, y), (218, 186, 128) if rng.random() < .7 else (246, 224, 178))
-    pygame.draw.line(s, (220, 190, 136), (W // 2, 122), (W // 2, H))
-    pygame.draw.ellipse(s, (220, 190, 136), (W // 2 - 190, 168, 380, 120), 1)
+    # 모래 바닥 + 경기장 장식
+    from . import arena_art as ART
+    ART.floor(s, 121, rng)
+    ART.arena_floor(s, 121, rng)
     _arena = s
     return s
 
 
 class BattleScene(Scene):
+    music = 'battle'      # 배경음: gui/audio.py TRACKS
     def __init__(self, app):
         super().__init__(app)
         self.fresh = False
@@ -748,6 +746,7 @@ class BattleScene(Scene):
 # ======================================================================
 class BattleResultScene(Scene):
     """결과: 승/패, 보상 코인, 첫 대회 우승·다음 단계 열림, 피로도 변화. 값은 백엔드 결과(battle_result)와 스냅샷."""
+    music = 'arena'       # 배경음: gui/audio.py TRACKS
     W = 320
     ROW = 33
 
@@ -766,6 +765,8 @@ class BattleResultScene(Scene):
     def enter(self):
         self.app.refresh()          # 피로도 '후' = 결과 화면에 들어온 지금 스냅샷 ('전' = 출전 직전, TeamPrepScene.start)
         self.result = self.result or self.app.call('get_last_battle_result') or {}
+        # 효과음악: 승리 / 패배·도망 (결과 화면에 들어올 때 한 번)
+        self.app.audio.jingle('jingle_win' if self.result.get('win') else 'jingle_lose')
         stages = sorted(self.app.call('get_stages') or [], key=lambda s: s.get('order', 0))
         self.stage = next((s for s in stages if s['id'] == self.result.get('stage')), {})
         r = self.result

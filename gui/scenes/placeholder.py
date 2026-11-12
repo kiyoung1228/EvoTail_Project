@@ -5,6 +5,7 @@ from ..widgets import text, text_width, panel, ribbon, Button, BUTTON_H
 
 
 class PlaceholderScene(Scene):
+    music = None          # 배경음: 지금 곡 그대로 (지도 곡 이어서)
     def __init__(self, app, title):
         super().__init__(app)
         self.title = title
