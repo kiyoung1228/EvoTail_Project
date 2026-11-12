@@ -17,6 +17,7 @@ import pygame
 from .. import theme as T
 from ..app import Scene
 from .. import enemies as E
+from .. import items as I
 from ..widgets import (text_in, glyph_box, fit_width, panel, card, card_inner, ribbon, chip, chip_width, icon, tooltip,
                        select_frame, gauge, nine, button_face, Button, mouse_pos, BUTTON_H, CARD_LABEL_H)
 from .settings import ConfirmOverlay
@@ -669,11 +670,13 @@ class BattleScene(Scene):
             card(surface, r, r.collidepoint(hover))
             inner = card_inner(r)
             spec = self.items.get(key, {})
-            icon(surface, 'heart', (inner.x + 2, inner.y + 2))
-            text_in(surface, f"{self._item_label(key)} ×{n}", (inner.x + 16, inner.y, inner.w - 16, 15), 'title',
+            if not hasattr(self, '_item_icons'):
+                self._item_icons = I.ItemIcons()
+            surface.blit(self._item_icons.get(key, 1), (inner.x + 2, inner.centery - 8))    # 아이템 그림 (원본 16)
+            text_in(surface, f"{self._item_label(key)} ×{n}", (inner.x + 21, inner.y, inner.w - 21, 15), 'title',
                     align='left', pad=0, check=inner, tag='battle_item')
-            text_in(surface, f"체력 +{spec.get('heal', '')} · 팀 행동 1번 사용", (inner.x + 16, inner.y + 15,
-                    inner.w - 16, 13), 'small', T.TEXT_SOFT, align='left', pad=0, check=inner, tag='battle_item')
+            text_in(surface, f"체력 +{spec.get('heal', '')} · 팀 행동 1번 사용", (inner.x + 21, inner.y + 15,
+                    inner.w - 21, 13), 'small', T.TEXT_SOFT, align='left', pad=0, check=inner, tag='battle_item')
 
     def _draw_floats(self, surface):
         now = time.time()

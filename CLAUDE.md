@@ -186,7 +186,7 @@ CHARACTERS.md        캐릭터 목록 · GUI.md 화면 구조 설명
   - 전투 기록: 작은 칸, 마우스를 올리면 위로 펼침(라운드·"적" 칩). 도망가기 = `forfeit_battle`(확인 창)
   - 회복 미리보기 = `get_battle_actions`의 행동마다 `amount`(PR #12, 그 대상에게 실제로 회복될 양). `HEAL_PREVIEW` 표는 amount가 없을 때만 + 회복 버튼 글씨(최대 회복량)
   - 한 마리가 행동하면 **아직 행동 안 한 아군을 자동으로 고른다** (없으면 고른 동물 그대로)
-  - **전투 아이템**: 명령창 "아이템 N" 버튼(가방에 전투 아이템이 있을 때만 켜짐) → 버튼 위 목록(이름 ×개수 · 회복량 · 팀 행동 1번 사용) → 고르면 아군 대상 고르기(초록 꺾쇠, 회복 뒤 체력 미리보기). `get_battle_actions(actor='battle_bandage')`의 `battle_item` 행동만 씀 → `battle_action(actor='battle_bandage', kind='battle_item', target)`
+  - **전투 아이템**: 명령창 "아이템 N" 버튼(가방에 전투 아이템이 있을 때만 켜짐) → 버튼 위 목록(아이템 그림 ×1 + 이름 ×개수 · 회복량 · 팀 행동 1번 사용) → 고르면 아군 대상 고르기(초록 꺾쇠, 회복 뒤 체력 미리보기). `get_battle_actions(actor='battle_bandage')`의 `battle_item` 행동만 씀 → `battle_action(actor='battle_bandage', kind='battle_item', target)`
     - 백엔드 동작: 붕대는 팀 행동 1번(한 턴 2번 중)을 쓰지만 동물 한 마리의 "행동 완료"로 치지 않음. 회복량 = min(80, 모자란 체력), 기록 이벤트 `battle_item`의 `amount`
     - 미리보기 회복량은 `battle_item` 행동의 `amount` (없을 때만 상점 목록 `heal`)
 - **결과** (`BattleResultScene`): 승/패, 보상 코인(`battle_result.reward`), 첫 대회 우승/처음 깸(`first_clear`) + "다음 단계 열림"(get_stages의 다음 order), 팀 피로도 전→후(출전 직전 스냅샷과 지금 스냅샷, 둘 다 백엔드 값), 아픔 표시
@@ -229,7 +229,7 @@ CHARACTERS.md        캐릭터 목록 · GUI.md 화면 구조 설명
 - 아래 쟁반: "치료할 포션 선택", 기본/고급 회복 포션 카드("치료 50% · 피로도 -10" = 상점 목록 chance·fatigue, 보유 N, 0이면 빨강), "치료하기"(아래 "○○ 1개 사용"), "포션 사러 가기 ▶ 상점"(상점 회복·포션 탭)
 - 치료 = `use_item(item, key)` → `CureResult`(Overlay): success면 빛줄기·"○○ 회복!"·피로도 전→후(전 = 호출 직전 스냅샷, 후 = 응답 fatigue)·다음 환자/닫기, 아니면 회색·"○○ 아직 아픔"·"포션 1개 소모"·다시 치료/닫기
 
-**아이템 그림** (`assets/items/`, `gui/items.py` `ItemIcons`): 원본 16×16, 파일 4배(64). 화면에선 ×1~×3 정수배만. 씨앗은 작물별 봉투 `seed_<작물>.png`, 없을 때만 `seed.png`. 그림이 없으면 `assets/food` 그림, 그것도 없으면 키트 아이콘. 다시 만들기: `tools/shop_icons.py`, 목업 `tools/shop_mock.py`·`shop_mock2.py`, 병원 배경 `tools/hosp_room.py`
+**아이템 그림** (`assets/items/`, `gui/items.py` `ItemIcons`): 원본 16×16, 파일 4배(64). 화면에선 ×1~×3 정수배만. 씨앗은 작물별 봉투 `seed_<작물>.png`, 없을 때만 `seed.png`. 그림이 없으면 `assets/food` 그림, 그것도 없으면 키트 아이콘. 다시 만들기: `tools/shop_icons.py`, 목업 `tools/shop_mock.py`·`shop_mock2.py`, 병원 배경 `tools/hosp_room.py`. **전투 응급 붕대**(`battle_bandage.png`, 붕대 롤)는 `tools/bandage_icon.py` (`tools/shop_icons.py`의 `battle_bandage()`는 옛 그림, 비교 `docs/mockups/bag/bandage_compare.png`)
 
 ## 밭 (목업 `docs/mockups/farm/`, `gui/scenes/farm.py` `FarmScene`, A안)
 지도 "밭" 건물 → 밭. 배경 `assets/farm/farm.png`(1280×720, ½로 그대로, 위 26px 투명)
