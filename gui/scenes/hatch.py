@@ -77,6 +77,7 @@ class HatchOverlay(Overlay):
         self.info = {}
         self.evo = {}
         self.buttons = []
+        self.jingled = False           # 부화 효과음악은 결과 창이 뜰 때 한 번
         self.sparks = [(random.randint(-70, 70), random.randint(-60, 60)) for _ in range(10)]
         if self.result is None:       # 실패 (알 없음 등): 알림은 app.call이 띄움
             return
@@ -119,6 +120,9 @@ class HatchOverlay(Overlay):
             return
         self.t += dt
         if self.done:
+            if not self.jingled:
+                self.jingled = True
+                self.app.audio.jingle('jingle_hatch')
             self._build_buttons()
 
     def _build_buttons(self):

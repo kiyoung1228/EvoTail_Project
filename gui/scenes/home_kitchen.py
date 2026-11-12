@@ -111,6 +111,7 @@ def fill_part(surface, inner, x0, x1, color):
 
 
 class KitchenScene(Scene):
+    music = 'home'        # 배경음: gui/audio.py TRACKS
     def __init__(self, app):
         super().__init__(app)
         self.mode = 'book'          # 'book' / 'cook' / 'result'

@@ -58,7 +58,7 @@ assets/              1단계 이미지 30장, assets/sprites/<ID>_s<단계>.png 
   map/               섬 마을 지도 낮·밤 + 클릭 영역 map.json
   ui/                메뉴 아이콘. ui/kit/ = 도트 UI 키트 조각·아이콘 (docs/UI_KIT.md)
   fonts/             갈무리 글꼴 (OFL)
-docs/mockups/        확정된 화면 목업 (메인 낮·밤, 설정 창, 내 동물 animals_v2, battle/ 전투장, home/ 주방, shop/ 상점·부화, hospital/ 병원, farm/ 밭, hunt/ 사냥터, bag/ 가방, dex/ 도감)
+docs/mockups/        확정된 화면 목업 (메인 낮·밤, 설정 창, 내 동물 animals_v2, battle/ 전투장(prep_v2·fight_floor_v2 = 배경 v2), home/ 주방, shop/ 상점·부화, hospital/ 병원, farm/ 밭, hunt/ 사냥터, bag/ 가방, dex/ 도감)
 docs/UI_KIT.md       도트 UI 키트 규칙 (모든 화면이 따름). 조각 다시 만들기: tools/uikit.py
 gui/                 Pygame 화면 (아래 GUI 규칙)
 CHARACTERS.md        캐릭터 목록 · GUI.md 화면 구조 설명
@@ -164,9 +164,9 @@ CHARACTERS.md        캐릭터 목록 · GUI.md 화면 구조 설명
 **오른쪽 메뉴 5개** (아이콘 `assets/ui/icon_*.png`)
 내 동물(`my_animals`, 지금의 AnimalsScene) · 도감(`pokedex`) · 가방(`bag`, 인벤토리) · 마이룸(`my_room`, 처음엔 "준비 중") · 설정(`settings`)
 
-**설정 창** (`gui/scenes/settings.py`, 지도 메뉴 "설정" → 지도 위 창): 시간 속도(보통 / 빠르게 5배), 시연 모드(60배, 영상용), 저장하기(`save_game`), 불러오기(`load_game`, 확인 창 먼저), 도움말, 게임 종료, 마지막 저장 시각.
+**설정 창** (`gui/scenes/settings.py`, 지도 메뉴 "설정" → 지도 위 창): 배경음 크기·효과음악, 시간 속도(보통 / 빠르게 5배), 시연 모드(60배, 영상용), 저장하기(`save_game`), 불러오기(`load_game`, 확인 창 먼저), 도움말, 게임 종료, 마지막 저장 시각.
 - 백엔드는 모든 변경을 바로 SQLite에 저장(자동 저장), 종료할 때도 `App.run`이 `save_game`을 부름. 마지막 저장 시각은 스냅샷 `last_saved`(실제 Unix 시각, 자동 저장 포함, PR #9)를 표시
-배경음·효과음은 아직 백엔드·에셋이 없음 → 팀 결정 전까지 목업에만 있음.
+- 맨 위 소리 두 줄(목업의 소리 줄): "배경음" 끔 / 작게 / 보통 / 크게(키트 선택지) + "효과음악" 켬/끔 스위치. 바꾸면 바로 적용, 아래 BGM 섹션
 
 **상단 바**: "1일차 · 낮 14:20 · 맑음" 순서(낮은 해, 밤은 달 아이콘) + 빠르게면 "· 5배속", 오른쪽 코인. 날짜·시각은 백엔드 `clock['day']`, `clock['time']`('HH:MM')
 - 게임 시계 (PR #6, `_clock_view`): 게임 하루 = 가상 60분(낮 30분 + 밤 30분), 1일차 06:00 시작, 가상 2.5초 = 게임 1분, 다음 06:00에 날짜가 넘어감. `timestamp`·`night`·`storm`·`rate`는 그대로
@@ -205,7 +205,9 @@ CHARACTERS.md        캐릭터 목록 · GUI.md 화면 구조 설명
     - 백엔드 동작: 붕대는 팀 행동 1번(한 턴 2번 중)을 쓰지만 동물 한 마리의 "행동 완료"로 치지 않음. 회복량 = min(80, 모자란 체력), 기록 이벤트 `battle_item`의 `amount`
     - 미리보기 회복량은 `battle_item` 행동의 `amount` (없을 때만 상점 목록 `heal`)
 - **결과** (`BattleResultScene`): 승/패 (도망가기로 끝나면 회색 리본 "도망쳤다" = `fled`, 백엔드 battle_result는 도망과 패배를 같게 정산해서 GUI가 넘김. 키트 `ribbon_gray`), 보상 코인(`battle_result.reward`), 첫 대회 우승/처음 깸(`first_clear`) + "다음 단계 열림"(get_stages의 다음 order), 팀 피로도 전→후(전 = 출전 직전 스냅샷, 후 = 결과 화면 enter에서 refresh한 스냅샷, 둘 다 백엔드 값), 아픔 표시. 뉴비(`tutorial`) 스테이지는 백엔드가 전투 뒤 상태를 바꾸지 않아 승패·도망 모두 "+0"이 맞음
-- 전투장 배경(관중석·벽·깃발·모래)은 그림 파일이 없어 코드로 그린 도트 (`arena_surface`)
+- 전투장 배경은 그림 파일 없이 **코드 도트** (목업 `prep_v2.png`, `fight_floor_v2.png`)
+  - 전투: `battle_fight.arena_surface()`(하늘·관중석·벽·깃발·횃불) + `gui/scenes/arena_art.py`의 `floor()`(모래 띠·결·자갈·벽 밑 잡초) · `arena_floor()`(갈퀴 결 경기장 원·분필 테두리 두 줄·가운데 발바닥 문장·양 진영 출발선 파랑/빨강·발자국·건초·무기 걸이·나무통·깃털·나무 창)
+  - 출전 준비: 상대 칸 = `foe_backdrop()` 적 진영(돌벽·빨간 깃발·횃불·모래·빨간 출발선), 내 팀 칸 = `team_backdrop(avoid)` 우리 진영(하늘·언덕·울타리·깃발 줄·꽃 풀밭, ✕ 빼기 버튼 자리 `avoid`엔 깃발 안 검). 둘 다 크기별로 한 번만 그려 캐시
 
 ## 집 · 주방 (목업 `docs/mockups/home/`, `gui/scenes/home_kitchen.py` `KitchenScene`)
 지도 "집" 건물 → 주방. 배경 `assets/home/kitchen.png`(1280×720 = 논리 640×360의 2배 → ½로 그대로). 왼쪽 위 ◀ 지도 + 빨간 리본(집 · 주방 / 요리 중 / 요리 완성), 오른쪽 위 요리 레벨 칸(누적 경험치 / 다음 레벨 기준, `get_recipes`의 level·xp, `get_rules()['cooking']['level_thresholds']`)
@@ -309,6 +311,28 @@ CHARACTERS.md        캐릭터 목록 · GUI.md 화면 구조 설명
 ## 내 동물 화면 (`gui/scenes/animals_scene.py` `AnimalsScene`, animals_v2)
 - 정보 칸 "지금: 휴식 — (자율행동 이유)"는 길면 `wrap2`로 두 줄(글자 크기 그대로). 두 줄 자리는 늘 비워 둬서 동물마다 아래 줄이 흔들리지 않음. check_text_fit에 tag `animal-info`로 기록, 백엔드 이유 문장 전부 × 행동 이름으로 점검
 
+## 배경음 (BGM) · 효과음악 (`gui/audio.py`)
+- **곡은 전부 이 저장소에서 새로 작곡한 오리지널** (코드 진행 + 손으로 쓴 멜로디, 칩튠 합성). 파일 `assets/bgm/*.ogg` 12개
+- 다시 만들기: `python tools/bgm/songs.py [곡이름...]` → `assets/bgm/<곡>.ogg` (중간 파일 wav·mp3 미리듣기는 `tools/bgm/out/`, 깃 제외). numpy + ffmpeg 필요. 합성 도구 `tools/bgm/chip.py`, 지도 낮 곡 `tools/bgm/song_map_day.py`
+- 곡 이름표는 `gui/audio.py` `TRACKS`·`JINGLES` 한 곳. 장면 곡은 `Scene.music` 하나로 정함 → `App.go`가 `audio.want()`로 알리고, 매 프레임 `App.music_track()`으로 다시 확인(지도에서 낮↔밤)
+| 화면 | 곡 (`music`) |
+| --- | --- |
+| 지도·내 동물·도감·가방·마이룸 | `'map'` = 지도 곡: 낮 `map_day` / 밤 `map_night` (`clock.night`, 있는 동안 바뀌면 페이드). 지도에서 들어오면 같은 곡이라 끊기지 않고 이어지고, 사냥터 등에서 바로 들어오면 지도 곡으로 페이드 |
+| 설정 창 (지도 위 창) | 곡을 안 바꿈 (화면이 아니라 창이라 지도 곡 그대로) |
+| 집·주방 | `home` |
+| 상점·부화 | `shop` |
+| 병원 | `hospital` |
+| 밭 | `farm` |
+| 사냥터 | `hunt` |
+| 스테이지 고르기·출전 준비·결과 | `arena` |
+| 전투 | `battle` |
+- 배경음 = `pygame.mixer.music` 반복(-1). 곡이 바뀌면 0.6초 페이드(0.3초 작아짐 → 새 곡 0.3초 커짐), 같은 곡이면 처음부터 다시 틀지 않고 이어서
+- 효과음악 = `pygame.mixer.Sound` 한 번: 전투 결과 승리 `jingle_win`, 패배·도망 `jingle_lose`(결과 화면 enter), 부화 성공 `jingle_hatch`(결과 창이 뜰 때, 건너뛰기 포함 한 번). 나오는 동안 배경음 30%로 줄였다가 끝나면 원래대로
+- 오디오 장치가 없거나(mixer 안 켜짐) 파일이 없거나 못 읽으면 조용히 무음, 게임은 그대로
+- **소리 설정**: 설정 창 배경음 끔 0 / 작게 0.3 / 보통 0.6 / 크게 1.0 (`audio.LEVELS`), 효과음악 켬/끔. 기본 보통·켬. 저장은 세이브와 같은 폴더의 `settings.json`(소스 실행 = 저장소 `saves/settings.json`, exe = exe 옆 `saves/settings.json`, 게임 세이브 DB·roc와 별개). 처음 바꿀 때 파일이 생김
+- `Scene.music` 기본값 `None` = 지금 곡 그대로 (지금은 쓰는 화면 없음)
+- 실행 파일: `EvoTail.spec`의 `assets` 통째로 묶기에 `assets/bgm`도 들어감 (SDL2_mixer가 ogg 재생, exe에서 확인함)
+
 ## 진행 상황
 - 완료: 백엔드 1차(기영), 캐릭터 30종 데이터, 역할별 MAX, 도트 75장 (PR #1 merge됨)
 - 완료 (PR #2 merge됨): 진화 단계별 이름·이미지를 백엔드가 반환, GUI 뼈대, 텍스트 카드 지도(임시), 집 화면(상태·능력치·간식·훈련·진화), 시간 속도 F5/F12
@@ -326,7 +350,8 @@ CHARACTERS.md        캐릭터 목록 · GUI.md 화면 구조 설명
 - 완료 (PR #17 merge됨): 가방(배낭 5×4 칸·탭 6개·쪽지에서 주기·치료·장착·부화·팔기), 전투 응급 붕대 그림(붕대 롤)
 - 완료 (PR #18 merge됨): 도감 D안(펼친 책·일반/특급 태그·현황 쪽·가진 동물·없는 동물)
 - 완료 (PR #19 merge됨): 실행 파일(PyInstaller onedir, 아이콘, exe 옆 세이브, error.log)
-- 진행 중 (브랜치 `fix-polish`): 내 동물 자율행동 줄 두 줄, 출전 준비 출전 불가 동물 빼기·버튼 미리 막기, 전투 결과 "도망쳤다"
+- 완료 (PR #20 merge됨): 내 동물 자율행동 줄 두 줄, 출전 준비 출전 불가 동물 빼기·버튼 미리 막기, 전투 결과 "도망쳤다"
+- 진행 중 (브랜치 `bgm-arena`): 전투장 배경 v2(arena_art.py), 장소별 BGM·효과음악, 설정 창 소리 줄
 
 ## 다음 할 일 (순서대로)
 1. **메인 화면을 목업대로**: `map_scene.py`의 텍스트 카드를 지도 이미지 + 간판 + 오른쪽 메뉴로 교체. 마당 동물은 `map.json`의 `yard` 안에서 움직이게. 지금의 "집" 화면(AnimalsScene)은 메뉴 "내 동물"로 연결

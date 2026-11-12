@@ -12,6 +12,7 @@ from .. import theme as T
 from ..app import Scene
 from .. import enemies as E
 from .battle_fight import shorten
+from . import arena_art as ART
 from ..widgets import (text, text_in, glyph_box, fit_width, panel, card, card_inner, ribbon, chip, icon, tooltip,
                        select_frame, nine, Button, Kit, mouse_pos, BUTTON_H, CARD_LABEL_H)
 
@@ -66,6 +67,7 @@ def circle_clip(img, r):
 
 
 class StagePickScene(Scene):
+    music = 'arena'       # 배경음: gui/audio.py TRACKS
     def __init__(self, app):
         super().__init__(app)
         self.stages = []
@@ -230,6 +232,7 @@ class StagePickScene(Scene):
 # ======================================================================
 class TeamPrepScene(Scene):
     """출전 준비: 상대 vs 내 팀, 다른 동물, 전투 전 포션, 출전."""
+    music = 'arena'       # 배경음: gui/audio.py TRACKS
     TOP = pygame.Rect(9, 56, 622, 148)
     FOE_BOX = pygame.Rect(20, 82, 281, 110)
     TEAM_BOX = pygame.Rect(340, 82, 281, 110)
@@ -443,7 +446,7 @@ class TeamPrepScene(Scene):
                                  self.FOE_BOX.h), 'big', T.shade('orange', 1), shadow=T.WOOD[3], tag='prep')
         # 상대
         box = self.FOE_BOX
-        pygame.draw.rect(surface, (206, 226, 240), box)
+        surface.blit(ART.foe_backdrop(box.w, box.h), box)
         pygame.draw.rect(surface, T.WOOD[1], box, 1)
         hover = mouse_pos()
         foes = (self.preview or {}).get('enemy', [])
@@ -452,7 +455,7 @@ class TeamPrepScene(Scene):
         for i, e in enumerate(foes[:3]):
             name, sprite, boss = E.enemy_look(self.app.sprites, e)
             fx, fy = self._foe_pos(i)
-            pygame.draw.ellipse(surface, (180, 200, 214), (fx - 18, fy - 4, 36, 8))
+            pygame.draw.ellipse(surface, (196, 166, 116), (fx - 18, fy - 4, 36, 8))
             img = self.app.sprites.scaled(sprite, 2)
             art = img.get_bounding_rect()
             pos = (fx - art.centerx, fy + 2 - art.bottom)
@@ -470,7 +473,8 @@ class TeamPrepScene(Scene):
         surface.set_clip(clip)
         # 내 팀
         box = self.TEAM_BOX
-        pygame.draw.rect(surface, (214, 236, 196), box)
+        avoid = [(r.x - box.x, r.right - box.x) for r in (self._x_rect(i) for i in range(3))]
+        surface.blit(ART.team_backdrop(box.w, box.h, avoid), box)
         pygame.draw.rect(surface, T.WOOD[1], box, 1)
         for i in range(3):
             slot = self._team_slot(i)
@@ -486,7 +490,7 @@ class TeamPrepScene(Scene):
             a = self.app.animal(self.team[i])
             if not a:
                 continue
-            pygame.draw.ellipse(surface, (186, 214, 166), (fx - 18, fy - 4, 36, 8))
+            pygame.draw.ellipse(surface, (110, 170, 86), (fx - 18, fy - 4, 36, 8))
             img = self.app.sprites.get(a.get('sprite'), 56)
             surface.blit(img, img.get_rect(midbottom=(fx, fy + 4)))
             text_in(surface, a['name'], (slot.x, fy + 4, slot.w, 15), 'title', tag='prep')

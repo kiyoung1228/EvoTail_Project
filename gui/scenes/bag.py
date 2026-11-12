@@ -83,6 +83,7 @@ class _CureHost:
 
 
 class BagScene(Scene):
+    music = 'map'         # 배경음: 지도 곡 (낮·밤). 지도에서 오면 같은 곡이라 이어짐
     def __init__(self, app):
         super().__init__(app)
         self.cat = 'all'

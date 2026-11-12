@@ -87,6 +87,7 @@ def _load_map():
 
 
 class MapScene(Scene):
+    music = 'map'         # 배경음: 지도 낮·밤 곡
     def __init__(self, app):
         super().__init__(app)
         _size_menu()

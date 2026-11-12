@@ -129,6 +129,7 @@ def draw_sign(surface, rect, lines, bright):
 
 
 class FarmScene(Scene):
+    music = 'farm'        # 배경음: gui/audio.py TRACKS
     def __init__(self, app):
         super().__init__(app)
         self.selected = 0

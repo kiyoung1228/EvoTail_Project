@@ -101,6 +101,14 @@ def scripted_run(self):
         o = SettingsOverlay(self); self.open_overlay(o); frames(2)
         move(o.speed_fast.center)
         shot('real_settings.png')
+        # 소리 줄: 배경음 4단계 각각 고른 모양 + 효과음악 켬/끔 (설정은 임시 세이브 폴더의 settings.json)
+        from gui.audio import LEVELS
+        for key, _, _ in LEVELS:
+            self.audio.set_bgm_level(key); frames(1)
+            for r in o.level_rects:
+                move(r.center); frames(1)
+        self.audio.set_jingle(False); frames(1); self.audio.set_jingle(True); frames(1)
+        self.audio.set_bgm_level('mid'); move((10, 350))
         for r in (5, 60, 1):
             self.toggle_speed(r) if r != 1 else self.toggle_speed(self.state['clock']['rate']); frames(2)
         o.save(); frames(2)

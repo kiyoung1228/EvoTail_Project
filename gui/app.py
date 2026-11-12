@@ -22,6 +22,7 @@ from .widgets import (text, text_width, text_in, glyph_box, fit_width, record, c
                       moon_icon, SpriteCache)
 from .display import setup_window_scale
 from . import crash
+from .audio import Audio, map_track
 
 EVENT_TEXT = {
     'training_complete': lambda e, n: f"{n(e.get('animal'))} 훈련 완료! {T.STAT_LABEL.get(e.get('stat'), '')} +{e.get('gain', '')}",
@@ -41,6 +42,7 @@ TOAST_BAR = {'ok': 'green', 'bad': 'red', 'info': 'orange'}
 
 class Scene:
     """화면 하나. handle → update → draw 순서로 매 프레임 불린다. 좌표는 논리 픽셀."""
+    music = None      # 배경음 곡 이름 (gui/audio.py TRACKS 키). 'map' = 지도 낮·밤, None = 지금 곡 그대로
 
     def __init__(self, app):
         self.app = app
@@ -105,6 +107,7 @@ def set_window_icon():
 class App:
     def __init__(self, save_path='saves/game.db'):
         setup_window_scale()              # DPI 인식 + 창 배율(정수배). pygame 창을 만들기 전에
+        pygame.mixer.pre_init(44100, -16, 2, 1024)   # 배경음 (장치가 없으면 mixer만 안 켜지고 게임은 그대로)
         pygame.init()
         pygame.display.set_caption('EvoTail')
         set_window_icon()                 # exe 아이콘과 같은 그림 (assets/icon/evotail.png)
@@ -113,6 +116,8 @@ class App:
         self.clock = pygame.time.Clock()
         self.sprites = SpriteCache()
         self.game = GameService(save_path)
+        # 소리 설정은 세이브와 같은 폴더의 settings.json (게임 세이브 DB와 별개)
+        self.audio = Audio(os.path.join(os.path.dirname(os.path.abspath(save_path)), 'settings.json'))
         self.bridge = GameBridge(self.game)
         self.worker = GameWorker(self.game, interval=1.0)
         self.state = {}
@@ -215,6 +220,15 @@ class App:
         for k, v in kwargs.items():
             setattr(self.scene, k, v)
         self.scene.enter()
+        self.audio.want(self.music_track())
+
+    def music_track(self):
+        """지금 화면의 곡 (Scene.music). 'map'은 낮·밤, None은 지금 곡 그대로(처음이면 지도 곡)."""
+        music = getattr(self.scene, 'music', None)
+        night = bool(self.state.get('clock', {}).get('night'))
+        if music == 'map' or (music is None and self.audio.current is None):
+            return map_track(night)
+        return music
 
     def open_overlay(self, overlay):
         if hasattr(self.scene, 'hover'):      # 뒤 화면의 마우스 강조·툴팁은 끈다
@@ -361,6 +375,8 @@ class App:
             else:
                 self.scene.handle(self._to_logical(event))
         self._poll_worker()
+        self.audio.want(self.music_track())     # 지도에 있는 동안 낮↔밤이 바뀌어도 따라감
+        self.audio.update(dt)
         self.scene.update(dt)
         for overlay in list(self.overlays):
             overlay.update(dt)
@@ -385,4 +401,5 @@ class App:
         finally:
             self.worker.stop()
             self.call('save_game')
+            self.audio.stop()
             pygame.quit()

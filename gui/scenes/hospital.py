@@ -37,6 +37,7 @@ def cure_text(spec):
 
 
 class HospitalScene(Scene):
+    music = 'hospital'    # 배경음: gui/audio.py TRACKS
     def __init__(self, app):
         super().__init__(app)
         self.selected = None

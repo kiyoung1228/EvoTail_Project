@@ -27,6 +27,7 @@ QTY_MAX = 99
 
 
 class ShopScene(Scene):
+    music = 'shop'        # 배경음: gui/audio.py TRACKS
     def __init__(self, app):
         super().__init__(app)
         self.tab = 'food'
