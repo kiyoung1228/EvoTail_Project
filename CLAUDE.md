@@ -28,6 +28,21 @@ python main.py                    # 화면 없이 백엔드만 점검
 ```
 세이브: `saves/game.db` (깃에 안 올라감)
 
+**실행 파일 (PyInstaller, onedir)**
+```
+build_exe.bat                     # = python -m PyInstaller EvoTail.spec --noconfirm (+ PyInstaller 없으면 requirements-build.txt 설치)
+                                  # 결과: dist/EvoTail/EvoTail.exe + _internal/, 제출용 dist/EvoTail.zip
+python tools/make_icon.py         # 아이콘 다시 만들기 (assets/icon/evotail.ico 16·32·48·256 + evotail.png 32)
+```
+- 설정은 `EvoTail.spec`에만 (명령줄에 늘어놓지 않음). 빌드 도구는 `requirements-build.txt`(pyinstaller==6.22.3 고정), `requirements.txt`는 게임용 그대로
+- onedir(폴더형): onefile은 시작이 느리고 백신 오탐이 잦아서 안 씀. 창만(콘솔 없음). 제출은 dist/EvoTail 폴더 zip
+- 묶는 것: 코드(gui/, roc/), `assets/`(글꼴 라이선스 `assets/fonts/Galmuri_LICENSE.txt` 포함), `data/`. 안 묶는 것: tests/, tools/, docs/, saves/, demo_*.py, examples_bridge.py
+- 그림·글꼴·데이터 경로는 `gui/theme.py` `ROOT`, roc는 `__file__` 기준 → exe에서는 `_internal/` 안. **지금 폴더(cwd)에 기대는 상대 경로를 새로 만들지 말 것** (그림은 `os.path.join(T.ROOT, ...)`, 백엔드가 주는 'assets/...' 경로도 ROOT 기준으로 연다)
+- 아이콘: 불씨여우 1단계 도트(16×15)를 정수배 NEAREST로만(16 = ×1, 32 = ×2, 48 = ×3, 256 = ×16). exe 아이콘과 pygame 창 아이콘(`app.set_window_icon`)이 같은 그림
+- **세이브 위치** (`gui/paths.py`): 소스 실행 = 저장소 `saves/game.db`, exe = EvoTail.exe 옆 `saves/game.db`, 그 폴더에 쓸 수 없으면 `%LOCALAPPDATA%\EvoTail\saves\game.db`. 폴더가 없으면 만든다. `run_gui.main()`이 `GameService`에 넘김
+- **error.log** (`gui/crash.py`): 잡히지 않은 오류(스레드 포함)는 세이브 폴더의 `error.log`에 시각 + traceback. 게임 창이 떠 있으면 "오류 발생 · saves/error.log 확인" 창(아무 키나 누르면 닫힘), 창이 뜨기 전이면 Windows 알림 상자(exe만). exe는 PyInstaller 기본 오류 창 없이 끝남, 소스 실행은 콘솔 traceback도 그대로
+- 입구는 `run_gui.run()` (콘솔이 한글을 못 찍어도 안 멈추게 출력 errors='replace')
+
 ## 코드 구조
 ```
 roc/                 백엔드 (게임 규칙 전부). 표준 라이브러리만 사용
@@ -306,12 +321,13 @@ CHARACTERS.md        캐릭터 목록 · GUI.md 화면 구조 설명
 - 완료 (PR #15 merge됨): 밭(텃밭 6칸·씨앗 심기·수확·모두 수확·밭 넓히기), 작물별 씨앗 봉투, 작물·재료 그림, 화면 문구 게임 말투
 - 완료 (PR #16 merge됨): 사냥터(4곳·보내기·불러오기·보상 받기, 무대·진행 길), 고기 재료 아이콘
 - 완료 (PR #17 merge됨): 가방(배낭 5×4 칸·탭 6개·쪽지에서 주기·치료·장착·부화·팔기), 전투 응급 붕대 그림(붕대 롤)
-- 진행 중 (브랜치 `pokedex`): 도감 D안(펼친 책·일반/특급 태그·현황 쪽·가진 동물·없는 동물)
+- 완료 (PR #18 merge됨): 도감 D안(펼친 책·일반/특급 태그·현황 쪽·가진 동물·없는 동물)
+- 진행 중 (브랜치 `build-exe`): 실행 파일(PyInstaller onedir, 아이콘, exe 옆 세이브, error.log)
 
 ## 다음 할 일 (순서대로)
 1. **메인 화면을 목업대로**: `map_scene.py`의 텍스트 카드를 지도 이미지 + 간판 + 오른쪽 메뉴로 교체. 마당 동물은 `map.json`의 `yard` 안에서 움직이게. 지금의 "집" 화면(AnimalsScene)은 메뉴 "내 동물"로 연결
 2. **설정 창** (시간 속도, 시연 모드, 저장·불러오기, 게임 종료)
 3. **전투장**: 스테이지 선택(적 미리보기 `preview_stage`), 팀 3마리 + 전투 전 포션 선택, 전투 화면(체력바, 행동 버튼은 `get_battle_actions`로), 결과 화면
-4. ~~상점(구매·판매·알 부화)~~, ~~병원(치료)~~ (완료, PR #14), ~~밭~~ (완료, PR #15), ~~사냥터~~ (완료, PR #16), ~~가방~~ (완료, PR #17), ~~도감~~ (완료, 브랜치 `pokedex`). (집 주방 + 타이밍 미니게임 = 완료, PR #13)
+4. ~~상점(구매·판매·알 부화)~~, ~~병원(치료)~~ (완료, PR #14), ~~밭~~ (완료, PR #15), ~~사냥터~~ (완료, PR #16), ~~가방~~ (완료, PR #17), ~~도감~~ (완료, PR #18). (집 주방 + 타이밍 미니게임 = 완료, PR #13)
 5. 마이룸(여유 있으면)
-6. 실행 파일(PyInstaller), 보고서, **시연 영상(F12 시연 모드)**
+6. ~~실행 파일(PyInstaller)~~ (완료, 브랜치 `build-exe`), 보고서, **시연 영상(F12 시연 모드)**
