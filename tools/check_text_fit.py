@@ -252,6 +252,35 @@ def scripted_run(self):
             s['hunts'] = {}
             return True
         g._mutate(rested); self.refresh()
+        # 가방: 모든 칸(먹이·장난감·요리·회복 포션·장비·알·전투 포션·붕대·재료·작물·고기·씨앗) × 탭 6개, 빈 가방
+        def bag_fixture(s):    # test fixture only (temp save)
+            s['inventory'].update(snack=3, food_perfect_rabbit_stew=1, food_butter_potato=12, burned_food=2,
+                                  heal_basic=2, heal_advanced=1, potion_attack=1, battle_bandage=2, equip_claw=1,
+                                  egg_special=1, egg_basic=1, potato=4, tomato=8, pork=4, lucky_rabbit=1, milk=2,
+                                  seed_cabbage=3, cabbage=1)
+            s['toy_instances'] = [{'id': 'toy_ball', 'charges': 5}, {'id': 'toy_doll', 'charges': 3}]
+            s['animals']['dealer_normal_01']['sick'] = True
+            return True
+        g._mutate(bag_fixture); self.refresh()
+        self.go('bag'); frames(2)
+        bg = self.scene
+        for cid, *_ in __import__('gui.scenes.bag', fromlist=['CATS']).CATS:
+            bg.cat = cid; bg.scroll = 0; bg._fix(); frames(1)
+            for k in range(0, len(bg.slots()), 20):
+                bg.scroll = k // 5; frames(1)
+                for row in bg.visible_slots():
+                    bg.selected = row[0]; bg._fix_target(); frames(1)
+                    for a in bg.list_animals()[:6]:
+                        bg.target = a['id']; frames(1)
+        bg.cat = 'all'; bg.scroll = 0; bg._fix(); frames(1)
+        shot('real_bag.png')
+        def empty_bag(s):
+            s['inventory'] = {}
+            s['toy_instances'] = []
+            return True
+        g._mutate(empty_bag); self.refresh(); bg._fix(); frames(2)
+        g._mutate(lambda s: s['inventory'].update(battle_bandage=12, potion_attack=1, potion_hp=1) or True)   # 전투장 점검용
+        self.refresh()
         # 전투장: 스테이지 고르기(모든 단계) → 출전 준비 → 전투(대상 고르기·기록 펼침) → 결과
         self.go('battle'); frames(2)
         sp = self.scene
