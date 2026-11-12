@@ -522,9 +522,9 @@ class BagScene(Scene):
         record(msg, g, pygame.Rect(NX - 4, g.y - 2, NR - NX + 6, g.h + 4), 'bag-note')
         return g
 
-    def _effects(self, surface, item, spec, y, only_first=False):
-        """효과 줄 (items.effect_lines, 숫자는 상점 목록). 마지막 줄 아래 y를 돌려준다."""
-        lines = I.effect_lines(item, spec, self.catalog)
+    def _effects(self, surface, item, spec, y, only_first=False, skip=()):
+        """효과 줄 (items.effect_lines, 숫자는 상점 목록). skip = 뺄 글씨. 마지막 줄 아래 y를 돌려준다."""
+        lines = [ln for ln in I.effect_lines(item, spec, self.catalog) if ln[1] not in skip]
         if only_first:
             lines = lines[:1]
         for ic, msg, color in lines:
@@ -534,8 +534,11 @@ class BagScene(Scene):
             y += 15
         return y
 
-    def _animal_list(self, surface, y, title, value_of):
+    _busy_text = None        # 흐린 동물 오른쪽 글씨 (None이면 busy_reason: 사냥 중·훈련 중·전투 중)
+
+    def _animal_list(self, surface, y, title, value_of, busy_text=None):
         """동물 목록 (쪽지). value_of(a) → (게이지 값, 게이지 색, 오른쪽 글씨, 글씨 색, 미리보기 값 또는 None)."""
+        self._busy_text = busy_text
         self._line(surface, title, (NX, y + 6), 'title', T.TEXT)
         top = y + 16
         self.list_rect = pygame.Rect(416, top, 204, max(ROW_STEP, 282 - top))
@@ -555,7 +558,7 @@ class BagScene(Scene):
         surface.blit(face, (r.x + 2, r.y + 3))
         val, color, right_text, right_color, after = value_of(a)
         if reason:
-            right_text, right_color = reason, T.TEXT_SOFT
+            right_text, right_color = self._busy_text or reason, T.TEXT_SOFT
         rw = fit_width(right_text, 'small') if right_text else 0
         text_in(surface, a['name'], (r.x + 30, r.y + 2, r.w - 34 - rw, 15), 'body', T.TEXT_SOFT if reason else T.TEXT,
                 align='left', tag='bag')
@@ -595,7 +598,7 @@ class BagScene(Scene):
         self._animal_list(surface, y + 4, '누구에게 줄까?', value_of)
 
     def _draw_cure(self, surface, item, spec, y):
-        y = self._effects(surface, item, spec, y)
+        y = self._effects(surface, item, spec, y, skip=('병원에서 사용',))   # 가방에서 바로 치료하니 뺌
         if not self.list_animals():
             self._line(surface, '아픈 동물 없음', (518, y + 30), 'big', T.TEXT_SOFT, 'center')
             return
@@ -612,7 +615,8 @@ class BagScene(Scene):
             eq = a.get('equip')
             txt = self.label(eq) if eq else '장비 없음'
             return None, 'gray', txt, T.TEXT_SOFT, None
-        self._animal_list(surface, y + 4, '누구에게 장착할까?', value_of)
+        # 백엔드 equip은 활동 중(사냥·훈련)·전투 중이면 거절 → 같은 조건으로 흐리게, 글씨는 백엔드 거절 이유 그대로
+        self._animal_list(surface, y + 4, '누구에게 장착할까?', value_of, busy_text='활동 중 장비 교체 불가')
 
     def _draw_egg(self, surface, item, y):
         rate = I.EGG_SPECIAL_RATE.get(item, 0)
@@ -625,12 +629,15 @@ class BagScene(Scene):
 
     def _draw_battle(self, surface, item, spec, y):
         y = self._effects(surface, item, spec, y, only_first=True)
+        once = '전투 중 팀 행동 1번 사용' if spec.get('kind') == 'battle_item' else '전투 1번만 효과'
+        self._line(surface, once, (NX, y + 6), 'small', T.TEXT_SOFT)
+        y += 13
         self._line(surface, '쓰는 곳', (NX, y + 10), 'small', T.TEXT_SOFT)
         box = pygame.Rect(416, y + 18, 204, 36)
         card(surface, box)
         icon(surface, 'sword', (box.x + 6, box.y + 6))
         if spec.get('kind') == 'battle_item':
-            where, sub, foot = '전투 중 아이템 버튼', '팀 행동 1번 사용', '전투 중이 아니면 못 씀'
+            where, sub, foot = '전투 중 아이템 버튼', '아군 1마리 체력 회복', '전투 중이 아니면 못 씀'
         else:
             where, sub, foot = '전투장 · 출전 준비', '팀원에게 미리 먹이기', '출전 준비에서만 씀'
         text_in(surface, where, (box.x + 24, box.y + 2, box.w - 28, 16), 'body', align='left', tag='bag')
