@@ -114,7 +114,7 @@ def star_icon():
 
 
 class PokedexScene(Scene):
-    music = None          # 배경음: 지금 곡 그대로 (지도 곡 이어서)
+    music = 'map'         # 배경음: 지도 곡 (낮·밤). 지도에서 오면 같은 곡이라 이어짐
     def __init__(self, app):
         super().__init__(app)
         self.rarity = 'normal'

@@ -317,8 +317,8 @@ CHARACTERS.md        캐릭터 목록 · GUI.md 화면 구조 설명
 - 곡 이름표는 `gui/audio.py` `TRACKS`·`JINGLES` 한 곳. 장면 곡은 `Scene.music` 하나로 정함 → `App.go`가 `audio.want()`로 알리고, 매 프레임 `App.music_track()`으로 다시 확인(지도에서 낮↔밤)
 | 화면 | 곡 (`music`) |
 | --- | --- |
-| 지도 | `'map'` = 낮 `map_day` / 밤 `map_night` (`clock.night`, 지도에 있는 동안 바뀌면 페이드) |
-| 내 동물·도감·가방·마이룸, 지도 위 설정 창 | `None` = 지금 곡 그대로 이어서 |
+| 지도·내 동물·도감·가방·마이룸 | `'map'` = 지도 곡: 낮 `map_day` / 밤 `map_night` (`clock.night`, 있는 동안 바뀌면 페이드). 지도에서 들어오면 같은 곡이라 끊기지 않고 이어지고, 사냥터 등에서 바로 들어오면 지도 곡으로 페이드 |
+| 설정 창 (지도 위 창) | 곡을 안 바꿈 (화면이 아니라 창이라 지도 곡 그대로) |
 | 집·주방 | `home` |
 | 상점·부화 | `shop` |
 | 병원 | `hospital` |
@@ -330,6 +330,7 @@ CHARACTERS.md        캐릭터 목록 · GUI.md 화면 구조 설명
 - 효과음악 = `pygame.mixer.Sound` 한 번: 전투 결과 승리 `jingle_win`, 패배·도망 `jingle_lose`(결과 화면 enter), 부화 성공 `jingle_hatch`(결과 창이 뜰 때, 건너뛰기 포함 한 번). 나오는 동안 배경음 30%로 줄였다가 끝나면 원래대로
 - 오디오 장치가 없거나(mixer 안 켜짐) 파일이 없거나 못 읽으면 조용히 무음, 게임은 그대로
 - **소리 설정**: 설정 창 배경음 끔 0 / 작게 0.3 / 보통 0.6 / 크게 1.0 (`audio.LEVELS`), 효과음악 켬/끔. 기본 보통·켬. 저장은 세이브와 같은 폴더의 `settings.json`(소스 실행 = 저장소 `saves/settings.json`, exe = exe 옆 `saves/settings.json`, 게임 세이브 DB·roc와 별개). 처음 바꿀 때 파일이 생김
+- `Scene.music` 기본값 `None` = 지금 곡 그대로 (지금은 쓰는 화면 없음)
 - 실행 파일: `EvoTail.spec`의 `assets` 통째로 묶기에 `assets/bgm`도 들어감 (SDL2_mixer가 ogg 재생, exe에서 확인함)
 
 ## 진행 상황
