@@ -14,6 +14,7 @@ from gui.scenes.shop import ShopScene
 from gui.scenes.hospital import HospitalScene
 from gui.scenes.farm import FarmScene
 from gui.scenes.hunting import HuntScene
+from gui.scenes.bag import BagScene
 
 
 def main(save_path='saves/game.db'):
@@ -26,7 +27,8 @@ def main(save_path='saves/game.db'):
     app.register('hospital', HospitalScene(app)) # 병원: 아픈 동물·회복 포션
     app.register('farm', FarmScene(app))         # 밭: 텃밭 6칸·씨앗 심기·수확·밭 넓히기
     app.register('hunting', HuntScene(app))      # 사냥터: 4곳·보내기·불러오기·보상 받기
-    for name, title in (('pokedex', '도감'), ('bag', '가방'), ('my_room', '마이룸')):
+    app.register('bag', BagScene(app))            # 가방: 배낭 5×4 칸·탭 6개·쪽지
+    for name, title in (('pokedex', '도감'), ('my_room', '마이룸')):
         app.register(name, PlaceholderScene(app, title))
     # 전투장: 스테이지 고르기 → 출전 준비 → 전투 → 결과
     app.register('battle', StagePickScene(app))

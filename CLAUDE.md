@@ -43,7 +43,7 @@ assets/              1단계 이미지 30장, assets/sprites/<ID>_s<단계>.png 
   map/               섬 마을 지도 낮·밤 + 클릭 영역 map.json
   ui/                메뉴 아이콘. ui/kit/ = 도트 UI 키트 조각·아이콘 (docs/UI_KIT.md)
   fonts/             갈무리 글꼴 (OFL)
-docs/mockups/        확정된 화면 목업 (메인 낮·밤, 설정 창, 내 동물 animals_v2, battle/ 전투장, home/ 주방, shop/ 상점·부화, hospital/ 병원, farm/ 밭, hunt/ 사냥터)
+docs/mockups/        확정된 화면 목업 (메인 낮·밤, 설정 창, 내 동물 animals_v2, battle/ 전투장, home/ 주방, shop/ 상점·부화, hospital/ 병원, farm/ 밭, hunt/ 사냥터, bag/ 가방)
 docs/UI_KIT.md       도트 UI 키트 규칙 (모든 화면이 따름). 조각 다시 만들기: tools/uikit.py
 gui/                 Pygame 화면 (아래 GUI 규칙)
 CHARACTERS.md        캐릭터 목록 · GUI.md 화면 구조 설명
@@ -186,7 +186,7 @@ CHARACTERS.md        캐릭터 목록 · GUI.md 화면 구조 설명
   - 전투 기록: 작은 칸, 마우스를 올리면 위로 펼침(라운드·"적" 칩). 도망가기 = `forfeit_battle`(확인 창)
   - 회복 미리보기 = `get_battle_actions`의 행동마다 `amount`(PR #12, 그 대상에게 실제로 회복될 양). `HEAL_PREVIEW` 표는 amount가 없을 때만 + 회복 버튼 글씨(최대 회복량)
   - 한 마리가 행동하면 **아직 행동 안 한 아군을 자동으로 고른다** (없으면 고른 동물 그대로)
-  - **전투 아이템**: 명령창 "아이템 N" 버튼(가방에 전투 아이템이 있을 때만 켜짐) → 버튼 위 목록(이름 ×개수 · 회복량 · 팀 행동 1번 사용) → 고르면 아군 대상 고르기(초록 꺾쇠, 회복 뒤 체력 미리보기). `get_battle_actions(actor='battle_bandage')`의 `battle_item` 행동만 씀 → `battle_action(actor='battle_bandage', kind='battle_item', target)`
+  - **전투 아이템**: 명령창 "아이템 N" 버튼(가방에 전투 아이템이 있을 때만 켜짐) → 버튼 위 목록(아이템 그림 ×1 + 이름 ×개수 · 회복량 · 팀 행동 1번 사용) → 고르면 아군 대상 고르기(초록 꺾쇠, 회복 뒤 체력 미리보기). `get_battle_actions(actor='battle_bandage')`의 `battle_item` 행동만 씀 → `battle_action(actor='battle_bandage', kind='battle_item', target)`
     - 백엔드 동작: 붕대는 팀 행동 1번(한 턴 2번 중)을 쓰지만 동물 한 마리의 "행동 완료"로 치지 않음. 회복량 = min(80, 모자란 체력), 기록 이벤트 `battle_item`의 `amount`
     - 미리보기 회복량은 `battle_item` 행동의 `amount` (없을 때만 상점 목록 `heal`)
 - **결과** (`BattleResultScene`): 승/패, 보상 코인(`battle_result.reward`), 첫 대회 우승/처음 깸(`first_clear`) + "다음 단계 열림"(get_stages의 다음 order), 팀 피로도 전→후(출전 직전 스냅샷과 지금 스냅샷, 둘 다 백엔드 값), 아픔 표시
@@ -229,7 +229,7 @@ CHARACTERS.md        캐릭터 목록 · GUI.md 화면 구조 설명
 - 아래 쟁반: "치료할 포션 선택", 기본/고급 회복 포션 카드("치료 50% · 피로도 -10" = 상점 목록 chance·fatigue, 보유 N, 0이면 빨강), "치료하기"(아래 "○○ 1개 사용"), "포션 사러 가기 ▶ 상점"(상점 회복·포션 탭)
 - 치료 = `use_item(item, key)` → `CureResult`(Overlay): success면 빛줄기·"○○ 회복!"·피로도 전→후(전 = 호출 직전 스냅샷, 후 = 응답 fatigue)·다음 환자/닫기, 아니면 회색·"○○ 아직 아픔"·"포션 1개 소모"·다시 치료/닫기
 
-**아이템 그림** (`assets/items/`, `gui/items.py` `ItemIcons`): 원본 16×16, 파일 4배(64). 화면에선 ×1~×3 정수배만. 씨앗은 작물별 봉투 `seed_<작물>.png`, 없을 때만 `seed.png`. 그림이 없으면 `assets/food` 그림, 그것도 없으면 키트 아이콘. 다시 만들기: `tools/shop_icons.py`, 목업 `tools/shop_mock.py`·`shop_mock2.py`, 병원 배경 `tools/hosp_room.py`
+**아이템 그림** (`assets/items/`, `gui/items.py` `ItemIcons`): 원본 16×16, 파일 4배(64). 화면에선 ×1~×3 정수배만. 씨앗은 작물별 봉투 `seed_<작물>.png`, 없을 때만 `seed.png`. 그림이 없으면 `assets/food` 그림, 그것도 없으면 키트 아이콘. 다시 만들기: `tools/shop_icons.py`, 목업 `tools/shop_mock.py`·`shop_mock2.py`, 병원 배경 `tools/hosp_room.py`. **전투 응급 붕대**(`battle_bandage.png`, 붕대 롤)는 `tools/bandage_icon.py` (`tools/shop_icons.py`의 `battle_bandage()`는 옛 그림, 비교 `docs/mockups/bag/bandage_compare.png`)
 
 ## 밭 (목업 `docs/mockups/farm/`, `gui/scenes/farm.py` `FarmScene`, A안)
 지도 "밭" 건물 → 밭. 배경 `assets/farm/farm.png`(1280×720, ½로 그대로, 위 26px 투명)
@@ -263,6 +263,22 @@ CHARACTERS.md        캐릭터 목록 · GUI.md 화면 구조 설명
 - **GUI 표시값** (`hunting.HUNT_DISPLAY`): "다녀오면" 상태 변화(30분: 포만감 -10·기분 -5·피로도 +20 / 60분: -20·-10·+35)와 질병 확률 30%. 백엔드 `service._finish_animal_job`·`config.DISEASE_CHANCE` 안에만 있고 API에 없어서 GUI에 둠 (get_rules에도 없음). 백엔드 값을 바꾸면 같이 바꿀 것 (기영님께 `get_rules`에 넣어 달라고 요청 가능)
 - 다시 만들기: `tools/hunt_zone2.py`(구역 풍경 v2), `tools/hunt_art.py`(사냥감 도트), `tools/meat_icons.py`(고기 재료 아이콘), `tools/hunt_mock.py`(목업)
 
+## 가방 (목업 `docs/mockups/bag/` D안, `gui/scenes/bag.py` `BagScene`)
+지도 오른쪽 메뉴 "가방" → 가방. 배경 `app.backdrop` + ◀ 지도 + 리본 "가방"
+- **배낭**(왼쪽, 코드 도트, tools/bag_mock2.py `bag_D()`와 같게): 손잡이, 윗덮개 + 금 버클 끈 2줄, 바느질 점선, 안감. 안쪽 칸 5×4(20칸): 아이템 그림 ×2, 오른쪽 아래 개수(흰 글씨 + 테두리, 1개면 안 씀), 장난감은 한 개씩 칸 하나 + 남은 횟수 "3회", 대성공 요리는 별 배지. 칸 바탕색은 종류별(`bag.CATS`: 먹이 노랑 / 요리 분홍 / 포션 파랑 / 장비·알 보라 / 재료 연두), 빈 칸은 어두운 가죽. 20개 넘으면 휠. 고른 칸 노란 꺾쇠
+- **천 탭 6개**(배낭 오른쪽 옆구리): 전체(메뉴 가방 아이콘을 16px로) / 먹이 / 요리 / 포션 / 장비·알 / 재료. 탭 색 = 그 종류 칸 색, 고른 탭은 8px 더 튀어나옴, 폭은 글씨에 맞춤. 분류는 상점 목록 kind로 (`bag.CATS`: snack·toy / food / cure·prebattle·battle_item / equip·egg / ingredient·crop·seed)
+- **쪽지**(오른쪽, 핀 꽂은 줄 노트, `note_paper()`와 같게): 고른 아이템 그림 ×3(종류 색 칸), 이름(big, 길면 두 줄 `wrap2`), 종류 칩(대성공 요리는 금색 "대성공 1.5배" 칩 더), "보유 N"(장난감은 "남은 N회"), 아래는 종류별:
+  - 먹이·장난감·요리: 효과 줄(`items.effect_lines`) + "누구에게 줄까?" 동물 목록(얼굴, 이름, 포만감 게이지(장난감은 기분), 고른 동물은 먹은 뒤 미리보기 "10→45", 활동 중이면 흐리게 + 이유, 넘치면 휠) + "○○에게 주기" = `use_item(item, key)`. 탄 요리는 "절반 확률로 거절", `refused`면 알림
+  - 회복 포션: 효과(가방에서 바로 치료하니 "병원에서 사용" 줄은 뺌) + 아픈 동물만 목록 → "○○ 치료하기" = `use_item` → 병원 `CureResult` 창 재사용(`_CureHost`로 연결). 없으면 "아픈 동물 없음"
+  - 장비: 효과 + 동물 목록(지금 장착한 장비 이름 / "장비 없음") → 보라 "○○에게 장착" = `equip(key, item)`. 백엔드 equip은 활동 중(사냥·훈련)·전투 중이면 거절하므로 그런 동물은 흐리게 + 백엔드 거절 이유 그대로 "활동 중 장비 교체 불가"
+  - 알: 특급 등장 확률(`items.EGG_SPECIAL_RATE`) + "지금 부화" → 상점 `HatchOverlay` 재사용
+  - 전투 포션·붕대: 효과 + 회색 "전투 1번만 효과"(붕대는 "전투 중 팀 행동 1번 사용") + "쓰는 곳: 전투장 · 출전 준비"(붕대는 "전투 중 아이템 버튼") + 파랑 "전투장으로"
+  - 재료·작물·고기·씨앗: "쓰는 곳"(`get_recipes`에서 이 재료를 쓰는 레시피 카드, 여러 개면 위 2개 + "외 N개", 씨앗은 "밭에 심기 · 다 자라면 감자 ×3"), "얻는 곳"(작물 = 밭 / 사냥 보상 = "사냥터 · 달토끼 언덕" / 살 수 있으면 상점, 주방과 같은 규칙), "판매가 N코인", 주황 "주방으로" / 씨앗은 초록 "밭으로"
+  - 공통: 팔 수 있으면 빨강 "상점에 팔기 · N코인" = `sell_item(item, 1)` (장난감은 안 쓴 것만, 백엔드 이유는 알림). 버리기는 백엔드에 없어서 없음
+- 가방이 비었으면 배낭 안 가운데 "가방이 비었다" + 쪽지에 "상점에서 사기"
+- 쪽지 글씨 줄은 check_text_fit 넘침 점검에 기록(tag `bag-note`)
+- 다시 만들기(목업): `tools/bag_mock2.py`(D안 배낭·쪽지), `tools/bag_mock.py`(가방 아이콘·아이템 목록)
+
 ## 진행 상황
 - 완료: 백엔드 1차(기영), 캐릭터 30종 데이터, 역할별 MAX, 도트 75장 (PR #1 merge됨)
 - 완료 (PR #2 merge됨): 진화 단계별 이름·이미지를 백엔드가 반환, GUI 뼈대, 텍스트 카드 지도(임시), 집 화면(상태·능력치·간식·훈련·진화), 시간 속도 F5/F12
@@ -276,12 +292,13 @@ CHARACTERS.md        캐릭터 목록 · GUI.md 화면 구조 설명
 - 완료 (PR #13 merge됨): 집·주방 (레시피 북·재료 부족·요리 미니게임·결과·음식 주기), 전투 다음 동물 자동 선택
 - 완료 (PR #14 merge됨): 상점(탭 6개·구매·판매)·알 부화 연출·병원·내 동물 장비 장착, 키트 금색(gold)
 - 완료 (PR #15 merge됨): 밭(텃밭 6칸·씨앗 심기·수확·모두 수확·밭 넓히기), 작물별 씨앗 봉투, 작물·재료 그림, 화면 문구 게임 말투
-- 진행 중 (브랜치 `hunting`): 사냥터(4곳·보내기·불러오기·보상 받기), 고기 재료 아이콘
+- 완료 (PR #16 merge됨): 사냥터(4곳·보내기·불러오기·보상 받기, 무대·진행 길), 고기 재료 아이콘
+- 진행 중 (브랜치 `bag`): 가방(배낭 5×4 칸·탭 6개·쪽지에서 주기·치료·장착·부화·팔기)
 
 ## 다음 할 일 (순서대로)
 1. **메인 화면을 목업대로**: `map_scene.py`의 텍스트 카드를 지도 이미지 + 간판 + 오른쪽 메뉴로 교체. 마당 동물은 `map.json`의 `yard` 안에서 움직이게. 지금의 "집" 화면(AnimalsScene)은 메뉴 "내 동물"로 연결
 2. **설정 창** (시간 속도, 시연 모드, 저장·불러오기, 게임 종료)
 3. **전투장**: 스테이지 선택(적 미리보기 `preview_stage`), 팀 3마리 + 전투 전 포션 선택, 전투 화면(체력바, 행동 버튼은 `get_battle_actions`로), 결과 화면
-4. ~~상점(구매·판매·알 부화)~~, ~~병원(치료)~~ (완료, PR #14), ~~밭~~ (완료, PR #15), ~~사냥터~~ (완료, 브랜치 `hunting`), 도감(없는 동물은 실루엣), 가방. (집 주방 + 타이밍 미니게임 = 완료, PR #13)
+4. ~~상점(구매·판매·알 부화)~~, ~~병원(치료)~~ (완료, PR #14), ~~밭~~ (완료, PR #15), ~~사냥터~~ (완료, PR #16), ~~가방~~ (완료, 브랜치 `bag`), 도감(없는 동물은 실루엣). (집 주방 + 타이밍 미니게임 = 완료, PR #13)
 5. 마이룸(여유 있으면)
 6. 실행 파일(PyInstaller), 보고서, **시연 영상(F12 시연 모드)**
