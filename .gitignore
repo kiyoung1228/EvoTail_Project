@@ -10,3 +10,7 @@ saves/
 .DS_Store
 .vscode/
 .env
+
+# 실행 파일 빌드 결과 (build_exe.bat). 커밋하지 않음
+build/
+dist/

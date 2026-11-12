@@ -21,6 +21,7 @@ from . import theme as T
 from .widgets import (text, text_width, text_in, glyph_box, fit_width, record, card, card_inner, chip, icon,
                       moon_icon, SpriteCache)
 from .display import setup_window_scale
+from . import crash
 
 EVENT_TEXT = {
     'training_complete': lambda e, n: f"{n(e.get('animal'))} 훈련 완료! {T.STAT_LABEL.get(e.get('stat'), '')} +{e.get('gain', '')}",
@@ -91,11 +92,22 @@ TOAST_SECONDS = 3.5
 DIM = (24, 16, 24, 120)        # 창이 열렸을 때 뒤 화면을 어둡게
 
 
+def set_window_icon():
+    """창 아이콘 = 불씨여우 1단계 도트 (tools/make_icon.py). 없으면 기본 아이콘."""
+    path = os.path.join(T.ROOT, 'assets', 'icon', 'evotail.png')
+    if os.path.exists(path):
+        try:
+            pygame.display.set_icon(pygame.image.load(path))
+        except pygame.error:
+            pass
+
+
 class App:
     def __init__(self, save_path='saves/game.db'):
         setup_window_scale()              # DPI 인식 + 창 배율(정수배). pygame 창을 만들기 전에
         pygame.init()
         pygame.display.set_caption('EvoTail')
+        set_window_icon()                 # exe 아이콘과 같은 그림 (assets/icon/evotail.png)
         self.window = pygame.display.set_mode(T.WINDOW)
         self.screen = pygame.Surface((T.WIDTH, T.HEIGHT))     # 논리 화면
         self.clock = pygame.time.Clock()
@@ -366,6 +378,10 @@ class App:
         try:
             while self.running:
                 self.step(self.clock.tick(T.FPS) / 1000)
+        except Exception as exc:          # 콘솔이 없는 exe를 위해: error.log + 화면 알림 (소스 실행은 그대로 traceback도)
+            crash.log(exc)
+            exc._evotail_shown = crash.notice(self)
+            raise
         finally:
             self.worker.stop()
             self.call('save_game')
