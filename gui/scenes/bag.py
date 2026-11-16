@@ -48,7 +48,7 @@ KIND_CHIP = {   # 종류 칩 (글씨, 색)
     'prebattle': ('전투 포션', 'blue'), 'battle_item': ('전투 아이템', 'blue'), 'equip': ('장비', 'purple'),
     'egg': ('알', 'gold'), 'ingredient': ('재료', 'brown'), 'crop': ('작물', 'brown'), 'seed': ('씨앗', 'green'),
 }
-ACTIVITY_LABEL = {'training': '훈련 중', 'hunt': '사냥 중', 'hunting': '사냥 중'}
+ACTIVITY_LABEL = {'training': '훈련 중', 'hunt': '사냥 중'}     # 백엔드 activity kind
 ROW_H, ROW_STEP = 30, 34
 
 
@@ -192,7 +192,8 @@ class BagScene(Scene):
 
     @staticmethod
     def tab_rect(i, label, on):
-        w = max(30, fit_width(label, 'small') + 6) + (8 if on else 0)
+        """천 탭: 전부 가장 넓은 탭("장비·알") 폭으로 똑같이, 고른 탭만 8px 더 튀어나옴."""
+        w = max(30, max(fit_width(c[1], 'small') for c in CATS) + 6) + (8 if on else 0)
         return pygame.Rect(TAB_X, TAB_Y + i * TAB_STEP, w, TAB_H)
 
     def row_rect(self, i):

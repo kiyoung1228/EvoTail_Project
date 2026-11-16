@@ -51,7 +51,7 @@ RESULT = {   # outcome → 리본 글씨, 리본 색, 큰 글씨, 아래 설명
     'rescued': ('아슬아슬 성공!', 'brown', 'MISS', '아슬아슬 성공! (경험치 없음)'),
     'burnt': ('탄 요리...', 'red', 'MISS', '재료가 타 버림 (경험치 없음)'),
 }
-ACTIVITY_LABEL = {'training': '훈련 중', 'hunting': '사냥 중'}
+ACTIVITY_LABEL = {'training': '훈련 중', 'hunt': '사냥 중'}     # 백엔드 activity kind
 
 
 def effect_parts(effects):

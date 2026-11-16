@@ -177,7 +177,7 @@ class AnimalsScene(Scene):
             return 'heart', True, '아픔 · 병원에서 치료 필요'
         if act.get('kind') == 'training':
             return 'sword', False, f"훈련 중 · 남은 시간 {left}"
-        if act.get('kind') == 'hunting':
+        if act.get('kind') == 'hunt':                 # 백엔드 activity kind (start_hunting)
             return 'wing', False, f"사냥 나감 · 남은 시간 {left}"
         if T.level(a, 'fullness') == '나쁨':
             return 'meat', False, f"배고픔 · 포만감 {a['fullness']}"
