@@ -170,11 +170,27 @@ class GameService:
                 'play_accum':0,'last_auto':now,'auto_action':'idle',
                 'auto_reason':'모든 상태가 양호함', 'auto_priorities':{}}
 
-    def _fresh_state(self):
+    def _fresh_state(self,starters=None):
+        """일반 동물 3마리로 새 상태를 만들며 생략하면 역할별 기본 동물을 선택한다."""
+        if starters is None:
+            starters=[next(key for key,c in self.characters.items()
+                           if c['rarity']=='normal' and c['role']==role) for role in C.ROLES]
+        elif not isinstance(starters,(list,tuple)):
+            raise GameRuleError('시작 동물은 목록으로 선택')
+        selected=list(starters)
+        if len(selected)!=3:
+            raise GameRuleError('시작 동물은 정확히 3마리')
+        if any(not isinstance(key,str) for key in selected):
+            raise GameRuleError('시작 동물 ID 오류')
+        if len(set(selected))!=3:
+            raise GameRuleError('시작 동물은 서로 다르게 선택')
+        if any(key not in self.characters for key in selected):
+            raise GameRuleError('존재하지 않는 시작 동물')
+        if any(self.characters[key]['rarity']!='normal' for key in selected):
+            raise GameRuleError('일반 동물만 시작 가능')
+        # 선택 검증을 모두 마친 뒤 성격을 추첨하고 선택 순서대로 동물을 만든다.
         now=float(self._now())
-        starter={role: next(key for key,c in self.characters.items() if c['rarity']=='normal' and c['role']==role)
-                 for role in C.ROLES}
-        owned={key:self._new_animal(key,now) for key in starter.values()}
+        owned={key:self._new_animal(key,now) for key in selected}
         inv={'snack':3}
         return {'schema':2,'event_seq':0,'created':now,'clock':{'virtual':now,'last_real':now,'rate':1.0},
                 'coins':300,'animals':owned,'yard':[], 'last_saved':now,
@@ -245,7 +261,8 @@ class GameService:
         delta=max(0.0,real_now-clock['last_real'])
         target=clock['virtual']+delta*clock['rate']
         clock['virtual']=target
-        clock['last_real']=max(real_now,clock['last_real'])
+        # 실제 시각이 뒤로 바뀌어도 가상 시간은 유지하고 다음 경과 시간의 기준만 맞춘다.
+        clock['last_real']=real_now
         # 활동은 예정된 종료 시각에 먼저 정산해 이후의 휴식 시간도 반영한다.
         for animal in s['animals'].values():
             job=animal['activity']
@@ -475,12 +492,12 @@ class GameService:
             self._emit(s,'hunt_complete',animal=a['id'],area=area)
             self._disease_roll(s,a)
 
-    def reset_game(self,confirm=False):
+    def reset_game(self,confirm=False,starters=None):
         """기존 진행을 지우고 새 게임을 시작하므로 호출자가 명시적으로 확인해야 한다."""
         if confirm is not True:
             raise GameRuleError('새 게임 시작 확인 필요')
         with self._lock:
-            candidate=self._fresh_state()
+            candidate=self._fresh_state(starters)
             try:
                 revision=self.store.reset(candidate,self._revision)
             except SaveConflictError as exc:
@@ -511,6 +528,8 @@ class GameService:
             now=s['clock']['virtual']
             return {'coins':s['coins'],'owned_count':len(s['animals']),
                     'clock':self._clock_view(s,now),
+                    'training_count':self._training_count(s),
+                    'training_max_concurrent':C.TRAINING_MAX_CONCURRENT,
                     'progress':s['progress'],'rank':s['rank'],
                     'yard':list(s['yard']), 'yard_max':C.YARD_MAX_ANIMALS,
                     'last_team':list(s['last_team']), 'last_saved':s['last_saved'],
@@ -558,6 +577,8 @@ class GameService:
                     for key in C.STAGE_ORDER]
             return {'schema':2,'rules_version':C.GAME_RULES_VERSION,
                     'coins':s['coins'],'clock':self._clock_view(s,now),
+                    'training_count':self._training_count(s),
+                    'training_max_concurrent':C.TRAINING_MAX_CONCURRENT,
                     'progress':s['progress'],'rank':s['rank'],
                     'animals':animals,'owned_count':len(animals),
                     'yard':list(s['yard']), 'yard_max':C.YARD_MAX_ANIMALS,
@@ -652,6 +673,7 @@ class GameService:
 
     def get_rules(self):
         return {'training':copy.deepcopy(C.TRAINING),'caps':copy.deepcopy(self.caps),
+                'training_max_concurrent':C.TRAINING_MAX_CONCURRENT,
                 'evolution_cost':dict(C.EVOLUTION_COST),'plot_costs':list(C.PLOT_COSTS),
                 'hunts':copy.deepcopy(C.HUNTS),'stages':copy.deepcopy(C.STAGES),
                 'crops':{'duration_seconds':C.CROP_DURATION, 'yield':C.CROP_YIELD},
@@ -813,10 +835,17 @@ class GameService:
                     **self.display_info(key,a['stage'])}
         return self._mutate(fn)
 
+    def _training_count(self,s):
+        """현재 진행 중인 훈련만 세며 사냥 등 다른 활동은 제외한다."""
+        return sum(1 for animal in s['animals'].values()
+                   if animal['activity'] and animal['activity']['kind']=='training')
+
     def start_training(self,key,stat,difficulty):
         def fn(s):
             a=self._check_ready(s,key)
             if stat not in C.STATS or difficulty not in C.TRAINING:raise GameRuleError('훈련 선택 오류')
+            if self._training_count(s)>=C.TRAINING_MAX_CONCURRENT:
+                raise GameRuleError(f'훈련장 가득 · 최대 {C.TRAINING_MAX_CONCURRENT}마리')
             cap=self.caps[self.characters[key]['role']][a['stage']][stat]
             if a['stats'][stat]>=cap:raise GameRuleError('이미 MAX 능력치')
             duration,gain,cost=C.TRAINING[difficulty]
@@ -828,7 +857,9 @@ class GameService:
             a['activity']={'kind':'training','stat':stat,'difficulty':difficulty,'start':now,
                            'end':now+duration,'gain':gain*(2 if self._is_storm(s,now) else 1), 'cost':cost}
             a['auto_action']='training'
-            return {'animal':key,'end':now+duration,'stat':stat,'expected_gain':a['activity']['gain']}
+            return {'animal':key,'end':now+duration,'stat':stat,'expected_gain':a['activity']['gain'],
+                    'training_count':self._training_count(s),
+                    'training_max_concurrent':C.TRAINING_MAX_CONCURRENT}
         return self._mutate(fn)
 
     def cancel_training(self,key):
@@ -838,7 +869,8 @@ class GameService:
             a['activity']=None
             a['auto_action']='idle'
             a['last_auto']=s['clock']['virtual']-C.AUTONOMOUS_EVERY
-            return {'cancelled':True,'reward':0}
+            return {'cancelled':True,'reward':0,'training_count':self._training_count(s),
+                    'training_max_concurrent':C.TRAINING_MAX_CONCURRENT}
         return self._mutate(fn)
 
     def get_plots(self):
@@ -1112,7 +1144,9 @@ class GameService:
                     job.update(animal=animal['id'],remaining_seconds=max(0,job['end']-now))
                     training.append(job)
             return {'animal_jobs':training, 'plots':copy.deepcopy(s['plots']),
-                    'hunts':copy.deepcopy(s['hunts'])}
+                    'hunts':copy.deepcopy(s['hunts']),
+                    'training_count':self._training_count(s),
+                    'training_max_concurrent':C.TRAINING_MAX_CONCURRENT}
         return self._read(fn)
 
     def get_last_battle_result(self):

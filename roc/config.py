@@ -11,6 +11,7 @@ NATURES = ('glutton', 'sleepy', 'playful', 'balanced', 'picky')
 YARD_MAX_ANIMALS = 5
 EVOLUTION_COST = {2: 800, 3: 3000}
 TRAINING = {'easy': (600, 10, 10), 'medium': (1800, 30, 30), 'hard': (3600, 65, 65)} # 소요 시간(초), 능력치 증가량, 피로도 증가량 / 기분·포만감 감소량
+TRAINING_MAX_CONCURRENT = 3
 # 상태값이 범위를 벗어나거나 100을 넘지 않도록 제한한다. 난이도별 최소 조건은 임시 수치다.
 TRAINING_MIN = {'easy': 10, 'medium': 30, 'hard': 65}
 FATIGUE_TRAINING_HALF_THRESHOLD = 50
