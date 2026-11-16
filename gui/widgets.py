@@ -241,16 +241,23 @@ def chip_width(label):
 TIP_INSET = 4          # 말풍선은 화면(bounds) 가장자리에서 이만큼 안쪽에
 
 
+TIP_LINE = 14             # 여러 줄 말풍선 줄 간격
+
+
 def tooltip(surface, msg, target, side='right', bounds=None, avoid=()):
     """설명 말풍선 (키트 card 조각 + 같은 테두리 색 꼬리). target 옆에 붙인다.
 
     side: 'right' / 'left' / 'above' / 'below'. 화면(bounds) 밖으로 나가거나 avoid(가리면 안 되는 것,
     예: 다른 동물 체력바)와 겹치면 반대쪽으로. 마지막에 bounds 안쪽 TIP_INSET px 안으로 밀어 넣는다.
+    msg: 글씨 한 줄, 또는 [(글씨, 색), ...] 여러 줄 (줄마다 14px, 왼쪽 맞춤. 예: 마이룸 트로피 3줄)
     """
+    lines = list(msg) if isinstance(msg, (list, tuple)) else [(msg, T.TEXT)]
     target = pygame.Rect(target)
     bounds = pygame.Rect(bounds or (0, T.HEADER_H, T.WIDTH, T.HEIGHT - T.HEADER_H)).inflate(-2 * TIP_INSET,
                                                                                          -2 * TIP_INSET)
-    box = pygame.Rect(0, 0, fit_width(msg) + 4 + 4, CARD_LABEL_H)     # 글씨 + 여백 + card 테두리 2px×2
+    pad = 0 if len(lines) == 1 else 4                  # 여러 줄은 왼쪽 맞춤이라 양옆 4px 더 (목업 6px 안쪽)
+    box = pygame.Rect(0, 0, max(fit_width(t) for t, _ in lines) + 4 + 4 + 2 * pad,
+                      CARD_LABEL_H + TIP_LINE * (len(lines) - 1))     # 글씨 + 여백 + card 테두리 2px×2
     avoid = [pygame.Rect(r) for r in avoid]
 
     def place(s):
@@ -286,7 +293,11 @@ def tooltip(surface, msg, target, side='right', bounds=None, avoid=()):
         pts = [(cx - 3, y), (cx + 3, y), (cx, y + d * 4)]
     pygame.draw.polygon(surface, fill, pts)
     pygame.draw.lines(surface, T.INK, False, [pts[0], pts[2], pts[1]])
-    text_in(surface, msg, card_inner(box), 'body', T.TEXT, tag='tooltip')
+    inner = card_inner(box)
+    row_h = inner.h - TIP_LINE * (len(lines) - 1)
+    for i, (t, color) in enumerate(lines):
+        text_in(surface, t, (inner.x + pad, inner.y + i * TIP_LINE, inner.w - 2 * pad, row_h), 'body', color,
+                align='center' if len(lines) == 1 else 'left', tag='tooltip')
     return box
 
 

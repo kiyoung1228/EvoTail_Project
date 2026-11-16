@@ -12,7 +12,6 @@ from gui import paths, crash
 from gui.app import App
 from gui.scenes.map_scene import MapScene
 from gui.scenes.animals_scene import AnimalsScene
-from gui.scenes.placeholder import PlaceholderScene
 from gui.scenes.battle_stage import StagePickScene, TeamPrepScene
 from gui.scenes.battle_fight import BattleScene, BattleResultScene
 from gui.scenes.home_kitchen import KitchenScene
@@ -24,6 +23,7 @@ from gui.scenes.bag import BagScene
 from gui.scenes.pokedex import PokedexScene
 from gui.scenes.title import LoadingScene, TitleScene
 from gui.scenes.new_game import NewGameScene
+from gui.scenes.my_room import MyRoomScene
 
 
 def main(save_path=None):
@@ -45,8 +45,7 @@ def main(save_path=None):
     app.register('hunting', HuntScene(app))      # 사냥터: 4곳·보내기·불러오기·보상 받기
     app.register('bag', BagScene(app))            # 가방: 배낭 5×4 칸·탭 6개·쪽지
     app.register('pokedex', PokedexScene(app))    # 도감(D안): 펼친 책 + 일반·특급 태그
-    for name, title in (('my_room', '마이룸'),):
-        app.register(name, PlaceholderScene(app, title))
+    app.register('my_room', MyRoomScene(app))     # 마이룸: 트로피 진열장·기록 칠판·일기장·방 동물
     # 전투장: 스테이지 고르기 → 출전 준비 → 전투 → 결과
     app.register('battle', StagePickScene(app))
     app.register('battle_prep', TeamPrepScene(app))
