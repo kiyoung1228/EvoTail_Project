@@ -201,11 +201,6 @@ class ShopScene(Scene):
         items = self.products()
         for i, item in enumerate(self.visible()):
             self._draw_cell(surface, self.cell_rect(i), item)
-        rows = math.ceil(len(items) / COLS)
-        if rows > ROWS:
-            more = f"{self.scroll + 1}-{self.scroll + ROWS} / {rows}줄 · 휠"
-            text(surface, more, (GRID_PANEL.right - 10, GRID_PANEL.bottom - 8), 'small', T.TEXT_SOFT,
-                 anchor='bottomright')
         msg = None
         if not items:
             msg = '팔 수 있는 물건 없음' if self.tab == 'sell' else '파는 물건 없음'
