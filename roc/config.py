@@ -1,4 +1,4 @@
-"""Editable game rules. Values marked provisional in docs are centralized here."""
+"""게임 규칙 설정. 문서에서 임시로 정한 수치도 이곳에서 관리한다."""
 from __future__ import annotations
 
 STATS = ('hp', 'attack', 'defense', 'agility')
@@ -6,17 +6,17 @@ ROLES = ('dealer', 'tank', 'healer')
 ROLE_ELEMENTS = {'dealer': 'fire', 'tank': 'water', 'healer': 'wind'}
 NATURES = ('glutton', 'sleepy', 'playful', 'balanced', 'picky')
 
-# Actual per-role, per-stat, per-evolution caps are in data/role_caps.json.
-# GameService.caps is the ONLY source for evolution/training limits.
+# 역할·능력치·진화 단계별 실제 상한은 data/role_caps.json에 있다.
+# 진화와 훈련의 상한은 GameService.caps를 기준으로만 판단한다.
 YARD_MAX_ANIMALS = 5
 EVOLUTION_COST = {2: 800, 3: 3000}
-TRAINING = {'easy': (600, 10, 10), 'medium': (1800, 30, 30), 'hard': (3600, 65, 65)} # sec, stat gain, fatigue+ / mood-fullness-
-# Agreement: avoid taking impossible state values or exceeding 100; easy/medium and hard requirements are provisional.
+TRAINING = {'easy': (600, 10, 10), 'medium': (1800, 30, 30), 'hard': (3600, 65, 65)} # 소요 시간(초), 능력치 증가량, 피로도 증가량 / 기분·포만감 감소량
+# 상태값이 범위를 벗어나거나 100을 넘지 않도록 제한한다. 난이도별 최소 조건은 임시 수치다.
 TRAINING_MIN = {'easy': 10, 'medium': 30, 'hard': 65}
 FATIGUE_TRAINING_HALF_THRESHOLD = 50
 DISEASE_CHANCE = 0.30
 
-# One base farm plot free, five buyable.
+# 밭 한 칸은 기본 제공하고, 나머지 다섯 칸은 구매로 확장한다.
 PLOT_COSTS = [0, 150, 350, 600, 900, 1200]
 CROPS = ('wheat', 'potato', 'tomato', 'rice', 'onion', 'cabbage')
 SEED_COST = 10
@@ -24,13 +24,24 @@ CROP_DURATION = 600
 CROP_YIELD = 3
 CROP_SELL = 15
 
-HUNTS = {
-    'chicken_coop': {'duration':1800, 'item':'chicken', 'count':3, 'label':'닭장'},
-    'pig_pen': {'duration':1800, 'item':'pork', 'count':3, 'label':'돼지우리'},
-    'ranch': {'duration':1800, 'item':'beef', 'count':3, 'label':'목장'},
-    'rabbit_hill': {'duration':3600, 'item':'lucky_rabbit', 'count':3, 'label':'달토끼 언덕'},
+# 처음 등급을 뽑을 때 사용하는 확률이다. 특수 알은 선택한 등급을 모두 보유했다면
+# 다른 등급의 미보유 동물을 우선 선택할 수 있다.
+HATCHING = {
+    'egg_basic': {'special_probability':0.10},
+    'egg_special': {'special_probability':0.60, 'duplicate_probability_cap':0.20},
 }
-# For UI: item is unique key, separate from Korean label.
+
+HUNTS = {
+    'chicken_coop': {'duration':1800, 'item':'chicken', 'count':3, 'label':'닭장',
+                     'completion_effects':{'fullness':-10, 'mood':-5, 'fatigue':20}},
+    'pig_pen': {'duration':1800, 'item':'pork', 'count':3, 'label':'돼지우리',
+                'completion_effects':{'fullness':-10, 'mood':-5, 'fatigue':20}},
+    'ranch': {'duration':1800, 'item':'beef', 'count':3, 'label':'목장',
+              'completion_effects':{'fullness':-10, 'mood':-5, 'fatigue':20}},
+    'rabbit_hill': {'duration':3600, 'item':'lucky_rabbit', 'count':3, 'label':'달토끼 언덕',
+                    'completion_effects':{'fullness':-20, 'mood':-10, 'fatigue':35}},
+}
+# 화면 표시용 한글 이름과 구분하여 item을 고유 식별자로 사용한다.
 ITEMS = {
     'snack': {'label':'기본 간식', 'buy':50, 'sell':None, 'kind':'snack', 'fullness':35},
     'toy_ball': {'label':'장난감 공', 'buy':100, 'sell':50, 'kind':'toy', 'charges':5, 'mood':20},
@@ -61,7 +72,7 @@ for crop in CROPS:
     ITEMS['seed_'+crop] = {'label':ITEMS[crop]['label']+' 씨앗', 'buy':SEED_COST, 'sell':None, 'kind':'seed', 'crop':crop}
 
 FOOD_EFFECTS = {
-    0: {'fullness':5, 'mood':-10, 'fatigue':0}, # burned (half-star)
+    0: {'fullness':5, 'mood':-10, 'fatigue':0}, # 탄 요리(반 개의 별)
     1: {'fullness':10, 'mood':0, 'fatigue':0},
     2: {'fullness':30, 'mood':10, 'fatigue':0},
     3: {'fullness':50, 'mood':20, 'fatigue':0},
@@ -70,14 +81,14 @@ FOOD_EFFECTS = {
 }
 COOK_XP = {stars: stars * 10 for stars in range(1, 6)}
 COOK_LEVEL_XP = (0,100,300,600,1000)
-COOK_LEVELS = COOK_LEVEL_XP  # cumulative XP thresholds, levels 1..5
+COOK_LEVELS = COOK_LEVEL_XP  # 요리 레벨 1~5의 누적 경험치 기준
 COOK_MISS_RESCUE_BY_LEVEL = (0.0, .10, .20, .30, .40)
 COOK_MISS_RESCUE_MAX_STAR = 3
 COOK_JUDGMENTS = ('perfect', 'good', 'miss')
-COOK_GRADES = ('Perfect', 'Good', 'Miss')  # legacy UI labels
+COOK_GRADES = ('Perfect', 'Good', 'Miss')  # 이전 화면 구현과의 호환을 위한 판정 이름
 COOK_PERFECT_MULTIPLIER = 1.5
-# Normalized cursor coordinate: 0..100. GUI measures the timing grade;
-# the backend owns Miss rescue odds, inventory, XP and food effects.
+# 커서 좌표는 0~100 범위로 맞추고, 화면에서 타이밍 판정을 측정한다.
+# 실패 구제 확률, 아이템 수량, 경험치, 음식 효과는 백엔드가 처리한다.
 COOK_TIMING = {
     'min_position': 0, 'max_position': 100,
     'target_center_min': 20, 'target_center_max': 80,
@@ -104,8 +115,8 @@ for recipe_id, recipe in RECIPES.items():
     base = {'label':recipe['label'], 'buy':None, 'sell':recipe['sell'], 'kind':'food', 'stars':recipe['stars']}
     ITEMS['food_'+recipe_id] = {**base, 'quality':'normal', 'effect_multiplier':1.0,
                                'effects':dict(FOOD_EFFECTS[recipe['stars']])}
-    # A distinct persistent item key keeps the bonus when stored or fed later.
-    # Sale price is unchanged: only feeding effects gain the 1.5x multiplier.
+    # 별도 아이템 키로 저장하여 보관하거나 나중에 먹여도 대성공 효과를 유지한다.
+    # 판매가는 같고, 먹였을 때의 효과만 1.5배로 적용한다.
     ITEMS['food_perfect_'+recipe_id] = {**base, 'label':recipe['label']+' (대성공)',
                                        'quality':'perfect','effect_multiplier':COOK_PERFECT_MULTIPLIER,
                                        'effects':{stat:int(value*COOK_PERFECT_MULTIPLIER)
@@ -125,7 +136,7 @@ STAGES = {
 STAGE_ORDER = tuple(sorted(STAGES, key=lambda key:STAGES[key]['order']))
 RANKS = ('none','bronze','silver','gold','diamond')
 
-# Provisional numbers based on design discussion.
+# 게임 설계에 사용하는 임시 수치다.
 PASSIVE_FULLNESS_EVERY = 300
 PASSIVE_FULLNESS_DELTA = -2
 PASSIVE_MOOD_EVERY = 600
@@ -135,33 +146,33 @@ AUTONOMOUS_EVERY = 60
 AUTONOMOUS_PLAY_EVERY = 600
 AUTONOMOUS_PLAY_MOOD_GAIN = 3
 AUTONOMOUS_PLAY_MOOD_CAP = 55
-AUTONOMOUS_OFFLINE_DETAIL_WINDOW = 86400  # replay last day of idle behavior accurately
+AUTONOMOUS_OFFLINE_DETAIL_WINDOW = 86400  # 최근 하루 동안의 자율행동은 상세히 재현한다.
 STORM_CYCLE = 3600
 STORM_DURATION = 600
-# Additional random bonus event required by assignment; evaluated on bounded clock slots.
+# 과제의 확률 기반 보너스 이벤트. 정해진 시간 구간마다 발생 여부를 판단한다.
 BONUS_EVENT_EVERY = 1800
 BONUS_EVENT_PROBABILITY = 0.15
 BONUS_EVENT_COINS = 30
 
-# Provisional elemental gameplay matchup (not just GUI), with minimal multiplier.
+# 실제 전투 계산에 적용하는 임시 속성 상성과 배율이다.
 ELEMENT_BEATS = {'fire':'wind','wind':'water','water':'fire'}
 ELEMENT_ADVANTAGE = 1.1
 ELEMENT_DISADVANTAGE = .9
 
-# Provisional tutorial and battle item to comply with assignment item-in-combat requirement.
+# 전투 중 아이템 사용 요구사항에 맞춘 임시 회복 아이템이다.
 ITEMS['battle_bandage'] = {'label':'전투 응급 붕대','buy':80,'sell':40,'kind':'battle_item','heal':80}
 
 
-# v3: a basic guard action is distinct from the tank's absolute shield.
-# It absorbs half the next enemy-team turn's incoming attack damage.
-# This supplements the mandatory attack/defense/special/item battle controls.
+# 기본 방어는 탱커의 절대방어 기술과 별개다.
+# 다음 상대 팀 턴에 받는 공격 피해를 절반으로 줄인다.
+# 공격·방어·특수 기술·아이템을 사용하는 전투 조작을 지원한다.
 ENABLE_BASIC_GUARD = True
 GUARD_DAMAGE_MULTIPLIER = 0.5
 
-# A finite limit prevents excessive simulated battle rounds from locking the GUI.
-# At this threshold the team with more remaining effective HP is declared the winner.
+# 과도한 전투 시뮬레이션으로 화면이 멈추지 않도록 라운드 상한을 둔다.
+# 상한에 도달하면 남은 유효 체력이 더 많은 팀을 승자로 판정하는 기준값이다.
 MAX_BATTLE_ROUNDS = 120
 
-# v3: cooking, statuses, money and stage rules live here. Role-specific
-# stat limits are read separately from data/role_caps.json.
+# 요리·상태·재화·스테이지 규칙은 이 파일에서 관리한다.
+# 역할별 능력치 상한은 data/role_caps.json에서 별도로 읽는다.
 GAME_RULES_VERSION = '3.0'

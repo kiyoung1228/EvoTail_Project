@@ -1,7 +1,8 @@
-"""Public backend facade for Pygame: all methods are UI-independent.
+"""Pygame에서 사용하는 백엔드 진입점이며 모든 메서드는 UI와 독립적이다.
 
-Writes are serialized by RLock and persisted atomically through SQLite. Every public
-operation syncs real/offline time before working. UI never directly mutates state.
+상태 변경은 RLock으로 순서대로 처리하고 SQLite에 원자적으로 저장한다.
+모든 공개 작업은 실행 전에 실제 시간과 오프라인 진행을 반영한다.
+UI는 내부 상태를 직접 변경하지 않는다.
 """
 from __future__ import annotations
 import copy
@@ -23,7 +24,7 @@ _UNSET = object()
 
 
 class GameRuleError(ValueError):
-    """User-facing validation failure; safe to show in GUI."""
+    """GUI에 표시할 수 있는 게임 규칙 검증 오류."""
 
 
 def bounded(x,low=0,high=100):
@@ -50,19 +51,19 @@ class GameService:
             try:
                 self._revision=self.store.commit(self.state,expected_revision=0)
             except SaveConflictError as exc:
-                raise GameRuleError('다른 실행 중인 게임이 세이브를 생성했습니다. 다시 실행하세요.') from exc
+                raise GameRuleError('다른 게임에서 세이브 생성됨 · 다시 실행') from exc
         self._validate_loaded_save()
-        # The UI's fast/demo speed is session-only. Catch up real offline time
-        # at 1x even when the previous process exited while accelerated.
+        # 빠르게·시연 모드의 배속은 현재 실행에만 적용한다. 오프라인 시간은
+        # 이전 실행이 가속 중에 끝났더라도 1배속으로 정산한다.
         self.state['clock']['rate']=1.0
-        self._mutate(lambda s:None) # reconcile offline work once on launch
+        self._mutate(lambda s:None) # 실행 시 오프라인 진행을 한 번 정산한다.
 
     @staticmethod
     def _load_caps(path):
-        """Validate editable, role-and-stat-specific limits before saving any game.
+        """게임을 저장하기 전에 역할·능력치·진화 단계별 상한 설정을 검증한다.
 
-        JSON uses stage keys '1', '2', '3'. For each role, every individual stat
-        must grow monotonically across stages. It is OK for roles to differ.
+        JSON의 단계 키는 '1', '2', '3'이다. 각 역할의 모든 능력치 상한은
+        진화 단계가 올라갈수록 감소하지 않아야 하며 역할별 값은 달라도 된다.
         """
         raw=json.loads(Path(path).read_text(encoding='utf-8'))
         caps={}
@@ -87,7 +88,7 @@ class GameService:
 
     @staticmethod
     def _load_enemies(path):
-        """Load the shared enemy artwork catalog before changing a saved game."""
+        """저장 데이터를 변경하기 전에 공통 적 이미지 목록을 불러온다."""
         data=json.loads(Path(path).read_text(encoding='utf-8'))
         if (not isinstance(data,dict)
             or not isinstance(data.get('minions'),list)
@@ -138,22 +139,22 @@ class GameService:
                 if value>self.caps[entry['role']][1][stat]: raise ValueError('base stats exceed stage 1 caps')
 
     def _validate_loaded_save(self):
-        """Detect wrong character catalogs before an old save is overwritten.
+        """이전 저장을 덮어쓰기 전에 동물 목록이 호환되는지 확인한다.
 
-        Changing a character name/sprite is safe. Deleting or renaming its ID
-        requires a deliberate migration because the ID is the persistent key.
+        동물 이름이나 이미지는 변경할 수 있지만 ID는 영구 저장 키이다.
+        ID를 삭제하거나 바꾸려면 저장 데이터를 명시적으로 이전해야 한다.
         """
         if not isinstance(self.state,dict):
-            raise GameRuleError('게임 저장 데이터가 손상됐습니다.')
+            raise GameRuleError('저장 데이터 손상')
         stored=self.state.get('animals',{})
         missing=set(stored)-set(self.characters)
         if missing:
-            raise GameRuleError(f'저장된 캐릭터 ID가 현재 도감에 없습니다: {sorted(missing)}')
+            raise GameRuleError(f'도감에 없는 저장 동물: {sorted(missing)}')
         if 'clock' not in self.state or 'coins' not in self.state:
-            raise GameRuleError('저장 파일의 핵심 데이터가 누락됐습니다.')
+            raise GameRuleError('저장 파일 핵심 데이터 누락')
 
     def display_info(self, key, stage=1):
-        """Name and sprite for a character at an evolution stage (stage is clamped)."""
+        """진화 단계에 맞는 이름과 이미지 경로를 반환하고 단계는 유효 범위로 제한한다."""
         info=self.characters[key]
         names=info.get('stage_names') or [info['name']]
         sprites=info.get('stage_sprites') or [info.get('sprite')]
@@ -198,29 +199,29 @@ class GameService:
     def _mutate(self, fn, *, force_save=False):
         with self._lock:
             candidate=copy.deepcopy(self.state)
-            # Older saves have no remembered team; roles alone cannot recover IDs.
+            # 이전 저장에는 출전 동물 목록이 없으므로 역할 정보만으로 ID를 복구하지 않는다.
             candidate.setdefault('last_team',[])
-            # Old saves without a selection start empty; GUI fills empty slots.
-            # Previous releases allowed six selections. Keep the first five
-            # in display order without deleting any owned animal.
+            # 마당 선택이 없는 이전 저장은 빈 목록으로 시작하고 GUI가 빈칸을 채운다.
+            # 이전 버전의 6마리 선택은 표시 순서대로 앞의 5마리만 유지한다.
+            # 선택에서 제외된 동물도 보유 목록에서는 삭제하지 않는다.
             if 'yard' not in candidate:
                 candidate['yard']=[]
             yard=candidate['yard']
             if (not isinstance(yard,list) or len(yard)>6
                 or any(type(k)!=str or k not in candidate['animals'] for k in yard)
                 or len(set(yard))!=len(yard)):
-                raise GameRuleError('저장된 마당 동물 목록에 잘못된 값이 있습니다.')
+                raise GameRuleError('저장된 마당 동물 정보 오류')
             if len(yard)>C.YARD_MAX_ANIMALS:
                 candidate['yard']=yard[:C.YARD_MAX_ANIMALS]
-            # The v2 save format had no monotonically increasing event IDs.
-            # All new events are numbered, so the long-term SQLite history has
-            # exactly-once insertion regardless of the 80-entry UI ring buffer.
+            # 이전 v2 저장에는 계속 증가하는 이벤트 ID가 없었다.
+            # 새 이벤트에는 모두 번호를 부여해 GUI의 최근 80개 기록과 무관하게
+            # SQLite 장기 기록에 각 이벤트를 한 번씩만 추가한다.
             candidate['schema']=2
-            candidate['_new_events']=[]  # never serialized; the UI ring buffer is capped at 80
+            candidate['_new_events']=[]  # 저장하지 않는 임시 목록이며 GUI 기록은 최대 80개이다.
             self._sync(candidate)
-            # Wall-clock Unix seconds, including autosaves (never the accelerated
-            # virtual clock). Stage before building API responses so they match
-            # the persisted snapshot; failed operations/commits discard it.
+            # 자동 저장을 포함한 실제 시각을 Unix 초로 기록하며 가속된 가상 시간은 쓰지 않는다.
+            # API 응답과 저장 내용이 일치하도록 응답 생성 전에 시각을 준비한다.
+            # 작업이나 저장이 실패하면 준비한 시각도 반영하지 않는다.
             candidate['last_saved']=float(self._now())
             result=fn(candidate)
             candidate['events']=candidate['events'][-80:]
@@ -230,13 +231,13 @@ class GameService:
             try:
                 revision=self.store.commit(candidate,new_events,expected_revision=self._revision)
             except SaveConflictError as exc:
-                raise GameRuleError('다른 게임 실행 창에서 저장 파일이 변경됐습니다. 먼저 불러오세요.') from exc
+                raise GameRuleError('다른 게임에서 저장 파일 변경됨 · 먼저 불러오기') from exc
             self._revision=revision
             self.state=candidate
             return copy.deepcopy(result)
 
     def _read(self, fn):
-        return self._mutate(fn)  # read also processes clock/events and commits resulting snapshot
+        return self._mutate(fn)  # 조회도 시간·이벤트를 처리하고 변경된 상태를 저장한다.
 
     def _sync(self,s):
         clock=s['clock']
@@ -245,7 +246,7 @@ class GameService:
         target=clock['virtual']+delta*clock['rate']
         clock['virtual']=target
         clock['last_real']=max(real_now,clock['last_real'])
-        # Activities settle first at their actual scheduled timestamp so later idle rest accrues.
+        # 활동은 예정된 종료 시각에 먼저 정산해 이후의 휴식 시간도 반영한다.
         for animal in s['animals'].values():
             job=animal['activity']
             if job and job['end']<=target:
@@ -260,10 +261,10 @@ class GameService:
             if plot['crop'] is not None and not plot['ready'] and target>=plot['end']:
                 plot['ready']=True
                 self._emit(s,'crop_ready',crop=plot['crop'])
-        # bounded catch-up for random weather bonuses, deterministic by fixed hash (no offline RNG spam).
+        # 무작위 보너스는 고정 해시로 정산해 오프라인 구간의 반복 난수 추첨을 피한다.
         new_slot=int(target//C.BONUS_EVENT_EVERY)
         last_slot=s.get('last_bonus_slot',new_slot)
-        # Only last 1000 slots processed, with cap preventing offline infinite money after many years.
+        # 최근 1000개 구간만 처리해 장기간 미접속에 따른 보너스 누적을 제한한다.
         for slot in range(max(last_slot+1,new_slot-999),new_slot+1):
             digest=hashlib.sha256(f"{s['created']}:{slot}:bonus".encode()).digest()
             if int.from_bytes(digest[:4],'big')/2**32<C.BONUS_EVENT_PROBABILITY:
@@ -275,7 +276,7 @@ class GameService:
         return bool(s['battle'] and any(x['id']==key for x in s['battle']['player']))
 
     def _update_metabolism(self,a,delta):
-        """Real-time fullness and mood decay, independent of what animation is playing."""
+        """화면 애니메이션과 관계없이 경과 시간에 따라 포만감과 기분을 감소시킨다."""
         a['fullness_accum']+=delta
         ticks=int(a['fullness_accum']//C.PASSIVE_FULLNESS_EVERY)
         a['fullness_accum']-=ticks*C.PASSIVE_FULLNESS_EVERY
@@ -286,11 +287,11 @@ class GameService:
         a['mood']=bounded(a['mood']+ticks*C.PASSIVE_MOOD_DELTA)
 
     def _recover_idle_fatigue(self,s,a,start,delta):
-        """Recover every five actual/virtual seconds, doubling recovery at night.
+        """실제·가상 시간 5초마다 피로도를 회복하며 밤에는 회복량이 두 배이다.
 
-        Count complete 1h day/night cycles analytically for fast offline catch-up,
-        checking at most 720 remainder ticks. The offset of the first tick respects
-        the fractional remainder saved from the previous call.
+        오프라인 진행을 빠르게 정산하도록 완전한 1시간 낮밤 주기는 계산으로 처리하고
+        나머지 구간만 최대 720회 확인한다. 첫 회복 시점에는 이전 호출에서 남은
+        소수 단위 시간을 반영한다.
         """
         prev=a['rest_accum']
         total=prev+delta
@@ -305,7 +306,7 @@ class GameService:
         a['fatigue']=bounded(a['fatigue']-(steps+nighttime))
 
     def _select_auto(self,a):
-        """Compatibility method: return the action label from explicit decision policy."""
+        """호환성을 위해 자율 행동 판단 규칙에서 선택한 행동 이름을 반환한다."""
         return AUTO.evaluate(a).action
 
     def _switch_auto(self,s,a,at):
@@ -322,12 +323,12 @@ class GameService:
                        reason=decision.reason,at=at)
 
     def _tick_animal(self,s,a,until,busy):
-        """Update animal state in chronological order and recalculate autonomy each minute.
+        """시간 순서대로 동물 상태를 갱신하고 매분 자율 행동을 다시 판단한다.
 
-        Inactive animals recover their fatigue as required by the team design, while
-        play has an additional limited mood benefit. Autonomous food searching is
-        a visible intention, not a free food generator. Effects are never awarded to
-        an animal busy in training, hunting or battle.
+        활동하지 않는 동물은 기본 규칙에 따라 피로도를 회복하고
+        혼자 놀기는 정해진 한도 안에서 기분을 추가로 회복한다.
+        먹이 탐색은 의도를 표시하며 먹이를 무료로 만들지는 않는다.
+        훈련·사냥·전투 중인 동물에는 자율 행동 효과를 적용하지 않는다.
         """
         start=a['last_tick']
         if until<=start:return
@@ -347,14 +348,14 @@ class GameService:
                 a['auto_reason']='전투 중: 자율 행동 일시 중지'
             return
 
-        # Forced rest must be visible in the next GUI snapshot, even when
-        # passive recovery would lower fatigue before the next minute tick.
+        # 다음 분의 자율 행동 판단 전에 자연 회복으로 피로도가 낮아지더라도
+        # 강제 휴식은 바로 다음 GUI 상태에 표시해야 한다.
         if (a['fatigue'] > AUTO.FORCED_REST_FATIGUE_THRESHOLD
                 and a.get('auto_action') != 'rest'):
             self._switch_auto(s,a,start)
 
-        # Months away from the game must not require millions of behavior decisions.
-        # Full metabolism/rest still elapse; the most recent 24h is replayed in detail.
+        # 몇 달간 미접속했더라도 자율 행동을 수백만 번 판단하지 않도록 한다.
+        # 전체 시간의 상태 감소·휴식은 반영하고 최근 24시간의 행동만 상세히 재현한다.
         if until-start>C.AUTONOMOUS_OFFLINE_DETAIL_WINDOW:
             early=until-C.AUTONOMOUS_OFFLINE_DETAIL_WINDOW
             self._update_metabolism(a,early-start)
@@ -388,16 +389,15 @@ class GameService:
                 self._switch_auto(s,a,target)
 
     def _is_night(self,s,now):
-        # 0-30 min day, 30-60 min night, repeating since world creation.
+        # 게임 생성 시점부터 0~30분은 낮, 30~60분은 밤으로 반복한다.
         return int((now-s['created'])//1800)%2==1
 
     def _clock_view(self, s, now):
-        """GUI clock: one game day lasts 60 virtual minutes (30m day/night).
+        """GUI용 시계이며 게임의 하루는 가상 시간 60분으로 낮과 밤이 각각 30분이다.
 
-        The first game day starts at 06:00. Each real/virtual 2.5 seconds
-        advances the display by one game minute. The day number advances at
-        the next 06:00, keeping its meaning as a completed day-night cycle.
-        Existing absolute ``timestamp`` and night/storm flags remain intact.
+        첫날은 06:00에 시작하고 실제·가상 시간 2.5초마다 화면의 시각이 1분 지난다.
+        다음 06:00에 날짜가 증가하므로 날짜는 완료된 낮밤 주기를 나타낸다.
+        기존 절대 시각 timestamp와 밤·태풍 여부 필드는 유지한다.
         """
         elapsed = max(0.0, now - s['created'])
         day = 1 + int(elapsed // 3600)
@@ -412,7 +412,7 @@ class GameService:
         return ((now-s['created'])%C.STORM_CYCLE)>=C.STORM_CYCLE-C.STORM_DURATION
 
     def _check_animal(self,s,key):
-        if key not in s['animals']: raise GameRuleError('보유하지 않은 동물입니다.')
+        if key not in s['animals']: raise GameRuleError('보유하지 않은 동물')
         return s['animals'][key]
 
     def _status_label(self,a,stat):
@@ -421,20 +421,20 @@ class GameService:
         return 'bad' if value<30 else ('normal' if value<=55 else 'good')
 
     def _animal_status(self,a):
-        """Three-tier GUI labels; reuse the exact gameplay permission thresholds."""
+        """게임 참여 조건과 같은 경곗값으로 GUI용 3단계 상태를 반환한다."""
         return {stat:self._status_label(a,stat) for stat in ('fullness','mood','fatigue')}
 
     def _available(self,s,key):
         a=self._check_animal(s,key)
-        if a['activity'] or self._in_battle(s,key): return False,'다른 활동 중입니다.'
-        if a['sick']: return False,'질병 상태입니다.'
+        if a['activity'] or self._in_battle(s,key): return False,'다른 활동 중'
+        if a['sick']: return False,'아파서 활동 불가'
         states=[self._status_label(a,k) for k in ('fullness','fatigue','mood')]
-        if 'bad' in states:return False,'상태가 나쁩니다.'
+        if 'bad' in states:return False,'상태 나쁨'
         nature=a['nature']
-        if nature=='glutton' and states[0]=='normal':return False,'먹보: 포만감이 보통입니다.'
-        if nature=='sleepy' and states[1]=='normal':return False,'잠꾸러기: 피로도가 보통입니다.'
-        if nature=='playful' and states[2]=='normal':return False,'장난꾸러기: 기분이 보통입니다.'
-        if nature=='picky' and states.count('normal')>=2:return False,'까칠: 보통 상태가 2개 이상입니다.'
+        if nature=='glutton' and states[0]=='normal':return False,'먹보: 좋은 포만감 필요'
+        if nature=='sleepy' and states[1]=='normal':return False,'잠꾸러기: 더 휴식 필요'
+        if nature=='playful' and states[2]=='normal':return False,'장난꾸러기: 좋은 기분 필요'
+        if nature=='picky' and states.count('normal')>=2:return False,'까칠: 보통 상태 2개 이상'
         return True,''
 
     def can_participate(self,key):
@@ -460,47 +460,46 @@ class GameService:
             stat=job['stat']
             cap=self.caps[self.characters[a['id']]['role']][a['stage']][stat]
             amount=job['gain']
+            before=a['stats'][stat]
             a['stats'][stat]=min(cap,a['stats'][stat]+amount)
             self._adjust(a,fullness=-job['cost'],mood=-job['cost'],fatigue=job['cost'])
             self._count(s,'trainings_completed')
-            self._emit(s,'training_complete',animal=a['id'],stat=stat,gain=amount)
+            self._emit(s,'training_complete',animal=a['id'],stat=stat,gain=a['stats'][stat]-before)
             self._disease_roll(s,a)
         elif job['kind']=='hunt':
             area=job['area']; h=C.HUNTS[area]
-            # Completion produces a claimable reward, never silently duplicates.
+            # 완료 시 수령 가능한 보상만 준비하고 같은 보상을 중복 지급하지 않는다.
             s['hunts'][area]['ready']=True
-            self._adjust(a,fullness=-20 if h['duration']==3600 else -10,
-                         mood=-10 if h['duration']==3600 else -5,
-                         fatigue=35 if h['duration']==3600 else 20)
+            self._adjust(a,**h['completion_effects'])
             self._count(s,'hunts_completed')
             self._emit(s,'hunt_complete',animal=a['id'],area=area)
             self._disease_roll(s,a)
 
     def reset_game(self,confirm=False):
-        """Start new game. Destructive; caller must explicitly confirm."""
+        """기존 진행을 지우고 새 게임을 시작하므로 호출자가 명시적으로 확인해야 한다."""
         if confirm is not True:
-            raise GameRuleError('새 게임 시작은 confirm=True로 승인해야 합니다.')
+            raise GameRuleError('새 게임 시작 확인 필요')
         with self._lock:
             candidate=self._fresh_state()
             try:
                 revision=self.store.reset(candidate,self._revision)
             except SaveConflictError as exc:
-                raise GameRuleError('다른 게임 실행 창에서 저장 파일이 변경됐습니다.') from exc
+                raise GameRuleError('다른 게임에서 저장 파일 변경됨') from exc
             self.state=candidate
             self._revision=revision
             return {'reset':True,'coins':candidate['coins'],
                     'animals':len(candidate['animals']),'plots':len(candidate['plots'])}
 
     def save_game(self):
-        """Explicit save button API; all other write operations are already auto-saved."""
+        """저장 버튼용 API이며 다른 상태 변경 작업도 모두 자동 저장한다."""
         return self._mutate(lambda s:{'saved':True,'timestamp':s['clock']['virtual'],
                                       'last_saved':s['last_saved']}, force_save=True)
 
     def load_game(self):
-        """Load the persisted SQLite snapshot, then reconcile offline time."""
+        """SQLite에 저장된 상태를 불러온 뒤 오프라인 진행을 정산한다."""
         with self._lock:
             loaded,revision=self.store.load_with_revision()
-            if loaded is None:raise GameRuleError('저장된 데이터가 없습니다.')
+            if loaded is None:raise GameRuleError('저장 데이터 없음')
             self.state=loaded
             self._revision=revision
             self._validate_loaded_save()
@@ -521,10 +520,10 @@ class GameService:
         return self._read(read)
 
     def get_snapshot(self):
-        """One consistent GUI snapshot with *one* clock reconciliation and DB write.
+        """시간 정산과 DB 저장을 각각 한 번만 수행해 일관된 GUI 상태를 반환한다.
 
-        The Pygame UI should call this periodically (not once per frame) and
-        render only the returned dictionaries. No shared objects leak out.
+        Pygame UI는 매 프레임이 아닌 일정 주기로 호출하고 반환된 사전만 그린다.
+        내부의 공유 객체는 외부에 노출하지 않는다.
         """
         def fn(s):
             now=s['clock']['virtual']
@@ -590,33 +589,33 @@ class GameService:
         return self._read(read)
 
     def get_yard_animals(self):
-        """Only the selected visible animal IDs; not the full owned collection."""
+        """전체 보유 목록이 아닌 마당에 표시하도록 선택한 동물 ID만 반환한다."""
         return self._read(lambda s:{'keys':list(s['yard']),'max':C.YARD_MAX_ANIMALS})
 
     def set_yard_animals(self,keys):
-        """Choose 0..5 *owned* animals in display order; auto-save to SQLite.
+        """보유 동물 0~5마리를 표시 순서대로 선택하고 SQLite에 자동 저장한다.
 
-        This affects the GUI yard selection only, not training, battles,
-        metabolism, offline progression or autonomous behaviour.
+        GUI의 마당 선택에만 영향을 주며 훈련·전투·상태 감소·오프라인 진행·
+        자율 행동에는 영향을 주지 않는다.
         """
         def fn(s):
             if type(keys) is not list:
-                raise GameRuleError('마당 동물은 동물 ID 목록으로 전달해야 합니다.')
+                raise GameRuleError('마당 동물 목록 필요')
             if len(keys)>C.YARD_MAX_ANIMALS:
-                raise GameRuleError(f'마당에는 최대 {C.YARD_MAX_ANIMALS}마리만 배치할 수 있습니다.')
+                raise GameRuleError(f'마당은 최대 {C.YARD_MAX_ANIMALS}마리')
             if any(type(key)!=str or key not in s['animals'] for key in keys):
-                raise GameRuleError('보유하지 않은 동물을 마당에 배치할 수 없습니다.')
+                raise GameRuleError('보유 동물만 마당 배치 가능')
             if len(set(keys))!=len(keys):
-                raise GameRuleError('같은 동물을 마당에 중복 배치할 수 없습니다.')
+                raise GameRuleError('같은 동물 중복 배치 불가')
             s['yard']=list(keys)
             return {'yard':list(s['yard']),'count':len(keys),'max':C.YARD_MAX_ANIMALS}
         return self._mutate(fn)
 
     def get_autonomous_state(self,key=None):
-        """Pygame-facing autonomous AI decision and status snapshot.
+        """Pygame에서 사용할 자율 행동 판단과 현재 상태를 반환한다.
 
-        No GUI code is called here. Animations can map the returned action to sprites.
-        Busy animals are marked training/hunting/battle and do not perform autonomy.
+        GUI 코드는 호출하지 않으며 화면에서는 반환된 행동에 이미지를 연결할 수 있다.
+        활동 중인 동물은 training/hunting/battle로 표시하고 자율 행동은 수행하지 않는다.
         """
         def fn(s):
             selected=[self._check_animal(s,key)] if key is not None else list(s['animals'].values())
@@ -655,6 +654,9 @@ class GameService:
         return {'training':copy.deepcopy(C.TRAINING),'caps':copy.deepcopy(self.caps),
                 'evolution_cost':dict(C.EVOLUTION_COST),'plot_costs':list(C.PLOT_COSTS),
                 'hunts':copy.deepcopy(C.HUNTS),'stages':copy.deepcopy(C.STAGES),
+                'crops':{'duration_seconds':C.CROP_DURATION, 'yield':C.CROP_YIELD},
+                'hatching':copy.deepcopy(C.HATCHING),
+                'disease_probability':C.DISEASE_CHANCE,
                 'yard_max':C.YARD_MAX_ANIMALS,
                 'cooking':{'xp_per_star':dict(C.COOK_XP),
                            'level_thresholds':list(C.COOK_LEVEL_XP),
@@ -673,16 +675,16 @@ class GameService:
         s['inventory'][item]=s['inventory'].get(item,0)+n
 
     def _take(self,s,item,n=1):
-        if n<1 or s['inventory'].get(item,0)<n:raise GameRuleError('아이템 수량이 부족합니다.')
+        if n<1 or s['inventory'].get(item,0)<n:raise GameRuleError('아이템 수량 부족')
         s['inventory'][item]-=n
         if s['inventory'][item]==0:del s['inventory'][item]
 
     def buy_item(self,item,quantity=1):
         def fn(s):
-            if item not in C.ITEMS or C.ITEMS[item]['buy'] is None:raise GameRuleError('판매하지 않는 아이템입니다.')
-            if type(quantity)!=int or not 1<=quantity<=999:raise GameRuleError('수량은 1~999입니다.')
+            if item not in C.ITEMS or C.ITEMS[item]['buy'] is None:raise GameRuleError('구매할 수 없는 아이템')
+            if type(quantity)!=int or not 1<=quantity<=999:raise GameRuleError('수량은 1~999개')
             cost=C.ITEMS[item]['buy']*quantity
-            if s['coins']<cost:raise GameRuleError('코인이 부족합니다.')
+            if s['coins']<cost:raise GameRuleError('코인 부족')
             s['coins']-=cost
             self._count(s,'items_purchased',quantity)
             if C.ITEMS[item]['kind']=='toy':
@@ -695,12 +697,12 @@ class GameService:
     def sell_item(self,item,quantity=1):
         def fn(s):
             if item not in C.ITEMS or C.ITEMS[item]['sell'] is None:
-                raise GameRuleError('판매할 수 없는 아이템입니다.')
+                raise GameRuleError('판매 불가 아이템')
             if type(quantity)!=int or not 1<=quantity<=999:raise GameRuleError('수량 오류')
             if C.ITEMS[item]['kind']=='toy':
                 fresh=[toy for toy in s['toy_instances']
                        if toy['id']==item and toy['charges']==C.ITEMS[item]['charges']]
-                if len(fresh)<quantity:raise GameRuleError('미사용 장난감이 부족합니다.')
+                if len(fresh)<quantity:raise GameRuleError('미사용 장난감 부족')
                 for toy in fresh[:quantity]:s['toy_instances'].remove(toy)
             else:
                 self._take(s,item,quantity)
@@ -713,12 +715,12 @@ class GameService:
         def fn(s):
             a=self._check_animal(s,key)
             if a['activity'] is not None or self._in_battle(s,key):
-                raise GameRuleError('활동 중에는 생활 아이템을 사용할 수 없습니다.')
+                raise GameRuleError('활동 중 아이템 사용 불가')
             spec=C.ITEMS.get(item)
-            if not spec:raise GameRuleError('알 수 없는 아이템입니다.')
+            if not spec:raise GameRuleError('알 수 없는 아이템')
             if spec['kind']=='toy':
                 toy=next((t for t in s['toy_instances'] if t['id']==item),None)
-                if not toy:raise GameRuleError('장난감이 없습니다.')
+                if not toy:raise GameRuleError('장난감 없음')
                 self._adjust(a,mood=spec['mood']); toy['charges']-=1
                 if toy['charges']==0:s['toy_instances'].remove(toy)
                 return {'item':item,'mood':a['mood'],'charges_left':toy['charges']}
@@ -728,20 +730,20 @@ class GameService:
                 return {'item':item,'fullness':a['fullness']}
             if spec['kind']=='food':
                 self._take(s,item)
-                # Burnt food sometimes refused; no recovery on refusal.
+                # 탄 음식은 일정 확률로 거부하며 거부하면 상태가 회복되지 않는다.
                 refused=(spec['stars']==0 and self.rng.random()<.5)
                 if not refused:
                     effect=spec['effects']
                     self._adjust(a,fullness=effect['fullness'],mood=effect['mood'],fatigue=effect['fatigue'])
                 return {'item':item,'refused':refused,'fullness':a['fullness'],'mood':a['mood'],'fatigue':a['fatigue']}
             if spec['kind']=='cure':
-                if not a['sick']:raise GameRuleError('질병에 걸린 동물이 아닙니다.')
+                if not a['sick']:raise GameRuleError('아프지 않은 동물')
                 self._take(s,item)
                 success=self.rng.random()<spec['chance']
                 if success:
                     a['sick']=False; self._adjust(a,fatigue=spec['fatigue'])
                 return {'item':item,'success':success,'sick':a['sick'],'fatigue':a['fatigue']}
-            raise GameRuleError('이 아이템은 여기서 사용할 수 없습니다.')
+            raise GameRuleError('여기서 사용할 수 없는 아이템')
         return self._mutate(fn)
 
     def equip(self,key,item=None):
@@ -749,7 +751,7 @@ class GameService:
             a=self._check_animal(s,key)
             if a['activity'] or self._in_battle(s,key):raise GameRuleError('활동 중 장비 교체 불가')
             if item is not None and (item not in C.ITEMS or C.ITEMS[item]['kind']!='equip'):
-                raise GameRuleError('장비 아이템을 선택하세요.')
+                raise GameRuleError('장비 선택 필요')
             if a['equip']==item:return {'equipped':item}
             if item is not None:self._take(s,item)
             old=a['equip']
@@ -760,14 +762,15 @@ class GameService:
 
     def hatch_egg(self,egg):
         def fn(s):
-            if egg not in ('egg_basic','egg_special'):raise GameRuleError('부화 가능한 알이 아닙니다.')
+            if egg not in C.HATCHING:raise GameRuleError('부화할 수 없는 알')
             self._take(s,egg)
-            rarity='special' if self.rng.random() < (.1 if egg=='egg_basic' else .6) else 'normal'
+            spec=C.HATCHING[egg]
+            rarity='special' if self.rng.random() < spec['special_probability'] else 'normal'
             options=[k for k,c in self.characters.items() if c['rarity']==rarity]
-            # Special egg: max 20% duplicates as long as any unowned species exist.
-            # If selected rarity is fully owned, prefer unowned in the other rarity;
-            # rarity 60/40 target becomes approximate near a completed collection.
-            if egg=='egg_special' and self.rng.random()>=.2:
+            # 특수 알은 미보유 종이 남아 있으면 중복 확률을 최대 20%로 제한한다.
+            # 선택한 등급의 모든 종을 보유했다면 다른 등급의 미보유 종을 우선한다.
+            # 따라서 도감 완성에 가까워지면 등급별 60:40 비율은 달라질 수 있다.
+            if egg=='egg_special' and self.rng.random()>=spec['duplicate_probability_cap']:
                 unowned=[key for key in options if key not in s['animals']]
                 if not unowned:
                     unowned=[key for key in self.characters if key not in s['animals']]
@@ -796,13 +799,13 @@ class GameService:
     def evolve(self,key):
         def fn(s):
             a=self._check_animal(s,key);info=self.characters[key];stage=a['stage']
-            if a['activity'] or self._in_battle(s,key):raise GameRuleError('활동 중 진화 불가능')
-            if stage>=info['max_stage']:raise GameRuleError('최종 진화 단계입니다.')
+            if a['activity'] or self._in_battle(s,key):raise GameRuleError('활동 중 진화 불가')
+            if stage>=info['max_stage']:raise GameRuleError('최종 진화 단계')
             caps=self.caps[info['role']][stage]
             if not all(a['stats'][stat]>=caps[stat] for stat in C.STATS):
-                raise GameRuleError('모든 능력치를 MAX까지 훈련해야 합니다.')
+                raise GameRuleError('모든 능력치 MAX 필요')
             cost=C.EVOLUTION_COST[stage+1]
-            if s['coins']<cost:raise GameRuleError('진화 비용이 부족합니다.')
+            if s['coins']<cost:raise GameRuleError('진화 코인 부족')
             s['coins']-=cost
             a['stage']+=1
             self._emit(s,'evolve',animal=key,stage=a['stage'])
@@ -813,13 +816,13 @@ class GameService:
     def start_training(self,key,stat,difficulty):
         def fn(s):
             a=self._check_ready(s,key)
-            if stat not in C.STATS or difficulty not in C.TRAINING:raise GameRuleError('훈련 선택이 올바르지 않습니다.')
+            if stat not in C.STATS or difficulty not in C.TRAINING:raise GameRuleError('훈련 선택 오류')
             cap=self.caps[self.characters[key]['role']][a['stage']][stat]
-            if a['stats'][stat]>=cap:raise GameRuleError('해당 능력치는 MAX입니다.')
+            if a['stats'][stat]>=cap:raise GameRuleError('이미 MAX 능력치')
             duration,gain,cost=C.TRAINING[difficulty]
             if a['fullness']<C.TRAINING_MIN[difficulty] or a['mood']<C.TRAINING_MIN[difficulty]:
-                raise GameRuleError('훈련에 필요한 포만감 또는 기분이 부족합니다.')
-            if a['fatigue']+cost>100:raise GameRuleError('훈련하기에 피로도가 너무 높습니다.')
+                raise GameRuleError('훈련할 포만감·기분 부족')
+            if a['fatigue']+cost>100:raise GameRuleError('피로가 높아 훈련 불가')
             if a['fatigue']>=C.FATIGUE_TRAINING_HALF_THRESHOLD:gain=math.floor(gain*.5+.5)
             now=s['clock']['virtual']
             a['activity']={'kind':'training','stat':stat,'difficulty':difficulty,'start':now,
@@ -831,7 +834,7 @@ class GameService:
     def cancel_training(self,key):
         def fn(s):
             a=self._check_animal(s,key)
-            if not a['activity'] or a['activity']['kind']!='training':raise GameRuleError('훈련 중이 아닙니다.')
+            if not a['activity'] or a['activity']['kind']!='training':raise GameRuleError('훈련 중 아님')
             a['activity']=None
             a['auto_action']='idle'
             a['last_auto']=s['clock']['virtual']-C.AUTONOMOUS_EVERY
@@ -844,9 +847,9 @@ class GameService:
     def expand_plot(self):
         def fn(s):
             n=len(s['plots'])
-            if n>=6:raise GameRuleError('밭은 최대 6개입니다.')
+            if n>=6:raise GameRuleError('밭은 최대 6개')
             cost=C.PLOT_COSTS[n]
-            if s['coins']<cost:raise GameRuleError('코인이 부족합니다.')
+            if s['coins']<cost:raise GameRuleError('코인 부족')
             s['coins']-=cost
             s['plots'].append({'crop':None,'end':None,'ready':False})
             return {'plots':len(s['plots']),'spent':cost}
@@ -857,7 +860,7 @@ class GameService:
             if type(index)!=int or index<0 or index>=len(s['plots']):raise GameRuleError('밭 번호 오류')
             if crop not in C.CROPS:raise GameRuleError('작물 종류 오류')
             plot=s['plots'][index]
-            if plot['crop'] is not None:raise GameRuleError('이미 사용 중인 밭입니다.')
+            if plot['crop'] is not None:raise GameRuleError('사용 중인 밭')
             self._take(s,'seed_'+crop)
             plot.update(crop=crop,ready=False,end=s['clock']['virtual']+C.CROP_DURATION)
             return {'plot':index,'crop':crop,'end':plot['end']}
@@ -867,7 +870,7 @@ class GameService:
         def fn(s):
             if type(index)!=int or index<0 or index>=len(s['plots']):raise GameRuleError('밭 번호 오류')
             plot=s['plots'][index]
-            if not plot['ready']:raise GameRuleError('아직 수확할 수 없습니다.')
+            if not plot['ready']:raise GameRuleError('아직 수확 불가')
             crop=plot['crop']
             self._add(s,crop,C.CROP_YIELD)
             self._count(s,'crops_harvested',C.CROP_YIELD)
@@ -882,7 +885,7 @@ class GameService:
         def fn(s):
             a=self._check_ready(s,key)
             if area not in C.HUNTS:raise GameRuleError('사냥터 오류')
-            if area in s['hunts']:raise GameRuleError('해당 사냥터가 사용 중입니다.')
+            if area in s['hunts']:raise GameRuleError('사용 중인 사냥터')
             now=s['clock']['virtual']
             job={'kind':'hunt','area':area,'start':now,'end':now+C.HUNTS[area]['duration']}
             a['activity']=job
@@ -893,10 +896,10 @@ class GameService:
 
     def cancel_hunting(self,area):
         def fn(s):
-            if area not in s['hunts']:raise GameRuleError('파견이 없습니다.')
+            if area not in s['hunts']:raise GameRuleError('진행 중인 사냥 없음')
             hunt=s['hunts'][area]
             if hunt['ready']:
-                raise GameRuleError('이미 완료된 사냥은 취소하지 않고 보상을 수령해야 합니다.')
+                raise GameRuleError('완료된 사냥 · 보상 먼저 받기')
             a=self._check_animal(s,hunt['animal'])
             if a['activity'] and a['activity'].get('area')==area:
                 a['activity']=None
@@ -909,7 +912,7 @@ class GameService:
     def collect_hunt(self,area):
         def fn(s):
             hunt=s['hunts'].get(area)
-            if not hunt or not hunt['ready']:raise GameRuleError('수령할 사냥 보상이 없습니다.')
+            if not hunt or not hunt['ready']:raise GameRuleError('받을 사냥 보상 없음')
             spec=C.HUNTS[area]
             self._add(s,spec['item'],spec['count'])
             del s['hunts'][area]
@@ -937,28 +940,28 @@ class GameService:
         return self._read(fn)
 
     def cook(self,recipe,judgment=_UNSET,*,grade=_UNSET):
-        """Resolve the GUI's timing judgment, not a separate failure roll.
+        """별도 실패 추첨 없이 GUI에서 측정한 타이밍 판정으로 요리 결과를 계산한다.
 
-        Canonical input: judgment='perfect'/'good'/'miss'. For existing
-        callers, accept grade= and title-case labels; omitted judgment is
-        Good (legacy demos). The GUI should always pass its actual judgment.
-        xp is the reward for this attempt; total_xp is cumulative mastery XP.
+        기본 입력은 judgment='perfect'/'good'/'miss'이다. 기존 호출과의 호환을 위해
+        grade=와 첫 글자가 대문자인 판정도 허용한다. 판정 생략 시 이전 시연처럼
+        good을 적용하며 GUI는 실제 측정한 판정을 항상 전달해야 한다.
+        xp는 이번 시도의 보상이고 total_xp는 누적 요리 경험치이다.
         """
         if judgment is not _UNSET and grade is not _UNSET:
-            raise GameRuleError('요리 판정은 judgment 또는 grade 중 하나만 전달해야 합니다.')
+            raise GameRuleError('요리 판정은 한 번만 전달')
         selected=judgment if judgment is not _UNSET else grade
         if selected is _UNSET:
             selected='good'
         if not isinstance(selected,str) or selected.lower() not in C.COOK_JUDGMENTS:
-            raise GameRuleError('요리 판정은 perfect, good, miss 중 하나여야 합니다.')
+            raise GameRuleError('요리 판정 오류')
         selected=selected.lower()
 
         def fn(s):
             if not isinstance(recipe,str) or recipe not in C.RECIPES:
-                raise GameRuleError('없는 요리입니다.')
+                raise GameRuleError('없는 요리')
             r=C.RECIPES[recipe]
             for item,quantity in r['ingredients'].items():
-                if s['inventory'].get(item,0)<quantity:raise GameRuleError('요리 재료가 부족합니다.')
+                if s['inventory'].get(item,0)<quantity:raise GameRuleError('요리 재료 부족')
             for item,quantity in r['ingredients'].items():self._take(s,item,quantity)
             level=self._cook_level(s)
             rescue_chance=self._cook_rescue_chance(r['stars'],level)
@@ -1021,7 +1024,7 @@ class GameService:
         selected=[boss]
         for role in roles:
             pool=sorted((e for e in self.enemies['minions'] if e['role']==role),key=lambda e:e['id'])
-            # Prefer distinct minions when both share a role; keep seeded selection.
+            # 같은 역할의 졸개 둘을 고를 때는 서로 다른 종을 우선하고 시드 선택을 유지한다.
             unused=[e for e in pool if e['id'] not in {x['id'] for x in selected}]
             selected.append(local_rng.choice(unused or pool))
         enemies=[]
@@ -1035,24 +1038,24 @@ class GameService:
                 'enemy':enemies}
 
     def preview_stage(self,stage):
-        """Enemy composition is stable from preview until start; changes next attempt."""
+        """적 구성은 미리보기부터 전투 시작까지 유지하고 다음 도전에서 바뀐다."""
         return self._read(lambda s:self._stage_preview(s,stage))
 
     def start_battle(self,stage,team,prebattle_potions=None):
         def fn(s):
-            if s['battle'] is not None:raise GameRuleError('이미 전투 중입니다.')
+            if s['battle'] is not None:raise GameRuleError('이미 전투 중')
             if stage not in C.STAGES:raise GameRuleError('없는 전투 스테이지')
             spec=C.STAGES[stage]
-            if spec['order']>s['progress']+1:raise GameRuleError('아직 해금되지 않았습니다.')
+            if spec['order']>s['progress']+1:raise GameRuleError('아직 잠긴 스테이지')
             if not isinstance(team,(list,tuple)) or len(team)!=3 or len(set(team))!=3:
-                raise GameRuleError('서로 다른 동물 3마리를 선택해야 합니다.')
+                raise GameRuleError('서로 다른 동물 3마리 필요')
             for key in team:self._check_ready(s,key)
             potions=prebattle_potions or {}
             if not isinstance(potions,dict) or any(key not in team for key in potions):
                 raise GameRuleError('포션 사용 대상 오류')
             for key,item in potions.items():
                 if item not in C.ITEMS or C.ITEMS[item]['kind']!='prebattle':
-                    raise GameRuleError('전투 전용 포션만 사용 가능합니다.')
+                    raise GameRuleError('전투 전용 포션만 사용 가능')
             for item in potions.values():self._take(s,item)
             player=[]
             for key in team:
@@ -1079,14 +1082,14 @@ class GameService:
         return copy.deepcopy(s['battle'])
 
     def get_ai_profiles(self):
-        """Used by Pygame battle difficulty descriptions; contains no save data."""
+        """Pygame의 전투 난이도 설명에 사용하며 저장 데이터는 포함하지 않는다."""
         return copy.deepcopy(B.AI_PROFILES)
 
     def get_battle(self):
         return self._read(lambda s:self._battle_view(s))
 
     def get_battle_actions(self,actor):
-        """GUI can use this for buttons; no battle rules need be reimplemented in Pygame."""
+        """GUI 버튼에 사용할 수 있는 행동을 반환하므로 화면에서 전투 규칙을 다시 구현할 필요가 없다."""
         def fn(s):
             battle=s['battle']
             if battle is None or battle['current']!='player':return []
@@ -1118,9 +1121,10 @@ class GameService:
     def battle_action(self,actor,kind='attack',target=None):
         def fn(s):
             battle=s['battle']
-            if battle is None or battle['current']!='player':raise GameRuleError('플레이어 행동 차례가 아닙니다.')
+            if battle is None or battle['current']!='player':raise GameRuleError('아직 내 차례 아님')
+            log_start=len(battle['log'])
             if kind=='battle_item':
-                if actor!='battle_bandage':raise GameRuleError('전투 사용 아이템이 아닙니다.')
+                if actor!='battle_bandage':raise GameRuleError('전투용 아이템 아님')
                 self._take(s,'battle_bandage')
                 events=B.use_battle_item(battle,actor,target)
             else:
@@ -1128,17 +1132,20 @@ class GameService:
                 except ValueError as exc:raise GameRuleError(str(exc)) from exc
             battle['log'].extend(events)
             self._battle_next(s)
-            return {'events':events,'battle':self._battle_view(s),
+            return {'events':events,'turn_events':copy.deepcopy(battle['log'][log_start:]),
+                    'battle':self._battle_view(s),
                     'result':copy.deepcopy(s['battle_result']) if s['battle'] is None else None}
         return self._mutate(fn)
 
     def end_player_turn(self):
         def fn(s):
             battle=s['battle']
-            if battle is None or battle['current']!='player':raise GameRuleError('플레이어 턴이 아닙니다.')
+            if battle is None or battle['current']!='player':raise GameRuleError('아직 내 차례 아님')
+            log_start=len(battle['log'])
             B.end_turn(battle)
             self._enemy_turn(s)
-            return {'battle':self._battle_view(s),'result':copy.deepcopy(s['battle_result']) if s['battle'] is None else None}
+            return {'turn_events':copy.deepcopy(battle['log'][log_start:]),
+                    'battle':self._battle_view(s),'result':copy.deepcopy(s['battle_result']) if s['battle'] is None else None}
         return self._mutate(fn)
 
     def _battle_next(self,s):
@@ -1164,9 +1171,10 @@ class GameService:
         if battle['winner'] is not None:self._settle_battle(s)
         else:B.end_turn(battle)
 
-    def _settle_battle(self,s):
+    def _settle_battle(self,s,*,reason=None):
         battle=s['battle'];stage=battle['stage'];spec=C.STAGES[stage]
         win=battle['winner']=='player'; first=stage not in s['cleared']
+        end_reason=reason or ('victory' if win else 'defeat')
         reward=0
         self._count(s,'battles_won' if win else 'battles_lost')
         if win:
@@ -1185,27 +1193,28 @@ class GameService:
                 self._disease_roll(s,a)
         if win and first and stage=='tutorial':self._add(s,'snack',2)
         s['battle_result']={'stage':stage,'winner':battle['winner'],'win':win,'first_clear':first,
+                            'end_reason':end_reason,
                             'reward':reward,'rounds':battle['round'], 'log':battle['log'][-200:]}
         s['battle']=None
         for fighter in battle['player']:
             a=s['animals'][fighter['id']]
             a['auto_action']='idle'
             a['last_auto']=s['clock']['virtual']-C.AUTONOMOUS_EVERY
-        self._emit(s,'battle_end',stage=stage,win=win,reward=reward)
+        self._emit(s,'battle_end',stage=stage,win=win,reward=reward,end_reason=end_reason)
 
     def forfeit_battle(self):
         def fn(s):
-            if s['battle'] is None:raise GameRuleError('전투 중이 아닙니다.')
+            if s['battle'] is None:raise GameRuleError('전투 중 아님')
             s['battle']['winner']='enemy'
-            self._settle_battle(s)
+            self._settle_battle(s,reason='forfeit')
             return copy.deepcopy(s['battle_result'])
         return self._mutate(fn)
 
     def set_demo_mode(self,enabled,rate=60):
         def fn(s):
-            if type(enabled)!=bool:raise GameRuleError('enabled must be bool')
+            if type(enabled)!=bool:raise GameRuleError('배속 켜기·끄기 값 오류')
             if enabled and (not isinstance(rate,(int,float)) or not 1<=rate<=3600):
-                raise GameRuleError('가속 배율은 1~3600입니다.')
+                raise GameRuleError('배속은 1~3600배')
             s['clock']['rate']=float(rate) if enabled else 1.0
             return {'demo':enabled,'rate':s['clock']['rate']}
         return self._mutate(fn)
@@ -1236,7 +1245,7 @@ class GameService:
         return self._read(lambda s:self._achievement_flags(s))
 
     def get_achievement_details(self):
-        # No extra coin rewards: only the negotiated rank prizes pay coins.
+        # 추가 코인 보상은 없으며 등급 달성 보상만 코인을 지급한다.
         labels={
           'first_win':'첫 승리', 'first_training':'첫 훈련 완료',
           'first_hunt':'첫 자동 사냥 완료','first_crop':'첫 수확',
@@ -1258,13 +1267,13 @@ class GameService:
         return self._read(lambda s:copy.deepcopy(s.get('counters',{})))
 
     def tick(self):
-        """Safe to call from worker thread. Reconciles events; returns pending notifications."""
+        """월드 스레드에서 안전하게 호출해 이벤트를 정산하고 알림을 반환한다."""
         return self._read(lambda s:copy.deepcopy(s['events'][-10:]))
 
     def recent_events(self):
         return self._read(lambda s:copy.deepcopy(s['events']))
 
     def get_event_history(self,limit=100):
-        """Persistent event history for reports (beyond the most recent 80 UI events)."""
+        """보고서용 영구 이벤트 기록을 반환하며 GUI의 최근 80개 제한보다 오래된 기록도 포함한다."""
         self.tick()
         return self.store.recent_events(limit)
