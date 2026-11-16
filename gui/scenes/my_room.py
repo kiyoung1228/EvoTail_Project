@@ -34,12 +34,15 @@ HOWTO = {
     'rank_bronze': '브론즈 대회 우승', 'rank_silver': '실버 대회 우승',
     'rank_gold': '골드 대회 우승', 'rank_diamond': '다이아몬드 대회 우승',
 }
-# 칠판 6칸 (cells 순서대로): (counters 키, 이름, 키트 아이콘)
-STATS = (('battles_won', '전투 승리', 'sword'), ('trainings_completed', '훈련 완료', 'heart'),
-         ('hunts_completed', '사냥 다녀옴', 'meat'), ('crops_harvested', '작물 수확', 'snack'),
-         ('cooks_succeeded', '요리 성공', 'home'), ('items_purchased', '물건 구매', 'coin'))
+# 칠판 6칸 (cells 순서대로): (counters 키, 이름 두 글자 = GUI 표시 문구, 키트 아이콘)
+STATS = (('battles_won', '승리', 'sword'), ('trainings_completed', '훈련', 'heart'),
+         ('hunts_completed', '사냥', 'meat'), ('crops_harvested', '수확', 'snack'),
+         ('cooks_succeeded', '요리', 'home'), ('items_purchased', '구매', 'coin'))
 DIARY_LIMIT = 40            # 일기장: 최근 일을 이만큼 읽어서 EVENT_TEXT에 있는 것만 6줄
 WALK_SPEED = 10             # 깔개 안에서 돌아다니는 속도 (px/초)
+NIGHT_SHADE = (20, 24, 70, 40)   # 밤: 배경 위·트로피·글씨·동물 아래에 까는 옅은 남색 그늘
+Z_EVERY = 1.5               # 밤에 자는 동물 머리 위 "z"가 한 마리씩 차례로 떠오르는 간격 (초)
+Z_RISE = 10                 # "z"가 떠오르는 높이 (px)
 
 
 class MyRoomScene(Scene):
@@ -176,6 +179,10 @@ class MyRoomScene(Scene):
     def draw(self, surface):
         night = self.night()
         surface.blit(W.background(f"assets/my_room/room_{'night' if night else 'day'}.png"), (0, 0))
+        if night:
+            shade = pygame.Surface((T.WIDTH, T.HEIGHT), pygame.SRCALPHA)
+            shade.fill(NIGHT_SHADE)
+            surface.blit(shade, (0, 0))
         self._draw_shelf(surface)
         self._draw_board(surface)
         self._draw_diary(surface)
@@ -279,10 +286,24 @@ class MyRoomScene(Scene):
         card(surface, box)
         text_in(surface, msg, box, 'small', T.TEXT, tag='my-room-bubble')
 
+    def _float_z(self, surface, start, p):
+        """작은 "z" (small, 흰색 + 진한 테두리)가 위로 Z_RISE만큼 떠오르며 흐려짐. p = 0~1."""
+        font = T.font('small')
+        body = font.render('z', False, T.WHITE)
+        edge = font.render('z', False, T.INK)
+        z = pygame.Surface((body.get_width() + 2, body.get_height() + 2), pygame.SRCALPHA)
+        for dx, dy in ((0, 1), (2, 1), (1, 0), (1, 2)):
+            z.blit(edge, (dx, dy))
+        z.blit(body, (1, 1))
+        z.set_alpha(round(255 * (1 - p)))
+        surface.blit(z, z.get_rect(midbottom=(start[0], round(start[1] - Z_RISE * p))))
+
     def _draw_animals(self, surface, night):
         animals = self.roomies()
         rest = self.resting_key(animals)
         order = sorted(animals, key=lambda a: self.animal_rect(a, rest).bottom)      # 발 y 순서
+        sleepers = [a['id'] for a in animals if night and a['id'] != rest]          # 밤: 방석 말고 자는 동물
+        z_turn = sleepers[int(self.t / Z_EVERY) % len(sleepers)] if sleepers else None
         for a in order:
             r = self.animal_rect(a, rest)
             lying = a['id'] == rest or night
@@ -298,7 +319,9 @@ class MyRoomScene(Scene):
             surface.blit(img, (foot[0] - art.centerx, foot[1] - art.bottom))
             top = foot[1] - art.h - 4
             action = self.app.auto.get(a['id'], {}).get('action')
-            if lying:
+            if a['id'] == rest:                                    # 상자 "zZ"는 방석 위 동물만
                 self._bubble(surface, 'zZ', (foot[0], top))
-            elif action == 'play' and int(self.t / 2 + len(a['id'])) % 3 == 0:     # 신난 동물은 가끔 ♪
+            elif lying and a['id'] == z_turn:                      # 나머지는 작은 "z"가 한 마리씩 떠오르며 사라짐
+                self._float_z(surface, (foot[0] + 6, top + 4), (self.t % Z_EVERY) / Z_EVERY)
+            elif not lying and action == 'play' and int(self.t / 2 + len(a['id'])) % 3 == 0:   # 깨어 있는 신난 동물만 가끔 ♪
                 self._bubble(surface, '♪', (foot[0], top))

@@ -51,12 +51,13 @@ def layout():
         slots.append({'id': code, 'x': s['x'] + 6 + c * s['cell'] + (s['cell'] - 16 * s['n']) // 2, 'y': sy + s['rowh'] - 6 - 16 * s['n']})
     bx, by, bw, bh = BOARD; dx, dy, dw, dh = DIARY
     cells = []
-    # 칸 = 칠판 초록 면(bx+5 ~ bx+bw-5) 전체를 두 칸으로: 아이콘 12 + 1px + 이름 + 2px + 숫자(9999까지).
-    # 왼쪽 칸이 조금 넓음 ("사냥 다녀옴"이 왼쪽 칸). 오른쪽 칸 숫자 끝 = 초록 면 테두리 1px 안
-    cols = ((bx + 6, bx + 107), (bx + 109, bx + 200))           # (아이콘 x, 숫자 오른쪽 끝)
+    # 칸 = 칠판 초록 면(bx+5 ~ bx+bw-5) 안쪽 8px 여백 안을 같은 폭 두 칸으로: 아이콘 12 + 3px + 이름(두 글자) + 숫자.
+    # 숫자 오른쪽 끝 = 칸 끝 - 4 (오른쪽 칸은 초록 면 테두리에서 12px, 9999까지 들어감)
+    face0, face1 = bx + 5 + 8, bx + bw - 5 - 8
+    col_w = (face1 - face0) // 2
     for k in range(6):
-        ix, vr = cols[k % 2]; cy = by + 38 + (k // 2) * 20
-        cells.append({'icon': [ix, cy - 6], 'label_left': [ix + 13, cy], 'value_right': [vr, cy]})
+        ix = face0 + (k % 2) * col_w; cy = by + 38 + (k // 2) * 20
+        cells.append({'icon': [ix, cy - 6], 'label_left': [ix + 12 + 3, cy], 'value_right': [ix + col_w - 4, cy]})
     return {
         '_note': '논리 좌표(640×360). 배경 png는 2배 → ½로 그대로. 트로피 png는 원본 16의 4배(64) → ½ = 32로 그림',
         'floor_y': 246,
