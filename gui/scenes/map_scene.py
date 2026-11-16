@@ -70,7 +70,7 @@ NIGHT_LABEL = {'rest': '잠자는 중 zZ', 'idle': '꾸벅꾸벅…', 'play': '�
 DAY_LABEL = {'rest': '휴식 중 z'}
 
 # 활동 → 그 활동을 보여줄 장소
-ACTIVITY_PLACE = {'hunting': 'hunting', 'training': 'home'}
+ACTIVITY_PLACE = {'hunt': 'hunting', 'training': 'home'}   # 백엔드 activity kind → 지도 장소 키
 
 
 def _load_map():
@@ -473,7 +473,7 @@ class MapScene(Scene):
             what = '아픔 · 병원에서 치료'
         else:
             act = (a.get('activity') or {}).get('kind')
-            what = {'hunting': '사냥 중', 'training': '훈련 중'}.get(act) or self._label(a, night)
+            what = {'hunt': '사냥 중', 'training': '훈련 중'}.get(act) or self._label(a, night)
         return f"{a['name']} · {what}"
 
     def _animal_tip_target(self, key):
