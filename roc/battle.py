@@ -1,7 +1,8 @@
-"""Pure(ish) battle operations on a battle dict; no graphics/IO dependencies.
+"""화면 출력이나 파일 입출력 없이 전투 상태를 계산한다.
 
-Determinism: all randomness is injected via rng object. Battle state is persisted and
-can resume after restart. A 'team turn' uses up to two distinct living actors.
+모든 무작위 판정은 전달받은 rng로 수행하여 같은 조건에서 결과를 재현할 수 있다.
+전투 상태를 저장하면 재실행 후 이어갈 수 있다. 한 팀 턴에는 살아 있는 서로 다른
+동물이 최대 두 마리까지 행동한다.
 """
 from __future__ import annotations
 import math
@@ -37,14 +38,14 @@ def alive(fighter):
 
 
 def healing_amount(healer, target):
-    """Actual HP a healer special would restore to this target right now."""
+    """현재 대상에게 힐러의 특수 기술로 실제 회복할 수 있는 체력량을 계산한다."""
     maximum={1:100,2:300,3:500}[healer['stage']]
     return min(maximum,max(0,target['stats']['hp']-target['hp']))
 
 
 def battle_item_heal_amount(item_id, target):
-    """Actual HP restored by the supported in-combat healing item."""
-    if item_id!='battle_bandage':raise ValueError('not an in-combat item')
+    """전투용 회복 아이템으로 실제 회복할 수 있는 체력량을 계산한다."""
+    if item_id!='battle_bandage':raise ValueError('전투용 아이템 아님')
     return min(C.ITEMS[item_id]['heal'],max(0,target['stats']['hp']-target['hp']))
 
 
@@ -76,7 +77,7 @@ def start_team_turn(battle, side):
     battle['actions']=0
     for fighter in battle[side]:
         fighter['acted']=False
-        # Countdown is tracked only at start of the actor's team turns.
+        # 재사용 대기시간은 해당 동물의 팀 턴이 시작될 때만 줄인다.
         if fighter['cooldown']>0:
             fighter['cooldown']-=1
     return battle
@@ -99,8 +100,8 @@ def legal_actions(battle, actor_id):
     opponents=[x for x in battle['enemy' if side=='player' else 'player'] if alive(x)]
     teammates=[x for x in battle[side] if alive(x)]
     actions=[]
-    # Unlike the tank's absolute shield special, guard is a standard battle
-    # command. It protects the actor on the next opponent-team turn for 50%.
+    # 기본 방어는 탱커의 절대방어와 다른 일반 전투 행동이다.
+    # 다음 상대 팀 턴에 행동자 자신이 받는 공격 피해를 50% 줄인다.
     if C.ENABLE_BASIC_GUARD and not actor.get('guard',False):
         actions.append({'kind':'defend','actor':actor_id,'target':actor_id})
     if actor['role']=='dealer':
@@ -123,20 +124,20 @@ def _find(team, key):
 
 
 def perform(battle, actor_id, kind, target, rng):
-    """Validate and apply one action. Raises ValueError on invalid/illegal commands."""
-    if battle.get('winner') is not None: raise ValueError('battle already finished')
+    """행동을 검증하고 적용한다. 허용되지 않은 행동이면 ValueError를 발생시킨다."""
+    if battle.get('winner') is not None: raise ValueError('이미 끝난 전투')
     side=battle['current']
     actor=_find(battle[side],actor_id)
-    if actor is None: raise ValueError('unknown actor')
+    if actor is None: raise ValueError('없는 전투 동물')
     legal=legal_actions(battle,actor_id)
     if not any(a['kind']==kind and a['target']==target for a in legal):
-        raise ValueError('illegal action or target / cooldown / already acted')
+        raise ValueError('지금 사용할 수 없는 행동·대상')
     actor['acted']=True
     battle['actions']+=1
     events=[]
     if kind=='attack':
         enemies=battle['enemy' if side=='player' else 'player']
-        # Dealer critical is rolled once for the full sweep; all targets dodge independently.
+        # 딜러의 전체 공격은 치명타를 한 번만 판정하고, 대상별 회피는 각각 판정한다.
         critical=(rng.random()<crit_chance(actor))
         victims=[f for f in enemies if alive(f)] if actor['role']=='dealer' else [_find(enemies,target)]
         for victim in victims:
@@ -166,22 +167,22 @@ def perform(battle, actor_id, kind, target, rng):
             gain=healing_amount(actor,teammate)
             teammate['hp']+=gain
             events.append({'type':'heal','actor':actor_id,'target':target,'amount':gain})
-        # One own-team-turn lockout AFTER current turn: 2 means at next start -> 1, then next -> 0.
+        # 다음 아군 팀 턴 한 번은 특수 기술을 쓸 수 없다. 다음 턴 시작에 2→1, 그다음에 1→0이 된다.
         actor['cooldown']=2
     update_winner(battle)
     return events
 
 
 def use_battle_item(battle, item_id, target_id):
-    """One action slot spent using a bandage. Explicit item-in-battle support.
-    Inventory is checked and decremented by the service, not by this pure function.
+    """붕대를 사용하고 팀 행동 횟수를 한 번 소모한다.
+    아이템 보유 수량의 확인과 차감은 이 함수가 아니라 서비스에서 처리한다.
     """
-    if item_id!='battle_bandage': raise ValueError('not an in-combat item')
-    if battle['current']!='player' or battle.get('winner') is not None: raise ValueError('not player turn')
-    if battle['actions']>=max_actions(battle): raise ValueError('no actions remaining')
+    if item_id!='battle_bandage': raise ValueError('전투용 아이템 아님')
+    if battle['current']!='player' or battle.get('winner') is not None: raise ValueError('아직 내 차례 아님')
+    if battle['actions']>=max_actions(battle): raise ValueError('이번 턴 행동 소진')
     target=_find(battle['player'],target_id)
     if target is None or not alive(target) or target['hp']>=target['stats']['hp']:
-        raise ValueError('target cannot be healed')
+        raise ValueError('회복할 수 없는 대상')
     healed=battle_item_heal_amount(item_id,target)
     target['hp']+=healed
     battle['actions']+=1
@@ -196,7 +197,7 @@ def update_winner(battle):
 def end_turn(battle):
     if battle.get('winner') is not None: return
     if battle['current']=='enemy':
-        # Tank shield protects precisely during opponent's next team turn.
+        # 탱커의 절대방어는 다음 상대 팀 턴이 끝나면 해제한다.
         for f in battle['player']:
             f['shield']=False
             f['guard']=False
@@ -219,8 +220,8 @@ def _evaluate(battle, side):
 def _score_action(battle, action):
     actor=_find(battle['enemy'],action['actor']); kind=action['kind']
     if kind=='defend':
-        # Defensive value is highest for low-HP frontline animals threatened by
-        # the player's live attackers. Guard prevents half of their next hit.
+        # 살아 있는 플레이어 동물의 공격에 노출된 저체력 동물일수록 방어의 가치가 크다.
+        # 기본 방어는 다음에 받는 공격 피해를 절반으로 줄인다.
         defender=actor
         if defender.get('guard',False):return 0
         expected=sum(calc_damage(foe,defender)*(1-dodge_chance(defender))
@@ -269,7 +270,7 @@ def _legal_enemy_actions(battle):
 
 
 def _rule_based_choice(battle, legal):
-    """Interpretable if/then policy with urgency thresholds."""
+    """상태별 긴급도와 조건문을 기준으로 설명 가능한 행동을 선택한다."""
     danger=[a for a in legal if a['kind']=='special'
             and _find(battle['enemy'],a['actor'])['role']=='healer'
             and (_find(battle['enemy'],a['target'])['hp']
@@ -290,11 +291,11 @@ def _rule_based_choice(battle, legal):
 
 
 def _sample_tactical_value(battle, action):
-    """Two-team-turn bounded tactical lookahead with 3 consistent RNG scenarios.
+    """세 가지 고정 난수 조건에서 다음 두 AI 팀 턴의 전술을 탐색한다.
 
-    For each candidate: simulate action + best other AI actor, two greedy player
-    replies, then another AI team turn. Stochastic hits and crits are sampled, not
-    replaced by fixed magic numbers. This is SEARCH, not trained reinforcement AI.
+    후보 행동과 다른 AI 동물의 후속 행동, 플레이어의 반격 두 번, 다음 AI 팀 턴을
+    차례로 가상 실행한다. 명중과 치명타는 임의의 고정값으로 대체하지 않고 실제
+    난수로 판정한다. 학습된 강화학습 모델이 아니라 가능한 수를 탐색하는 방식이다.
     """
     scores=[]
     for seed in (11,29,47):
@@ -305,7 +306,7 @@ def _sample_tactical_value(battle, action):
             scores.append(_evaluate(shadow,'enemy')*3)
             continue
 
-        # First AI turn: a second *different* living character may act.
+        # 첫 AI 팀 턴에서 살아 있는 다른 동물이 두 번째로 행동할 수 있다.
         if shadow['actions']<max_actions(shadow):
             more=_legal_enemy_actions(shadow)
             if more:
@@ -314,7 +315,7 @@ def _sample_tactical_value(battle, action):
         if shadow['winner'] is None:
             end_turn(shadow)
 
-        # Human response: greedy two distinct actors. AI assumes a challenging player.
+        # 플레이어는 서로 다른 두 동물로 당장 점수가 가장 높은 반격을 한다고 가정한다.
         for _ in range(2):
             if shadow['winner'] is not None or shadow['current']!='player':break
             responses=[a for f in shadow['player'] for a in legal_actions(shadow,f['id'])]
@@ -324,7 +325,7 @@ def _sample_tactical_value(battle, action):
         if shadow['winner'] is None:
             end_turn(shadow)
 
-        # Next AI opportunity: value a line that can actually survive the counterplay.
+        # 다음 AI 팀 턴까지 실행하여 플레이어의 반격을 버티는 행동의 가치를 평가한다.
         for _ in range(2):
             if shadow['winner'] is not None or shadow['current']!='enemy':break
             moves=_legal_enemy_actions(shadow)
@@ -353,12 +354,13 @@ def _player_response_score(snapshot, action):
 
 
 def choose_ai_decision(battle, ai, rng):
-    """Produce legal AI move together with trace metadata for UI and test reports.
+    """허용된 AI 행동과 함께 화면·테스트에서 확인할 판단 근거를 반환한다.
 
-    Every branch observes: two distinct actors per team turn, dead/acted actors
-    excluded, healing only if damaged, shields only with cooldown available.
+    한 팀 턴에는 서로 다른 두 동물이 행동한다. 쓰러졌거나 이미 행동한 동물은
+    제외하고, 체력이 줄었을 때만 회복하며, 재사용 대기시간이 끝났을 때만
+    절대방어를 사용한다.
     """
-    if ai not in AI_PROFILES:raise ValueError('unknown AI')
+    if ai not in AI_PROFILES:raise ValueError('알 수 없는 전투 AI')
     legal=_legal_enemy_actions(battle)
     if not legal:return None
     profile=AI_PROFILES[ai]
@@ -387,6 +389,6 @@ def choose_ai_decision(battle, ai, rng):
 
 
 def choose_ai_action(battle, ai, rng):
-    """Backward-compatible helper returning only the legal action dictionary."""
+    """이전 호출 방식과 호환되도록 허용된 행동 사전만 반환한다."""
     decision=choose_ai_decision(battle,ai,rng)
     return decision['action'] if decision else None
