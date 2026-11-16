@@ -4,7 +4,7 @@
 게임 규칙은 없다: 사냥터 이름·시간·보상(item, count)은 get_hunts()['areas'], 진행 상태는 스냅샷 hunts
 (animal, end, ready), 보낼 수 있는지는 스냅샷 participation / participation_reason (백엔드 _available, start_hunting과
 같은 검사). 보내기·불러오기·보상 받기 = start_hunting / cancel_hunting / collect_hunt.
-"다녀오면" 상태 변화와 질병 확률은 API에 없어 GUI 표시값(HUNT_DISPLAY)으로 둔다 (CLAUDE.md).
+"다녀오면" 상태 변화는 get_hunts()['areas'][area]['completion_effects'], 질병 확률은 get_rules()['disease_probability'].
 """
 import json
 import math
@@ -22,12 +22,6 @@ from .hatch import rays
 from .settings import ConfirmOverlay
 from .farm import mmss
 
-# 백엔드 service._finish_animal_job · config.DISEASE_CHANCE와 같은 값 (API에 없어 GUI 표시값. 백엔드를 바꾸면 같이 바꿀 것)
-HUNT_DISPLAY = {
-    'after': {1800: {'fullness': -10, 'mood': -5, 'fatigue': 20},
-              3600: {'fullness': -20, 'mood': -10, 'fatigue': 35}},
-    'disease': 0.30,
-}
 HUNT_DIR = os.path.join(T.ROOT, 'assets', 'hunt')
 with open(os.path.join(HUNT_DIR, 'spots.json'), encoding='utf-8') as _f:
     SPOTS = json.load(_f)
@@ -54,6 +48,7 @@ class HuntScene(Scene):
     def __init__(self, app):
         super().__init__(app)
         self.selected = None          # 고른 사냥터 (area)
+        self.disease = 0              # get_rules disease_probability (enter에서 채움)
         self.send_key = None          # 보낼 동물
         self.scroll = 0
         self.areas = {}
@@ -65,7 +60,8 @@ class HuntScene(Scene):
                            lambda: app.go('map'), 'brown', icon='back')
 
     def enter(self):
-        self.areas = (self.app.call('get_hunts') or {}).get('areas', self.areas)
+        self.areas = (self.app.call('get_hunts') or {}).get('areas', self.areas)   # completion_effects 포함
+        self.disease = (self.app.call('get_rules') or {}).get('disease_probability', 0)   # 화면에 들어올 때 한 번
         self.catalog = self.app.call('get_shop_catalog') or self.catalog
         if self.selected not in self.areas:
             self.selected = next(iter(self.areas), None)
@@ -285,11 +281,11 @@ class HuntScene(Scene):
             bottom = top + len(lines) * 16 - 2
             dy = max(0, bottom - 134)                     # 그림(102~134)보다 길어지면 아래 줄을 그만큼 내림
             self.list_shift = dy
-            after = HUNT_DISPLAY['after'].get(spec['duration'], {})
+            after = spec.get('completion_effects') or {}          # 백엔드 get_hunts 사냥터별 값
             text(surface, '다녀오면', (x, 140 + dy), 'small', T.TEXT_SOFT)
             self._line(surface, f"포만감 {after.get('fullness', 0):+d} · 기분 {after.get('mood', 0):+d}", (x, 152 + dy),
                        'body', T.TEXT, right)
-            self._line(surface, f"피로도 {after.get('fatigue', 0):+d} · 질병 {round(HUNT_DISPLAY['disease'] * 100)}%",
+            self._line(surface, f"피로도 {after.get('fatigue', 0):+d} · 질병 {round(self.disease * 100)}%",
                        (x, 166 + dy), 'body', T.BAD, right)
             text(surface, '보낼 동물', (x, 183 + dy), 'title')
             animals = self.animals()
@@ -380,9 +376,9 @@ class HuntScene(Scene):
         surface.blit(self.icons.get(spec['item'], 1), (x, y + 16))
         y += 24 + self._text_lines(surface, f"다녀오면 {meat} ×{spec['count']}", x + 20, y + 24, 'small', T.TEXT,
                                    right, 12)
-        after = HUNT_DISPLAY['after'].get(dur, {})
+        after = spec.get('completion_effects') or {}
         self._text_lines(surface, f"다녀오면 피로도 {after.get('fatigue', 0):+d} · 질병 "
-                                  f"{round(HUNT_DISPLAY['disease'] * 100)}%", x, y + 20, 'small', T.BAD, right, 12)
+                                  f"{round(self.disease * 100)}%", x, y + 20, 'small', T.BAD, right, 12)
 
     def _draw_return(self, surface, area, spec, a, name, meat, x, right):
         t = time.time()
@@ -416,10 +412,10 @@ class HuntScene(Scene):
             y += self._text_lines(surface, left, x, y, 'small', T.TEXT, right, 12) + 12
         g = text(surface, bag, (right, y), 'small', T.OK, anchor='midright')
         record(bag, g, pygame.Rect(x - 2, g.y - 2, right - x + 4, g.h + 4), 'hunt-panel')
-        # 다녀온 결과 칩 (HUNT_DISPLAY) + 지금 상태 칩. 칩이 칸 폭을 넘으면 다음 줄로
+        # 다녀온 결과 칩 (get_hunts completion_effects) + 지금 상태 칩. 칩이 칸 폭을 넘으면 다음 줄로
         y += 18
         text(surface, '다녀온 결과', (x, y), 'small', T.TEXT_SOFT, anchor='midleft')
-        after = HUNT_DISPLAY['after'].get(spec['duration'], {})
+        after = spec.get('completion_effects') or {}
         sick = bool(a and a.get('sick'))
         rows = [[(f"피로도 {after.get('fatigue', 0):+d}", 'orange'), (f"포만감 {after.get('fullness', 0):+d}", 'orange')],
                 [(f"기분 {after.get('mood', 0):+d}", 'orange'),

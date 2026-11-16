@@ -3,7 +3,7 @@
 목업 docs/mockups/farm/farm_A_field.png, farm_A2_ready.png, farm_A3_all_ripe.png. 배경 assets/farm/farm.png.
 게임 규칙은 없다: 밭 상태는 스냅샷 plots(crop, ready, end, remaining_seconds), 밭 가격은 get_rules()['plot_costs'],
 씨앗 이름·값은 get_shop_catalog. 심기·수확·넓히기는 plant_crop / harvest_crop / expand_plot.
-작물 자라는 시간(600초)과 수확 개수(3개)는 백엔드 API에 나오지 않아 GUI 표시값(FARM_DISPLAY)으로 둔다 (CLAUDE.md).
+작물 자라는 시간·수확 개수는 get_rules()['crops'] (duration_seconds, yield), 화면에 들어올 때 한 번 읽음.
 """
 import json
 import math
@@ -19,8 +19,6 @@ from ..widgets import (text, text_in, glyph_box, fit_width, panel, card, card_in
                        select_frame, record, Button, BUTTON_H)
 from .settings import ConfirmOverlay
 
-# 백엔드 config의 CROP_DURATION·CROP_YIELD와 같은 값 (API에 없어 GUI 표시값. 백엔드 값을 바꾸면 같이 바꿀 것)
-FARM_DISPLAY = {'duration': 600, 'yield': 3}
 GRID = (14, 124, 132, 108, 12)          # 시작 x, y, 칸 폭, 칸 높이, 사이
 PANEL = pygame.Rect(444, 58, 188, 298)
 ART = pygame.Rect(PANEL.x + 12, 110, PANEL.w - 24, 86)
@@ -139,13 +137,18 @@ class FarmScene(Scene):
         self.plants = Plants()
         self.icons = I.ItemIcons()
         self.pops = []               # (칸 번호, 작물, 시작 시각) 수확 연출
+        self.crop = {'duration': 1, 'yield': 0}     # get_rules()['crops'] (enter에서 채움)
         self.buttons = []
         self.back = Button((12, 32, max(56, Button.width_for('지도', icon=True)), BUTTON_H), '지도',
                            lambda: app.go('map'), 'brown', icon='back')
 
     def enter(self):
         self.catalog = self.app.call('get_shop_catalog') or self.catalog
-        self.plot_costs = (self.app.call('get_rules') or {}).get('plot_costs', self.plot_costs)
+        rules = self.app.call('get_rules') or {}
+        self.plot_costs = rules.get('plot_costs', self.plot_costs)
+        crops = rules.get('crops') or {}            # 백엔드 config CROP_DURATION · CROP_YIELD
+        self.crop = {'duration': max(1, crops.get('duration_seconds', self.crop['duration'])),
+                     'yield': crops.get('yield', self.crop['yield'])}
         self.pops = []
         crops = self.crops()
         if self.seed not in crops:
@@ -178,7 +181,7 @@ class FarmScene(Scene):
     def stage(self, plot):
         if plot.get('ready'):
             return f"{plot['crop']}_ripe"
-        p = 1 - self.remaining(plot) / FARM_DISPLAY['duration']
+        p = 1 - self.remaining(plot) / self.crop['duration']
         for name, (lo, hi) in STAGES.items():
             if lo <= p < hi:
                 return name
@@ -266,12 +269,12 @@ class FarmScene(Scene):
             if not p.get('crop'):
                 n = self.seeds(self.seed) if self.seed else 0
                 label = f"{self.label(self.seed)} 심기" if self.seed else '씨앗 선택'
-                mins = FARM_DISPLAY['duration'] // 60
+                mins = self.crop['duration'] // 60
                 self.buttons.append(Button(r, label, self.plant, 'green' if n else 'gray', enabled=n > 0,
                                            icon='heart', sub=f"{mins}분 뒤 수확" if n else '씨앗 없음'))
             elif p.get('ready'):
                 self.buttons.append(Button(r, '수확하기', self.harvest, 'orange', icon='heart',
-                                           sub=f"{self.label(p['crop'])} {FARM_DISPLAY['yield']}개"))
+                                           sub=f"{self.label(p['crop'])} {self.crop['yield']}개"))
             else:
                 self.buttons.append(Button(r, '수확하기', None, 'gray', enabled=False,
                                            sub=f"{mmss(self.remaining(p))} 남음"))
@@ -287,7 +290,7 @@ class FarmScene(Scene):
         self.back.draw(surface)
         ribbon(surface, (78, 33, 70, 18), '밭', 'red')
         if not any(p.get('ready') for p in self.plots()):
-            info = f"심고 {FARM_DISPLAY['duration'] // 60}분 · 수확 {FARM_DISPLAY['yield']}개"
+            info = f"심고 {self.crop['duration'] // 60}분 · 수확 {self.crop['yield']}개"
             box = pygame.Rect(154, 32, fit_width(info, extra=14) + 4 + 8, 22)
             card(surface, box)
             inner = card_inner(box)
@@ -329,7 +332,7 @@ class FarmScene(Scene):
                     rem = self.remaining(p)
                     chip(surface, (r.x + 4, r.y + 4), mmss(rem), 'brown')
                     gauge(surface, (r.x + 6, r.bottom - 12, r.w - 12, 8),
-                          FARM_DISPLAY['duration'] - rem, FARM_DISPLAY['duration'], 'green')
+                          self.crop['duration'] - rem, self.crop['duration'], 'green')
             else:
                 if i == self.selected and self.seed and self.seeds(self.seed) and not popping:   # 심을 자리 미리보기
                     self._fill(surface, r, 'sprout', 128)
@@ -398,7 +401,7 @@ class FarmScene(Scene):
                 text_in(surface, f"보유 {n}", (r.x + 38, r.y + 25, r.w - 40, 15), 'small',
                         T.TEXT_SOFT if n else T.BAD, align='left', tag='farm')
             if self.seed:
-                text(surface, f"씨앗 1개 → {self.label(self.seed)} {FARM_DISPLAY['yield']}개", (x, 264), 'small')
+                text(surface, f"씨앗 1개 → {self.label(self.seed)} {self.crop['yield']}개", (x, 264), 'small')
                 price = (self.catalog.get(f'seed_{self.seed}') or {}).get('buy')
                 if price is not None:
                     text(surface, f"씨앗은 상점에서 {price:,}코인", (x, 280), 'small', T.TEXT_SOFT)
@@ -411,15 +414,15 @@ class FarmScene(Scene):
             chip(surface, (x, 86), '수확 가능', 'green')
             text(surface, '받는 것', (x, 204), 'small', T.TEXT_SOFT)
             surface.blit(self.icons.get(crop, 2), (x, 218))
-            text(surface, f"{self.label(crop)} ×{FARM_DISPLAY['yield']}", (x + 38, 234), 'big', anchor='midleft')
+            text(surface, f"{self.label(crop)} ×{self.crop['yield']}", (x + 38, 234), 'big', anchor='midleft')
             have = self.have(crop)
-            text(surface, f"가방 보유 {have} → {have + FARM_DISPLAY['yield']}", (x, 262), 'small')
+            text(surface, f"가방 보유 {have} → {have + self.crop['yield']}", (x, 262), 'small')
             text(surface, '수확하면 빈 밭이 됨', (x, 278), 'small', T.TEXT_SOFT)
         else:
             rem = self.remaining(p)
             chip(surface, (x, 86), '자라는 중', 'brown')
             text(surface, '남은 시간', (x, 204), 'small', T.TEXT_SOFT)
             text(surface, mmss(rem), (x, 216), 'big')
-            gauge(surface, (x, 238, right - x, 10), FARM_DISPLAY['duration'] - rem, FARM_DISPLAY['duration'], 'green')
+            gauge(surface, (x, 238, right - x, 10), self.crop['duration'] - rem, self.crop['duration'], 'green')
             surface.blit(self.icons.get(crop, 1), (x, 260))
-            text(surface, f"다 자라면 {self.label(crop)} ×{FARM_DISPLAY['yield']}", (x + 20, 262), 'small')
+            text(surface, f"다 자라면 {self.label(crop)} ×{self.crop['yield']}", (x + 20, 262), 'small')
