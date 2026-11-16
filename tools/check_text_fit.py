@@ -397,6 +397,16 @@ def scripted_run(self):
             tut.dialog.click(); frames(2)
             if step < 4:
                 tut.advance(); frames(2)
+        # 마무리 큰 테크모: 마당·마당 동물·장소 이름표·오른쪽 메뉴·대화 상자와 겹치지 않는지 (겹치면 위반)
+        import gui.scenes.map_scene as _MS
+        mp = self.scenes['map']
+        body = tut.done_rect()
+        blocks = [('마당', mp.yard), ('오른쪽 메뉴', _MS.MENU_PANEL), ('대화 상자', tut.dialog.rect(False))]
+        blocks += [(f'이름표 {k}', r) for k, r in mp.signs.items()]
+        blocks += [(f'동물 {k}', mp._animal_rect(k)) for k in mp.walkers]
+        self._overlaps = [('techmo', f'테크모 × {name}', (0, 0, 0, 0), tuple(r)) for name, r in blocks
+                          if body.colliderect(r)]
+        print('tutorial done techmo', body, 'overlaps', [o[1] for o in self._overlaps])
         tut.finish(); frames(1)
     finally:
         pygame.quit()
@@ -412,6 +422,7 @@ def scripted_run(self):
         worst = min(m_left, m_right, m_top, m_bottom)
         if worst < W.TEXT_PAD:
             bad.append((tag, msg, (m_left, m_right, m_top, m_bottom), tuple(box)))
+    bad += getattr(self, '_overlaps', [])                       # 튜토리얼 마무리 테크모 겹침
     print(f'checked {len(seen)} boxed labels · violations {len(bad)}')
     for tag, msg, margins, box in sorted(set(bad)):
         print(f'  [{tag}] {msg!r} margins L{margins[0]} R{margins[1]} T{margins[2]} B{margins[3]} box {box}')

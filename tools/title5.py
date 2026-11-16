@@ -596,7 +596,7 @@ def static_layers():
 
 
 import json as _json
-_CH = _json.load(open(GAME / 'data' / 'characters.json'))
+_CH = _json.load(open(GAME / 'data' / 'characters.json', encoding='utf-8'))
 PARADE = [k for k, v in _CH.items() if v['rarity'] == 'normal']        # 일반 15종 (도감 순서)
 TECHMO_POS = (168 - 32, 266 - 44 - 62)                                  # 옛 돌문 위 (발 = 돌문 꼭대기)
 

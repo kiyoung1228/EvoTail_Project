@@ -11,7 +11,7 @@ import techmo
 W, H = 640, 360
 INK = K.INK
 GAME = T5.GAME
-CH = json.load(open(GAME / 'data' / 'characters.json'))
+CH = json.load(open(GAME / 'data' / 'characters.json', encoding='utf-8'))
 NORMAL = [k for k, v in CH.items() if v['rarity'] == 'normal']
 ROLE = {'dealer': '딜러', 'tank': '탱커', 'healer': '힐러'}
 ROLE_C = {'dealer': 'orange', 'tank': 'blue', 'healer': 'green'}

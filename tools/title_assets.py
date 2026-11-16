@@ -67,11 +67,11 @@ def main(root=ROOT):
     meta.update(logo_letters=letters, logo_letters_bottom=142 - bb[1], logo_tail=tail, logo_sparkles=sparkles,
                 logo_note='logo_letters = 글자별 [x0, x1) (로고 그림 기준), logo_letters_bottom 위쪽만 글자 '
                           '(아래는 부제 띠), logo_tail = 여우 꼬리 [x0, y0, x1, y1], logo_sparkles = 반짝이 (논리 좌표)')
-    json.dump(meta, open(t / 'title.json', 'w'), ensure_ascii=False, indent=1)
+    json.dump(meta, open(t / 'title.json', 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
     json.dump({'note': '안내원 테크모 (회색 까마귀, 학사모). 원본 32×32, 파일 4배(128). 화면 ×2(64) 또는 ×4(128 = 파일 그대로)',
                'frames': kinds, 'flap_cycle': ['flap3', 'idle', 'flap1', 'flap2', 'flap1', 'idle'],
                'blink': 'idle 사이에 0.1초', 'talk': '말할 때 talk ↔ idle 번갈아 (0.15초)'},
-              open(g / 'techmo.json', 'w'), ensure_ascii=False, indent=1)
+              open(g / 'techmo.json', 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
     print('ok', t, g)
 
 

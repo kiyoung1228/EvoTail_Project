@@ -88,16 +88,21 @@ def sparkle(surface, x, y, color=(255, 250, 200)):
     pygame.draw.line(surface, color, (x, y - 3), (x, y + 3))
 
 
-def progress(surface, label, n, total):
-    """왼쪽 위 진행 칸: 글씨 + 점 (글씨 폭에 맞춤). 예) "처음 안내 ■■□□□"."""
+def progress_width(label, total):
+    return 8 + (fit_width(label, 'body') - 4) + 8 + total * 9 + 6
+
+
+def progress(surface, label, n, total, topleft=(8, 32)):
+    """진행 칸: 글씨 + 점 (글씨 폭에 맞춤). 예) "처음 안내 ■■□□□". 기본 자리 = 왼쪽 위 (맞이 화면),
+    튜토리얼은 대화 상자 안 오른쪽 위 (TutorialOverlay.layout)."""
+    x0, y0 = topleft
     tw = fit_width(label, 'body') - 4                      # 글자 폭
-    w = 8 + tw + 8 + total * 9 + 6
-    box = pygame.Rect(8, 32, w, 22)
+    box = pygame.Rect(x0, y0, progress_width(label, total), 22)
     card(surface, box)
-    text_in(surface, label, (14, 33, tw + 4, 20), 'body', align='left', tag='guide')   # 글자는 x 16부터
+    text_in(surface, label, (x0 + 6, y0 + 1, tw + 4, 20), 'body', align='left', tag='guide')   # 글자는 x0 + 8부터
     for i in range(total):
-        x = 16 + tw + 8 + i * 9
-        r = pygame.Rect(x, 40, 6, 6)
+        x = x0 + 8 + tw + 8 + i * 9
+        r = pygame.Rect(x, y0 + 8, 6, 6)
         pygame.draw.rect(surface, (250, 196, 60) if i < n else (150, 128, 104), r)
         pygame.draw.rect(surface, T.INK, r, 1)
     return box

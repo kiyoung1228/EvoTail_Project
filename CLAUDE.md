@@ -350,15 +350,15 @@ CHARACTERS.md        캐릭터 목록 · GUI.md 화면 구조 설명
   - 이스터에그: 로고 글자 누르면 그 글자만 위로 6px 통(부제 띠는 그대로), 꼬리 5번 누르면 행렬 전부 하트 + 점프
 - **새 게임 흐름** (`gui/scenes/new_game.py` `NewGameScene`): 배경 = 표지 정원(로고·메뉴·행렬 없이) 어둡게
   - 인사(n1): 테크모 ×4 파닥 + 빛. 건너뛰기 = 고르기로
-  - 첫 동료 고르기(n2·n3·n3b): 상단 바(코인 '—', Scene `header = 'blank'`), 리본 "첫 동료 고르기", 테크모 한 줄. 왼쪽 일반 15마리(역할 3줄 × 5, 고른 순서 번호), 오른쪽 내 팀 3칸(✕로 빼기) + 마우스 올린 동물(이름·역할·강점 '기준'=균형·능력치 = get_catalog base_stats) + 팀 조합(역할 개수 칩, 힐러 없으면 "힐러 없음 · 회복 못 함", 탱커 없으면 "탱커 없음 · 지켜 줄 동료 없음", 셋 다 있으면 금색 "균형 잡힌 팀!" — 세기만 하고 막지 않음) + "이 동료들과 시작" = `reset_game(confirm=True, starters=[3마리])`(실패면 백엔드 알림). 건너뛰기 = 일반 15마리 중 무작위 3마리
+  - 첫 동료 고르기(n2·n3·n3b): 상단 바(가운데 날짜 칸 = "새 게임"만, 코인 '—', Scene `header = 'blank'`), 리본 "첫 동료 고르기", 테크모 한 줄. 왼쪽 일반 15마리(역할 3줄 × 5, 고른 순서 번호), 오른쪽 내 팀 3칸(✕로 빼기) + 마우스 올린 동물(이름·역할·강점 '기준'=균형·능력치 = get_catalog base_stats) + 팀 조합(역할 개수 칩, 힐러 없으면 "힐러 없음 · 회복 못 함", 탱커 없으면 "탱커 없음 · 지켜 줄 동료 없음", 셋 다 있으면 금색 "균형 잡힌 팀!" — 세기만 하고 막지 않음) + "이 동료들과 시작" = `reset_game(confirm=True, starters=[3마리])`(실패면 백엔드 알림). 건너뛰기 = 일반 15마리 중 무작위 3마리
   - 맞이(n4, 3번): 고른 순서대로 스포트라이트 + 원본 ×4 + 오른쪽 이름·역할·속성·능력치 카드, 테크모 파닥, "첫 동료 1/3". 대사 = "○○와 함께! " + 역할별 2줄(`guide.ROLE_LINES`, 조사 `T.josa`)
   - 끝나면 지도 + 처음 안내 (settings.json `tutorial_done`이 true면 안내 없이 지도만)
-- **처음 안내** (`gui/scenes/tutorial.py` `TutorialOverlay`, app.Overlay `dim = False`): 화면을 어둡게 + 강조 칸만 뚫고 노란 테두리 2줄 + 통통 화살표, "처음 안내 N / 5", 건너뛰기, 대화 상자(강조 칸이 아래쪽이면 위로)
-  - 강조 칸은 실제 화면 좌표: 1 가방 = 지도 `menu_rect('bag')` / 2 내 동물 = `menu_rect('my_animals')` → 누르면 내 동물 화면 / 3 훈련 = 내 동물 화면 쉬움·중간·어려움 버튼 합친 칸 → 지도로 / 4 전투장 = 지도 `places['battle']` / 5 마무리(테크모 ×3)
+- **처음 안내** (`gui/scenes/tutorial.py` `TutorialOverlay`, app.Overlay `dim = False`): 화면을 어둡게 + 강조 칸만 뚫고 노란 테두리 2줄 + 통통 화살표, 대화 상자(강조 칸이 아래쪽이면 위로). "처음 안내 N / 5" 진행 칸과 건너뛰기는 **대화 상자 안 오른쪽 위**(이름 칩과 같은 줄, 진행 칸 → 건너뛰기, 상자가 위든 아래든 같은 자리, `TutorialOverlay.layout`). 건너뛰기 클릭은 대화 상자 클릭(다음)보다 먼저
+  - 강조 칸은 실제 화면 좌표: 1 가방 = 지도 `menu_rect('bag')` / 2 내 동물 = `menu_rect('my_animals')` → 누르면 내 동물 화면 / 3 훈련 = 내 동물 화면 쉬움·중간·어려움 버튼 합친 칸 → 지도로 / 4 전투장 = 지도 `places['battle']` / 5 마무리: 다른 단계처럼 지도를 어둡게(강조 칸 없이) + 큰 테크모 ×3. 자리는 마당·장소 이름표·오른쪽 메뉴·대화 상자·상단 바와 안 겹치는 곳 중 마당 위쪽 가운데에 가장 가까운 곳(`done_rect`, 그림 실제 영역 기준). check_text_fit이 마당·마당 동물·이름표·메뉴·대화 상자와 겹침을 점검(겹치면 위반)
   - 대화 상자나 강조 칸을 누르면 다음 단계, 그 밖 클릭·ESC는 막음. 끝내거나 건너뛰면 `saves/settings.json`의 `tutorial_done = true` (소리 설정과 같은 파일·같은 저장 함수 `audio.set_tutorial_done`)
   - 설정 창 "처음 안내 다시 보기"(도움말 옆) = tutorial_done을 지우고 지도에서 1단계부터
 - 곡: 로딩·표지·새 게임 흐름 = `'map'`(지도 낮 곡)
-- 다시 만들기: `python tools/title_assets.py` (tools/title5.py의 코드 도트 → assets/title/·assets/guide/ 그림 + title.json·techmo.json). 목업: `tools/title5.py`(표지·gif), `tools/tut_mock.py`(새 게임·튜토리얼), `tools/techmo.py`(테크모 도트)
+- 다시 만들기: `python tools/title_assets.py` (PYTHONUTF8 없이 됨, 파일은 utf-8로 읽고 씀. tools/title5.py의 코드 도트 → assets/title/·assets/guide/ 그림 + title.json·techmo.json). 목업: `tools/title5.py`(표지·gif), `tools/tut_mock.py`(새 게임·튜토리얼), `tools/techmo.py`(테크모 도트)
 
 ## 진행 상황
 - 완료: 백엔드 1차(기영), 캐릭터 30종 데이터, 역할별 MAX, 도트 75장 (PR #1 merge됨)

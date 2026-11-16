@@ -308,19 +308,25 @@ class App:
         info = f"{day}{when} · {'태풍' if clock.get('storm') else '맑음'}"
         if 1 < rate < T.SPEED_DEMO:
             info += f" · {int(rate)}배속"
+        blank = getattr(self.scene, 'header', True) == 'blank'     # 새 게임 고르기: 지금 세이브 날짜 대신
+        if blank:
+            info = '새 게임'
         # 상단 바의 작은 칸: 안쪽 17 = 글자 11(쉼표 등 아래로 내려오는 글자 13) + 여백 4 → card 21
         box = pygame.Rect(0, 2, max(158, fit_width(info, extra=14) + 4), 21); box.centerx = T.WIDTH // 2
         card(surface, box)
         inner = card_inner(box)
-        w = 14 + glyph_box(info).w
-        x = inner.x + (inner.w - w) // 2
-        if night:
-            surface.blit(moon_icon(), (x, inner.y + 2))
+        if blank:                                                    # 아이콘 없이 글씨만 가운데
+            text_in(surface, info, inner, 'body', tag='header')
         else:
-            icon(surface, 'sun', (x, inner.y + 2))
-        g = text_in(surface, info, (x + 14, inner.y, w - 14, inner.h), 'body', log=False)
-        record(info, pygame.Rect(x, g.y, w, g.h), inner, 'header')
-        if rate >= T.SPEED_DEMO:
+            w = 14 + glyph_box(info).w
+            x = inner.x + (inner.w - w) // 2
+            if night:
+                surface.blit(moon_icon(), (x, inner.y + 2))
+            else:
+                icon(surface, 'sun', (x, inner.y + 2))
+            g = text_in(surface, info, (x + 14, inner.y, w - 14, inner.h), 'body', log=False)
+            record(info, pygame.Rect(x, g.y, w, g.h), inner, 'header')
+        if rate >= T.SPEED_DEMO and not blank:
             chip(surface, (box.right + 6, box.centery), f'시연 모드 {int(rate)}배', 'red', anchor='midleft')
         coins = '—' if getattr(self.scene, 'header', True) == 'blank' else f"{self.state.get('coins', 0):,}"
         coin = pygame.Rect(0, 2, max(90, fit_width(coins, 'title', extra=16) + 4), 21)
