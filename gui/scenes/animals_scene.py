@@ -125,6 +125,7 @@ class AnimalsScene(Scene):
                                        'red'))
         else:
             stat = self.train_stat
+            full = self.training_full()            # 훈련장 가득이면 미리 끔 (실패 이유는 백엔드 알림 그대로)
             for i, diff in enumerate(('easy', 'medium', 'hard')):
                 dur, gain, _ = self.rules.get('training', {}).get(diff, (0, 0, 0))
                 self.buttons.append(Button(
@@ -132,7 +133,22 @@ class AnimalsScene(Scene):
                     lambda d=diff, s=stat: app.act('start_training', f"{T.STAT_LABEL[s]} 훈련 시작", icon='sword',
                                                    key=key, stat=s, difficulty=d),
                     'green', sub=f'{dur // 60}분 · +{gain}',
-                    enabled=not busy and a['participation'] and a['stats'][stat] < a['caps'][stat]))
+                    enabled=not busy and not full and a['participation'] and a['stats'][stat] < a['caps'][stat]))
+
+    def training_slots(self):
+        """(지금 훈련 중인 수, 동시에 훈련할 수 있는 수) = 스냅샷 training_count / training_max_concurrent."""
+        st = self.app.state
+        return st.get('training_count', 0), st.get('training_max_concurrent', 0)
+
+    def training_full(self):
+        n, mx = self.training_slots()
+        return bool(mx) and n >= mx
+
+    def _training_count_line(self, surface, y):
+        """훈련 칸 위 "훈련 중 2/3" (스냅샷 값). 가득이면 빨강."""
+        n, mx = self.training_slots()
+        if mx:
+            text(surface, f"훈련 중 {n}/{mx}", (206, y), 'small', T.BAD if n >= mx else T.TEXT_SOFT)
 
     def _equip_label(self, a):
         if not a.get('equip'):
@@ -309,12 +325,17 @@ class AnimalsScene(Scene):
         if act and act.get('kind') == 'training':
             total = max(1, act.get('end', 0) - act.get('start', 0))
             left = act.get('end', 0) - now
-            text(surface, f"{T.STAT_LABEL.get(act.get('stat'), '')} 훈련 중", (206, 285), 'title', T.TEXT)
-            text(surface, f"남은 시간 {fmt_time(left)}", (206, 300), 'small', T.TEXT_SOFT)
+            text(surface, f"{T.STAT_LABEL.get(act.get('stat'), '')} 훈련 중", (206, 280), 'title', T.TEXT)
+            self._training_count_line(surface, 294)
+            text(surface, f"남은 시간 {fmt_time(left)}", (206, 306), 'small', T.TEXT_SOFT)
             gauge(surface, (300, 290, 208, 11), total - left, total, 'green')
         else:
-            text(surface, f"{T.STAT_LABEL[self.train_stat]} 훈련", (206, 285), 'title', T.TEXT)
-            text(surface, '피로도↑ 포만감↓', (206, 300), 'small', T.TEXT_SOFT)
+            text(surface, f"{T.STAT_LABEL[self.train_stat]} 훈련", (206, 280), 'title', T.TEXT)
+            self._training_count_line(surface, 294)
+            if self.training_full():
+                text(surface, '훈련장 가득', (206, 306), 'small', T.BAD)
+            else:
+                text(surface, '피로도↑ 포만감↓', (206, 306), 'small', T.TEXT_SOFT)
 
         if a['stage'] < a['max_stage']:
             ready = all(a['stats'][s] >= a['caps'][s] for s in T.STATS)

@@ -77,13 +77,16 @@ class StagePickScene(Scene):
                            lambda: app.go('map'), 'brown', icon='back')
         self.go_btn = None
         self._faces = {}
+        self.preview = None       # 고른 스테이지의 상대 (preview_stage, 스테이지를 바꿀 때만 다시 부름)
+        self._preview_for = None
 
     def enter(self):
         if self.app.state.get('battle'):            # 진행 중인 전투가 있으면 바로 전투 화면
             self.app.go('battle_fight')
             return
-        self.stages = self.app.call('get_stages') or []
+        self.stages = self.app.state.get('stages') or []      # 스냅샷 stages (get_stages를 따로 부르지 않음)
         self.ai = self.app.call('get_ai_profiles') or {}
+        self._preview_for = None
         ids = [s['id'] for s in self.stages]
         if self.selected not in ids or not self._stage(self.selected)['unlocked']:
             # 처음엔 아직 못 깬 열린 단계 중 첫 번째, 없으면 마지막 열린 단계
@@ -119,6 +122,10 @@ class StagePickScene(Scene):
                     return
 
     def update(self, dt):
+        self.stages = self.app.state.get('stages') or self.stages
+        if self.selected != self._preview_for:             # 고른 스테이지가 바뀔 때 한 번만
+            self._preview_for = self.selected
+            self.preview = self.app.call('preview_stage', stage=self.selected) if self.selected else None
         st = self._stage(self.selected)
         label = '팀 정하기'
         rect = pygame.Rect(INFO_PANEL.x + 13, INFO_PANEL.bottom - 40, INFO_PANEL.w - 26, 26)
@@ -225,8 +232,30 @@ class StagePickScene(Scene):
             kind = 'title' if label != '상대' else 'body'
             text_in(surface, shorten(value, P.right - 12 - x, kind), (x, y, P.right - 12 - x, 15), kind,
                     align='left', pad=0, log=False)
-            y += 17
+            y += 16
+        self._draw_lineup(surface, y + 1)
         self.go_btn.draw(surface)
+
+    def _draw_lineup(self, surface, y):
+        """상대 조합: preview_stage 적 3마리 (얼굴 ×1 + 역할 칩). 역할은 백엔드 preview 값 그대로."""
+        P = INFO_PANEL
+        foes = (self.preview or {}).get('enemy', [])[:3]
+        if not foes:
+            return
+        text_in(surface, '상대 조합', (P.x + 13, y, 60, 14), 'small', T.TEXT_SOFT, align='left', pad=0, log=False)
+        y += 13
+        slot = (P.w - 26) // 3
+        for i, e in enumerate(foes):
+            name, sprite, boss = E.enemy_look(self.app.sprites, e)
+            x = P.x + 13 + i * slot
+            box = pygame.Rect(x, y, 28, 28)
+            pygame.draw.rect(surface, (206, 226, 240), box)
+            face = self.app.sprites.fit(sprite, 26, 26, max_n=1)
+            surface.blit(face, face.get_rect(midbottom=(box.centerx, box.bottom - 1)))
+            pygame.draw.rect(surface, T.WOOD[1], box, 1)
+            role = e.get('role')
+            if role in T.ROLE_LABEL:
+                chip(surface, (box.right + 3, box.centery), T.ROLE_LABEL[role], T.ROLE_KIT[role], anchor='midleft')
 
 
 # ======================================================================
@@ -270,7 +299,15 @@ class TeamPrepScene(Scene):
 
     # ---------- 데이터 ----------
     def _stage(self):
-        return next((s for s in (self.app.call('get_stages') or []) if s['id'] == self.stage_id), {})
+        return next((s for s in (self.app.state.get('stages') or []) if s['id'] == self.stage_id), {})
+
+    def lineup_text(self):
+        """상대 조합 한 줄: preview 적의 역할 개수만 셈 (예: "딜러 2 · 힐러 1 · 회복함"). 규칙 계산은 없음."""
+        roles = [e.get('role') for e in (self.preview or {}).get('enemy', [])]
+        parts = [f"{T.ROLE_LABEL[r]} {roles.count(r)}" for r in ('dealer', 'tank', 'healer') if roles.count(r)]
+        if 'healer' in roles:
+            parts.append('회복함')
+        return ' · '.join(parts)
 
     def _others(self):
         return [a for a in self.app.state.get('animals', []) if a['id'] not in self.team]
@@ -437,6 +474,10 @@ class TeamPrepScene(Scene):
     def _draw_top(self, surface):
         panel(surface, self.TOP)
         text_in(surface, '상대', (self.FOE_BOX.x, self.TOP.y + 8, 60, 16), 'title', align='left', pad=0, log=False)
+        lineup = self.lineup_text()
+        if lineup:
+            text_in(surface, lineup, (self.FOE_BOX.x, self.TOP.y + 8, self.FOE_BOX.w, 16), 'small', T.TEXT_SOFT,
+                    align='right', tag='prep')
         text_in(surface, '내 팀', (self.TEAM_BOX.x, self.TOP.y + 8, 60, 16), 'title', align='left', pad=0, log=False)
         if self.from_last:
             note = f"지난번 팀 · 출전 불가 {self.skipped}마리 뺌" if self.skipped else '지난번 팀으로 채움'

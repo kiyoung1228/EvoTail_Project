@@ -100,7 +100,7 @@ CHARACTERS.md        캐릭터 목록 · GUI.md 화면 구조 설명
 **역할 = 속성**: 딜러=불, 탱커=물, 힐러=바람. 유형도 딜러형/탱커형/힐러형.
 **캐릭터 30종**: 일반 15(2단계까지) + 특급 15(3단계까지), 역할별 5종씩. 같은 역할·등급은 기준값 ±10%.
 시작 능력치 기준(체/공/방/민): 일반 딜러 60/90/50/80, 탱커 100/50/90/40, 힐러 60/60/60/60, 특급은 ×1.4.
-최초 지급: 불씨여우, 물방울수달, 산들오리 (각 역할 첫 일반 캐릭터).
+최초 지급: 새 게임 때 일반 15마리 중 3마리를 직접 고름(역할 자유), starters 없으면 역할별 첫 일반 3마리 (불씨여우·물방울수달·산들오리). 고르는 화면은 아직 없음 (표지·튜토리얼 PR에서 `reset_game(starters=[...])`로 연결 예정, PR #23)
 
 **역할별 MAX** (단계 기준 300/500/1000 × 배율)
 | 역할 | 체력 | 공격 | 방어 | 민첩 |
@@ -110,7 +110,7 @@ CHARACTERS.md        캐릭터 목록 · GUI.md 화면 구조 설명
 | 힐러 | ×0.9 | ×0.8 | ×0.9 | ×1.0 |
 
 **진화**: 네 능력치 모두 MAX + 코인 (2단계 800, 3단계 3000).
-**훈련**: 능력치 하나 선택. 쉬움 10분 +10 / 중간 30분 +30 / 어려움 60분 +65. 포만감·기분 감소, 피로도 증가. 피로도 50 이상이면 효과 절반. 태풍 중 2배.
+**훈련**: 능력치 하나 선택. 쉬움 10분 +10 / 중간 30분 +30 / 어려움 60분 +65. 포만감·기분 감소, 피로도 증가. 피로도 50 이상이면 효과 절반. 태풍 중 2배. 동시에 훈련할 수 있는 동물 최대 3마리 (스냅샷 `training_count` / `training_max_concurrent`, PR #23)
 **상태 3단계** (0~100): 포만감·기분 0~29 나쁨, 30~55 보통, 56~ 좋음. 피로도는 반대 (56 이상 나쁨).
 **피로도**: 전투 승리 +30, 패배 +100. 쉬면 5초마다 1 감소, 밤엔 2배. 상태가 나쁨이면 훈련·전투 불가.
 **강제 휴식** (PR #6): 피로도 **80 초과**(80은 아님)면 성격과 관계없이 자율행동이 `rest`로 바뀜 (`roc/autonomy.py` `FORCED_REST_FATIGUE_THRESHOLD`). GUI는 `action == 'rest'`만 보고 엎드린 모습으로 표시
@@ -190,21 +190,23 @@ CHARACTERS.md        캐릭터 목록 · GUI.md 화면 구조 설명
   - 누운 그림은 `SpriteCache.lying()` 하나에서 만든다. 지금은 "엎드리기": 서 있는 도트를 세로만 원본 28줄 → 20줄로 고르게 줄 빼서 납작하게, 바닥에 붙임 (90° 회전은 쓰러진 것처럼 보여서 안 씀). `assets/sprites/<ID>_s<단계>_lying.png`를 그려 넣으면 자동으로 그 그림을 씀
 
 ## 전투장 (목업 `docs/mockups/battle/`, 팀 결정 = 스테이지 2화면 + 전투 A안 + A2_1~3)
-- **스테이지 고르기** (`gui/scenes/battle_stage.py` `StagePickScene`, stage_pick.png): 9단계를 뱀 모양 길로 잇고 동그라미 안에 보스 얼굴(`gui/enemies.py` → data/enemies.json). 깬 곳 초록 체크, 잠긴 곳 자물쇠(못 고름), 대회는 메달 색 테두리. 오른쪽에 보스 그림·대회·전투력·보상·상대 성향, "팀 정하기"
-- **출전 준비** (`TeamPrepScene`, stage_team_prep.png): 상대(`preview_stage`) vs 내 팀(`last_team`으로 미리 채움, ✕로 빼기). 미리 채울 때 스냅샷 `participation`이 False인 동물(사냥·훈련 중, 아픔 등)은 빈 칸으로 두고 "지난번 팀 · 출전 불가 N마리 뺌". 팀에 출전 불가 동물이 있으면 출전 버튼을 미리 막고 두 줄 "출전 불가 / 산들오리 아픔"(백엔드 거절 전에). 다른 동물은 스냅샷 `participation`/`participation_reason`(백엔드 `_available`, `can_participate`와 같음)으로 출전 불가면 흐리게 + 이유. 전투 전 포션은 카드를 누를 때마다 팀원에게 차례로(한 마리에 하나). 출전 = `start_battle(stage, team, prebattle_potions)`
+- **스테이지 고르기** (`gui/scenes/battle_stage.py` `StagePickScene`, stage_pick.png): 9단계를 뱀 모양 길로 잇고 동그라미 안에 보스 얼굴(`gui/enemies.py` → data/enemies.json). 깬 곳 초록 체크, 잠긴 곳 자물쇠(못 고름), 대회는 메달 색 테두리. 오른쪽에 보스 그림·대회·전투력·보상·상대 성향, **"상대 조합"**(고른 스테이지의 `preview_stage` 적 3마리 얼굴 ×1 + 역할 칩, 스테이지를 바꿀 때만 한 번 호출), "팀 정하기"
+  - 스테이지 목록은 스냅샷 `app.state['stages']`(id·order·unlocked·cleared·ai_description, PR #23). **get_stages를 따로 부르지 않음** (스테이지 고르기·출전 준비·전투·결과 모두)
+  - 적도 딜러·탱커·힐러 역할이 있고(기영님 의도), 플레이어가 상대 조합을 먼저 보고 팀을 짬
+- **출전 준비** (`TeamPrepScene`, stage_team_prep.png): 상대(`preview_stage`, 역할 칩 + 칸 위 작은 글씨 조합 한 줄 "딜러 2 · 힐러 1 · 회복함" = preview 적 역할 개수만 셈, 규칙 계산 없음) vs 내 팀(`last_team`으로 미리 채움, ✕로 빼기). 미리 채울 때 스냅샷 `participation`이 False인 동물(사냥·훈련 중, 아픔 등)은 빈 칸으로 두고 "지난번 팀 · 출전 불가 N마리 뺌". 팀에 출전 불가 동물이 있으면 출전 버튼을 미리 막고 두 줄 "출전 불가 / 산들오리 아픔"(백엔드 거절 전에). 다른 동물은 스냅샷 `participation`/`participation_reason`(백엔드 `_available`, `can_participate`와 같음)으로 출전 불가면 흐리게 + 이유. 전투 전 포션은 카드를 누를 때마다 팀원에게 차례로(한 마리에 하나). 출전 = `start_battle(stage, team, prebattle_potions)`
 - **전투** (`gui/scenes/battle_fight.py` `BattleScene`): 아군 왼쪽·적 오른쪽, 머리 위엔 체력바만(이름은 마우스), 보스는 원본 46 ×2. 명령창 = 고른 동물 정보 + 공격/특수기/방어/턴 넘기기, `get_battle_actions`가 준 행동만 켬
   - 딜러의 공격은 백엔드에서 **적 전체 공격**이라 대상 고르기 없음. 딜러는 특수기 버튼이 없음 (탱커 = 절대방어, 힐러 = 회복)
   - 특수기 버튼은 역할 상관없이 **보라색**(방어 파랑과 구분). `cooldown`이 0보다 크면 회색(disabled) + "재사용 대기: 1턴", 발밑 칩 "기술 쉼". 버튼 아래 설명 "아군 1마리 / 쓰면 다음 턴 1번 쉼"
   - 작은 기록 칸은 "주체 → 대상 숫자" 한 줄 ("야생" 빼고, 길면 이름만 줄임), 펼친 기록은 전체 문장
   - 대상 고르기: 위 안내 띠 + 꺾쇠(적 빨강·아군 초록·마우스 올린 대상 노랑), ESC·오른쪽 클릭 취소. 회복은 체력바에 회복 뒤 체력 미리보기
-  - 백엔드는 한 번 호출에 내 행동 + 적 차례까지 처리 → 응답의 전투 기록(events)을 재생: 내 행동은 바로, 적 차례는 0.6초 간격. 체력바·숫자는 기록 값(피해·회복)으로만 움직이고 끝나면 백엔드 체력으로 맞춤
+  - 백엔드는 한 번 호출에 내 행동 + 적 차례까지 처리 → `battle_action`·`end_player_turn` 응답의 **`turn_events`**(이번 호출에서 생긴 행동만, PR #23)를 재생: 앞에서 응답 `events` 수만큼 = 내 행동, 나머지 = 적 차례. turn_events가 없으면(예전 세이브) 전체 log에서 log_len 이후를 잘라 씀. 전투 기록 칸(전체 기록)은 battle['log'] / result['log'] 그대로. 재생은 내 행동은 바로, 적 차례는 0.6초 간격. 체력바·숫자는 기록 값(피해·회복)으로만 움직이고 끝나면 백엔드 체력으로 맞춤
   - 전투 기록: 작은 칸, 마우스를 올리면 위로 펼침(라운드·"적" 칩). 도망가기 = `forfeit_battle`(확인 창)
   - 회복 미리보기 = `get_battle_actions`의 행동마다 `amount`(PR #12, 그 대상에게 실제로 회복될 양). `HEAL_PREVIEW` 표는 amount가 없을 때만 + 회복 버튼 글씨(최대 회복량)
   - 한 마리가 행동하면 **아직 행동 안 한 아군을 자동으로 고른다** (없으면 고른 동물 그대로)
   - **전투 아이템**: 명령창 "아이템 N" 버튼(가방에 전투 아이템이 있을 때만 켜짐) → 버튼 위 목록(아이템 그림 ×1 + 이름 ×개수 · 회복량 · 팀 행동 1번 사용) → 고르면 아군 대상 고르기(초록 꺾쇠, 회복 뒤 체력 미리보기). `get_battle_actions(actor='battle_bandage')`의 `battle_item` 행동만 씀 → `battle_action(actor='battle_bandage', kind='battle_item', target)`
     - 백엔드 동작: 붕대는 팀 행동 1번(한 턴 2번 중)을 쓰지만 동물 한 마리의 "행동 완료"로 치지 않음. 회복량 = min(80, 모자란 체력), 기록 이벤트 `battle_item`의 `amount`
     - 미리보기 회복량은 `battle_item` 행동의 `amount` (없을 때만 상점 목록 `heal`)
-- **결과** (`BattleResultScene`): 승/패 (도망가기로 끝나면 회색 리본 "도망쳤다" = `fled`, 백엔드 battle_result는 도망과 패배를 같게 정산해서 GUI가 넘김. 키트 `ribbon_gray`), 보상 코인(`battle_result.reward`), 첫 대회 우승/처음 깸(`first_clear`) + "다음 단계 열림"(get_stages의 다음 order), 팀 피로도 전→후(전 = 출전 직전 스냅샷, 후 = 결과 화면 enter에서 refresh한 스냅샷, 둘 다 백엔드 값), 아픔 표시. 뉴비(`tutorial`) 스테이지는 백엔드가 전투 뒤 상태를 바꾸지 않아 승패·도망 모두 "+0"이 맞음
+- **결과** (`BattleResultScene`): 승/패 (도망가기로 끝나면 회색 리본 "도망쳤다" = `fled`, 백엔드 battle_result는 도망과 패배를 같게 정산해서 GUI가 넘김. 키트 `ribbon_gray`), 보상 코인(`battle_result.reward`), 첫 대회 우승/처음 깸(`first_clear`) + "다음 단계 열림"(스냅샷 stages의 다음 order), 팀 피로도 전→후(전 = 출전 직전 스냅샷, 후 = 결과 화면 enter에서 refresh한 스냅샷, 둘 다 백엔드 값), 아픔 표시. 뉴비(`tutorial`) 스테이지는 백엔드가 전투 뒤 상태를 바꾸지 않아 승패·도망 모두 "+0"이 맞음
 - 전투장 배경은 그림 파일 없이 **코드 도트** (목업 `prep_v2.png`, `fight_floor_v2.png`)
   - 전투: `battle_fight.arena_surface()`(하늘·관중석·벽·깃발·횃불) + `gui/scenes/arena_art.py`의 `floor()`(모래 띠·결·자갈·벽 밑 잡초) · `arena_floor()`(갈퀴 결 경기장 원·분필 테두리 두 줄·가운데 발바닥 문장·양 진영 출발선 파랑/빨강·발자국·건초·무기 걸이·나무통·깃털·나무 창)
   - 출전 준비: 상대 칸 = `foe_backdrop()` 적 진영(돌벽·빨간 깃발·횃불·모래·빨간 출발선), 내 팀 칸 = `team_backdrop(avoid)` 우리 진영(하늘·언덕·울타리·깃발 줄·꽃 풀밭, ✕ 빼기 버튼 자리 `avoid`엔 깃발 안 검). 둘 다 크기별로 한 번만 그려 캐시
@@ -234,7 +236,7 @@ CHARACTERS.md        캐릭터 목록 · GUI.md 화면 구조 설명
 - 가운데 3열 칸: 그림 ×2, 이름(길면 두 줄 `widgets.wrap2`, 줄이지 않음), 코인 가격, 가진 개수는 그림 오른쪽 아래 회색 칩 "×N". 3줄 넘으면 휠
 - 오른쪽 상세: 그림 ×3, 이름(big), 종류 칩, 효과 줄(`items.effect_lines`, 숫자는 전부 `get_shop_catalog`), "보유 N", 수량 - N +(최대 99, 팔기는 가진 수까지), 합계, "구매"(아래 "N개 · N코인") = `buy_item(item, quantity)` / 팔기 탭은 "판매" = `sell_item`. 실패 이유(코인 부족, 쓴 장난감 등)는 백엔드 알림
 - 장비 상세: "내 동물 화면에서 장착", "전투 중 교체 불가". 내 동물 화면 아래 파란 "장비" 버튼 → `EquipOverlay`(가방 장비 장착 `equip(key, item)` / 해제 `equip(key, None)`)
-- **알 탭**: 진한 배경 + 빛줄기 위 알, "특급 등장 확률" 금색 막대. 확률(특수 60% / 기본 10%)은 백엔드 `hatch_egg` 안의 숫자라 API로 안 나옴 → **GUI 표시 문구** `items.EGG_SPECIAL_RATE`. 백엔드 확률을 바꾸면 여기도 바꿀 것 (기영님께 `get_rules`로 내 달라고 요청 가능). 보유하면 초록 "지금 부화"
+- **알 탭**: 진한 배경 + 빛줄기 위 알, "특급 등장 확률" 금색 막대. 확률 = `get_rules()['hatching'][알]['special_probability']` × 100 (`items.egg_rates(rules)`, 백엔드 config HATCHING, 화면 enter 때 한 번 읽음). 보유하면 초록 "지금 부화"
 - 문구는 게임 말투 ("~요" 대신 "보유 2", "출전 불가", "~샀다")
 - **부화 연출** (`HatchOverlay`, hatch_1_storyboard): 총 2.6초, 클릭·Space·ESC로 건너뛰기. ① 0~1.2초 흔들흔들(±4px, 점점 빠르게) + 은은한 빛 ② 1.2~2.2초 금 1줄 → 여러 줄, 금에서 빛, 빛줄기 회전 ③ 2.2~2.6초 하얀 빛 폭발 + 껍질 위/아래 조각 + 반짝이 ④ 결과 창. `hatch_egg(egg)`는 연출 시작할 때 한 번(실패하면 연출 없이 알림). 알 그림 ×5
 - **부화 결과** (hatch_2_result / hatch_3_duplicate): 왼쪽 빛줄기 무대 + 동물 원본 ×4 + 껍질 조각, 새 동물이면 빨간 "NEW". 오른쪽 이름, 칩(특급 금색 / 일반 회색, 역할, 속성, "강점 ○○" = 캐릭터 `strength`, '기준'은 "균형"), 설명(`get_catalog` description), "도감 등록! N / 30"(`hatch_egg`의 owned / 캐릭터 수) 또는 중복이면 빨강 "이미 보유한 동물 · 도감 변화 없음", 능력치 4줄(`get_evolution_status`의 stats·caps), 버튼 내 동물 보기 / 한 번 더 부화(같은 알 개수, 없으면 회색) / 상점으로
@@ -260,7 +262,7 @@ CHARACTERS.md        캐릭터 목록 · GUI.md 화면 구조 설명
   - **한 칸 = 한 포기 그림(×2) 6번**: 위치는 `plants.json`의 `plot_fill.positions`(칸 132×108 기준, 칸 왼쪽 위에서 48px 그림의 왼쪽 위, 순서대로 = 뒷줄 먼저), `flip_odd`면 홀수 번째(1·3·5)는 좌우 뒤집기, 칸이 132보다 넓으면 가운데 맞춤. 위치 숫자는 코드에 적지 않고 json에서 읽음 (`FarmScene._fill`). 빈 밭 새싹 미리보기도 6포기. 칩·게이지·반짝이는 작물 위에. 오른쪽 상세 칸은 한 포기 ×3
   - 수확 연출이 시작되면 그 칸의 6포기는 바로 사라짐 (백엔드에서 빈 밭이 됨)
   - 다시 만들기: 감자·양파·밀 다 자란 그림은 `tools/crops_v8.py`, 나머지(토마토·쌀·양배추 다 자람, 성장 단계, 씨앗 봉투)는 `tools/farm_icons.py`
-- **GUI 표시값** (`farm.FARM_DISPLAY`): 자라는 시간 600초, 수확 개수 3개. 백엔드 `config.CROP_DURATION`·`CROP_YIELD`인데 `get_rules`·스냅샷에 안 나와서 GUI에 둠. 백엔드 값을 바꾸면 같이 바꿀 것 (기영님께 `get_rules`에 넣어 달라고 요청 가능). 밭 가격은 `get_rules()['plot_costs']` 백엔드 값
+- 자라는 시간·수확 개수 = `get_rules()['crops']`(`duration_seconds`, `yield`, 백엔드 config CROP_DURATION·CROP_YIELD), 밭 가격 = `get_rules()['plot_costs']`. get_rules는 화면 enter 때 한 번 (`FarmScene.crop`). 가방 씨앗 쪽지 "다 자라면 감자 ×3"도 같은 값
 - 작물·씨앗 이름은 상점 목록 label. 양배추 재료 그림 `assets/food/cabbage.png`(food_icons.json에 추가)
 - 다시 만들기: `tools/farm_icons.py`(작물·성장 단계·씨앗 봉투), `tools/crops_v8.py`(감자·양파·밀 다 자람), `tools/farm_mock.py`(목업·배경)
 
@@ -277,7 +279,7 @@ CHARACTERS.md        캐릭터 목록 · GUI.md 화면 구조 설명
   - 긴 이름("행운의 토끼고기")이 칸 폭을 넘으면 줄을 나누고(글자 크기 그대로) 아래 줄을 그만큼 내림 (빈 사냥터 "받는 것"은 `wrap2`, 나머지는 `_text_lines`). 오른쪽 칸 글씨 줄은 전부 check_text_fit 넘침 점검에 기록(tag `hunt-panel`)
 - 보낼 수 있는지·이유는 스냅샷 `participation`/`participation_reason`(백엔드 `_available`, start_hunting도 같은 검사). 사냥 중이면 "사냥 중 · 닭장"(activity area), 훈련 중이면 "훈련 중"
 - 사냥터 이름·시간·보상 item·count는 `get_hunts()['areas']` 백엔드 값. 고기 이름은 상점 목록 label
-- **GUI 표시값** (`hunting.HUNT_DISPLAY`): "다녀오면" 상태 변화(30분: 포만감 -10·기분 -5·피로도 +20 / 60분: -20·-10·+35)와 질병 확률 30%. 백엔드 `service._finish_animal_job`·`config.DISEASE_CHANCE` 안에만 있고 API에 없어서 GUI에 둠 (get_rules에도 없음). 백엔드 값을 바꾸면 같이 바꿀 것 (기영님께 `get_rules`에 넣어 달라고 요청 가능)
+- "다녀오면" 상태 변화 = `get_hunts()['areas'][area]['completion_effects']`(fullness·mood·fatigue, 사냥터별), 질병 확률 = `get_rules()['disease_probability']` (백엔드 값, 화면 enter 때 한 번)
 - 다시 만들기: `tools/hunt_zone2.py`(구역 풍경 v2), `tools/hunt_art.py`(사냥감 도트), `tools/meat_icons.py`(고기 재료 아이콘), `tools/hunt_mock.py`(목업)
 
 ## 가방 (목업 `docs/mockups/bag/` D안, `gui/scenes/bag.py` `BagScene`)
@@ -288,7 +290,7 @@ CHARACTERS.md        캐릭터 목록 · GUI.md 화면 구조 설명
   - 먹이·장난감·요리: 효과 줄(`items.effect_lines`) + "누구에게 줄까?" 동물 목록(얼굴, 이름, 포만감 게이지(장난감은 기분), 고른 동물은 먹은 뒤 미리보기 "10→45", 활동 중이면 흐리게 + 이유, 넘치면 휠) + "○○에게 주기" = `use_item(item, key)`. 탄 요리는 "절반 확률로 거절", `refused`면 알림
   - 회복 포션: 효과(가방에서 바로 치료하니 "병원에서 사용" 줄은 뺌) + 아픈 동물만 목록 → "○○ 치료하기" = `use_item` → 병원 `CureResult` 창 재사용(`_CureHost`로 연결). 없으면 "아픈 동물 없음"
   - 장비: 효과 + 동물 목록(지금 장착한 장비 이름 / "장비 없음") → 보라 "○○에게 장착" = `equip(key, item)`. 백엔드 equip은 활동 중(사냥·훈련)·전투 중이면 거절하므로 그런 동물은 흐리게 + 백엔드 거절 이유 그대로 "활동 중 장비 교체 불가"
-  - 알: 특급 등장 확률(`items.EGG_SPECIAL_RATE`) + "지금 부화" → 상점 `HatchOverlay` 재사용
+  - 알: 특급 등장 확률(`get_rules` hatching, `items.egg_rates`) + "지금 부화" → 상점 `HatchOverlay` 재사용
   - 전투 포션·붕대: 효과 + 회색 "전투 1번만 효과"(붕대는 "전투 중 팀 행동 1번 사용") + "쓰는 곳: 전투장 · 출전 준비"(붕대는 "전투 중 아이템 버튼") + 파랑 "전투장으로"
   - 재료·작물·고기·씨앗: "쓰는 곳"(`get_recipes`에서 이 재료를 쓰는 레시피 카드, 여러 개면 위 2개 + "외 N개", 씨앗은 "밭에 심기 · 다 자라면 감자 ×3"), "얻는 곳"(작물 = 밭 / 사냥 보상 = "사냥터 · 달토끼 언덕" / 살 수 있으면 상점, 주방과 같은 규칙), "판매가 N코인", 주황 "주방으로" / 씨앗은 초록 "밭으로"
   - 공통: 팔 수 있으면 빨강 "상점에 팔기 · N코인" = `sell_item(item, 1)` (장난감은 안 쓴 것만, 백엔드 이유는 알림). 버리기는 백엔드에 없어서 없음
@@ -304,11 +306,12 @@ CHARACTERS.md        캐릭터 목록 · GUI.md 화면 구조 설명
 - **왼쪽 쪽**: "일반 2단계까지 · 6/15" + 마름모 장식 줄, 역할 3줄(역할·속성 칩 + "2/5") × 5칸. 가진 동물 = 지금 단계 그림 ×2(여백 잘라 가운데, 칸 밖은 잘림 `blit_in`), 없는 동물 = 어두운 실루엣 + "?". 칸마다 번호·단계 점, 특급은 금색 테두리, 고른 칸 `select_frame`. 같은 칸 다시 누르면 현황 쪽
 - **오른쪽 쪽 D0 현황** (`summary_page()`): 제목 + 금 마름모 장식, 액자 그림(하늘·구름·언덕·풀밭 + 가진 동물 앞 5마리 ×2, 가진 동물이 바뀔 때만 다시 그림), 카드 4개(전체 / 일반 / 특급 금색 / 최종 진화 보라 = max_stage에 닿은 수), "속성별" 게이지 3줄, 알 아이콘 안내 칸
 - **가진 동물 (D1·D2)**: No.07 + 이름(big) + "2단계" 칩, 칩(등급·역할·속성·"강점 ○○", '기준'은 "균형"), 받침 위 그림 ×3, 설명(줄 나눔)·"종 · 유형", 진화 줄(지난 단계 그림+이름, 지금 단계 꺾쇠, 못 간 단계 실루엣 + ? + "???", 사이 ▶), 능력치 2×2(값 / 지금 단계 MAX), 초록 "내 동물에서 보기" → `app.go('animals', selected=key)`
-- **없는 동물 (D3)**: No.29 + "???", 칩(등급·역할·속성만), 실루엣 ×3 + ?, "아직 만나지 못한 동물"·"부화하면 그림·이름·설명이 / 도감에 등록된다", "만나는 곳: 상점 알 부화" 칸(특급은 "특수 부화 알 특급 60%" = `items.EGG_SPECIAL_RATE`), 진화 줄 전부 실루엣, 능력치 "???", 주황 "상점에서 알 사기" → 상점 알 탭
+- **없는 동물 (D3)**: No.29 + "???", 칩(등급·역할·속성만), 실루엣 ×3 + ?, "아직 만나지 못한 동물"·"부화하면 그림·이름·설명이 / 도감에 등록된다", "만나는 곳: 상점 알 부화" 칸(특급은 "특수 부화 알 특급 60%" = `get_rules` hatching, `items.egg_rates`), 진화 줄 전부 실루엣, 능력치 "???", 주황 "상점에서 알 사기" → 상점 알 탭
 - 오른쪽 쪽 글씨 줄은 check_text_fit 넘침 점검에 기록(tag `dex-page`)
 - 다시 만들기(목업): `tools/dex_mock_d.py`(D안 책·태그·현황 쪽), `tools/dex_mock.py`(칸·칩·진화 줄·능력치)
 
 ## 내 동물 화면 (`gui/scenes/animals_scene.py` `AnimalsScene`, animals_v2)
+- 훈련 칸 왼쪽: "공격력 훈련" / "훈련 중 2/3"(스냅샷 `training_count`/`training_max_concurrent`, 가득이면 빨강) / "피로도↑ 포만감↓". 가득 차면 쉬움·중간·어려움 버튼을 미리 끄고 아래 줄 빨강 "훈련장 가득" (그래도 실패하면 백엔드 이유 알림 그대로)
 - 정보 칸 "지금: 휴식 — (자율행동 이유)"는 길면 `wrap2`로 두 줄(글자 크기 그대로). 두 줄 자리는 늘 비워 둬서 동물마다 아래 줄이 흔들리지 않음. check_text_fit에 tag `animal-info`로 기록, 백엔드 이유 문장 전부 × 행동 이름으로 점검
 
 ## 배경음 (BGM) · 효과음악 (`gui/audio.py`)
@@ -351,7 +354,10 @@ CHARACTERS.md        캐릭터 목록 · GUI.md 화면 구조 설명
 - 완료 (PR #18 merge됨): 도감 D안(펼친 책·일반/특급 태그·현황 쪽·가진 동물·없는 동물)
 - 완료 (PR #19 merge됨): 실행 파일(PyInstaller onedir, 아이콘, exe 옆 세이브, error.log)
 - 완료 (PR #20 merge됨): 내 동물 자율행동 줄 두 줄, 출전 준비 출전 불가 동물 빼기·버튼 미리 막기, 전투 결과 "도망쳤다"
-- 진행 중 (브랜치 `bgm-arena`): 전투장 배경 v2(arena_art.py), 장소별 BGM·효과음악, 설정 창 소리 줄
+- 완료 (PR #21 merge됨): 전투장 배경 v2(arena_art.py), 장소별 BGM·효과음악, 설정 창 소리 줄
+- 완료 (PR #22 merge됨): 상점 쪽수 글씨 빼기, 가방 탭 같은 폭, 사냥 activity kind 'hunt'
+- 완료 (PR #23 merge됨, 기영): 백엔드 규칙 정리 — turn_events, 스냅샷 stages·training_count, get_rules crops·hatching·disease_probability, get_hunts completion_effects, 훈련 동시 3마리, 시작 동물 고르기(reset_game starters)
+- 진행 중 (브랜치 `sync-backend`): GUI를 PR #23에 맞춤 (turn_events 재생, 스냅샷 stages, 표시값 → 백엔드 값, 훈련 2/3·가득, 상대 조합)
 
 ## 다음 할 일 (순서대로)
 1. **메인 화면을 목업대로**: `map_scene.py`의 텍스트 카드를 지도 이미지 + 간판 + 오른쪽 메뉴로 교체. 마당 동물은 `map.json`의 `yard` 안에서 움직이게. 지금의 "집" 화면(AnimalsScene)은 메뉴 "내 동물"로 연결

@@ -17,7 +17,6 @@ from ..widgets import (text, text_in, glyph_box, fit_width, card, card_inner, ri
                        gauge, select_frame, record, wrap2, Button, BUTTON_H)
 from .hospital import CureResult
 from .hatch import HatchOverlay
-from .farm import FARM_DISPLAY
 
 # ---- 배낭 모양 (tools/bag_mock2.py와 같은 값) ----
 LE = [(92, 56, 32), (130, 82, 46), (164, 108, 62), (196, 140, 86), (226, 178, 118)]     # 가죽 어두움→밝음
@@ -86,6 +85,8 @@ class BagScene(Scene):
     music = 'map'         # 배경음: 지도 곡 (낮·밤). 지도에서 오면 같은 곡이라 이어짐
     def __init__(self, app):
         super().__init__(app)
+        self.egg_rates = {}       # 알별 특급 확률 % (get_rules hatching, enter에서 채움)
+        self.crop_yield = 0       # get_rules crops yield
         self.cat = 'all'
         self.selected = None            # 고른 칸 키 (아이템 id, 장난감은 'toy_ball#0'처럼 몇 번째인지)
         self.target = None              # 쪽지에서 고른 동물
@@ -106,6 +107,9 @@ class BagScene(Scene):
         self.catalog = self.app.call('get_shop_catalog') or self.catalog
         self.recipes = (self.app.call('get_recipes') or {}).get('recipes', self.recipes)
         self.hunts = (self.app.call('get_hunts') or {}).get('areas', self.hunts)
+        rules = self.app.call('get_rules') or {}                     # 화면에 들어올 때 한 번
+        self.egg_rates = I.egg_rates(rules)
+        self.crop_yield = (rules.get('crops') or {}).get('yield', 0)
         self.scroll = self.list_scroll = 0
         self._fix()
 
@@ -366,7 +370,7 @@ class BagScene(Scene):
         spec = self.spec(item)
         if spec.get('kind') == 'seed':
             crop = spec.get('crop')
-            return [(f'seed_{crop}', '밭에 심기', f"다 자라면 {self.label(crop)} ×{FARM_DISPLAY['yield']}")]
+            return [(f'seed_{crop}', '밭에 심기', f"다 자라면 {self.label(crop)} ×{self.crop_yield}")]
         return [(key, r['label'], f"주방 레시피 ★{r['stars']}") for key, r in self.recipes.items()
                 if item in r.get('ingredients', {})]
 
@@ -621,7 +625,7 @@ class BagScene(Scene):
         self._animal_list(surface, y + 4, '누구에게 장착할까?', value_of, busy_text='활동 중 장비 교체 불가')
 
     def _draw_egg(self, surface, item, y):
-        rate = I.EGG_SPECIAL_RATE.get(item, 0)
+        rate = self.egg_rates.get(item, 0)
         self._line(surface, '특급 등장 확률', (NX, y + 6), 'body', T.TEXT)
         text(surface, f'{rate}%', (NR, y + 6), 'big', T.shade('gold', 1), 'midright')
         gauge(surface, (NX, y + 16, NR - NX, 10), rate, 100, 'gold')

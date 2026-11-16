@@ -27,8 +27,12 @@ KIND_LABEL = {   # 종류 칩 (글씨, 색)
     'egg': ('알', 'gold'), 'ingredient': ('재료', 'orange'), 'crop': ('작물', 'green'), 'seed': ('씨앗', 'green'),
     'food': ('요리', 'orange'),
 }
-# 알 탭: 특급 등장 확률. 백엔드(hatch_egg)에 숫자로 나오지 않아 GUI 표시 문구로 둔다 (CLAUDE.md 참고)
-EGG_SPECIAL_RATE = {'egg_special': 60, 'egg_basic': 10}
+
+
+def egg_rates(rules):
+    """알별 특급 등장 확률(%) = get_rules()['hatching'][알]['special_probability'] × 100 (백엔드 config HATCHING)."""
+    return {egg: round((spec or {}).get('special_probability', 0) * 100)
+            for egg, spec in ((rules or {}).get('hatching') or {}).items()}
 
 
 def effect_lines(item, spec, catalog):

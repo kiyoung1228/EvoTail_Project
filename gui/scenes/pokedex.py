@@ -117,6 +117,7 @@ class PokedexScene(Scene):
     music = 'map'         # 배경음: 지도 곡 (낮·밤). 지도에서 오면 같은 곡이라 이어짐
     def __init__(self, app):
         super().__init__(app)
+        self.egg_rates = {}       # 알별 특급 확률 % (get_rules hatching, enter에서 채움)
         self.rarity = 'normal'
         self.selected = None            # 고른 동물 (None = 현황 쪽)
         self.dex = []
@@ -134,6 +135,7 @@ class PokedexScene(Scene):
     def enter(self):
         self.dex = self.app.call('get_pokedex') or self.dex
         self.catalog = self.app.call('get_catalog') or self.catalog
+        self.egg_rates = I.egg_rates(self.app.call('get_rules'))     # 화면에 들어올 때 한 번
         self.evo = {}
         self.selected = None
         if self._book is None:
@@ -476,7 +478,7 @@ class PokedexScene(Scene):
         self._line(surface, '만나는 곳: 상점 알 부화', (RX + 126, 178), 'small', T.TEXT)
         if special:
             egg = 'egg_special'
-            where = f"{self.icons_label(egg)} 특급 {I.EGG_SPECIAL_RATE.get(egg, 0)}%"
+            where = f"{self.icons_label(egg)} 특급 {self.egg_rates.get(egg, 0)}%"
         else:
             where = f"{self.icons_label('egg_basic')} · {self.icons_label('egg_special')}"
         self._line(surface, where, (RX + 126, 191), 'small', T.TEXT_SOFT)

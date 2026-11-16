@@ -30,6 +30,7 @@ class ShopScene(Scene):
     music = 'shop'        # 배경음: gui/audio.py TRACKS
     def __init__(self, app):
         super().__init__(app)
+        self.egg_rates = {}       # 알별 특급 확률 % (get_rules hatching, enter에서 채움)
         self.tab = 'food'
         self.selected = {}            # 탭별 고른 상품
         self.qty = 1
@@ -43,6 +44,7 @@ class ShopScene(Scene):
 
     def enter(self):
         self.catalog = self.app.call('get_shop_catalog') or self.catalog
+        self.egg_rates = I.egg_rates(self.app.call('get_rules'))     # 화면에 들어올 때 한 번
         self.scroll = 0
         self._fix_selection()
 
@@ -282,11 +284,11 @@ class ShopScene(Scene):
         text_in(surface, total, (tx - 2, 270, tw + 4, BUTTON_H), 'title', log=False)
 
     def _draw_egg_rate(self, surface, item, x, y):
-        rate = I.EGG_SPECIAL_RATE.get(item, 0)
+        rate = self.egg_rates.get(item, 0)
         text(surface, '특급 등장 확률', (x, y), 'body')
         text(surface, f'{rate}%', (DETAIL.right - 12, y - 2), 'big', T.shade('gold', 1), anchor='topright')
         gauge(surface, (x, y + 16, DETAIL.w - 24, 10), rate, 100, 'gold')
-        others = [f"{I.item_label(k, self.catalog)} {v}%" for k, v in I.EGG_SPECIAL_RATE.items() if k != item]
+        others = [f"{I.item_label(k, self.catalog)} {v}%" for k, v in self.egg_rates.items() if k != item]
         if others:
             text(surface, others[0], (x, y + 32), 'body', T.TEXT_SOFT)
         text(surface, '못 가진 동물 우선' if item == 'egg_special' else '중복이 나올 수 있음', (x, y + 47), 'body',

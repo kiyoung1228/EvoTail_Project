@@ -143,7 +143,7 @@ class BattleScene(Scene):
         if self.fresh or not self.log:
             self.log = [('', e) for e in self.view.get('log', []) if self._describe(e)[0]]
         self.fresh = False
-        stages = self.app.call('get_stages') or []
+        stages = self.app.state.get('stages') or []          # 스냅샷 stages (get_stages를 따로 부르지 않음)
         self.stage = next((s for s in stages if s['id'] == self.view.get('stage')), {})
         self.items = self.app.call('get_shop_catalog') or {}
         self.item_menu, self.item_id, self.item_actions = False, None, []
@@ -294,8 +294,12 @@ class BattleScene(Scene):
         battle = res.get('battle')
         result = res.get('result')
         full = (battle or {}).get('log') if battle else (result or {}).get('log', [])
-        full = full or []
-        new = full[self.log_len:] if len(full) >= self.log_len else full[-len(res.get('events', [])):]
+        full = full or []                         # 전투 기록 칸(전체 기록)은 그대로 battle/result의 log
+        turn = res.get('turn_events')
+        if turn is not None:                      # 이번 호출에서 생긴 행동만 (PR #23): 내 행동 + 적 차례
+            new = list(turn)
+        else:                                     # 예전 세이브 등 turn_events가 없으면 전체 기록에서 잘라 씀
+            new = full[self.log_len:] if len(full) >= self.log_len else full[-len(res.get('events', [])):]
         mine = len(res.get('events', [])) if command == 'battle_action' else 0
         self._queue_events(new[:mine], 'player')
         if len(new) > mine:
@@ -767,7 +771,7 @@ class BattleResultScene(Scene):
         self.result = self.result or self.app.call('get_last_battle_result') or {}
         # 효과음악: 승리 / 패배·도망 (결과 화면에 들어올 때 한 번)
         self.app.audio.jingle('jingle_win' if self.result.get('win') else 'jingle_lose')
-        stages = sorted(self.app.call('get_stages') or [], key=lambda s: s.get('order', 0))
+        stages = sorted(self.app.state.get('stages') or [], key=lambda s: s.get('order', 0))   # 방금 refresh한 스냅샷
         self.stage = next((s for s in stages if s['id'] == self.result.get('stage')), {})
         r = self.result
         self.first = bool(r.get('win') and r.get('first_clear'))
