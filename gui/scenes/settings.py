@@ -36,12 +36,15 @@ def _title(surface, rect, label, icon_img=None):
 
 class SettingsOverlay(Overlay):
     SOUND_H = 58              # 위쪽 소리 두 줄 (배경음·효과음악) + 구분선 높이
+    EXTRA_ROW = 32            # 아래 버튼 한 줄 더 (도움말 · 처음 안내 다시 보기 / 게임 종료)
 
-    def __init__(self, app):
+    def __init__(self, app, on_title=False):
+        self.on_title = on_title             # 표지에서 열면 저장·불러오기·처음 안내 다시 보기는 꺼짐
         # 배경음 선택지 4개 폭 = 고른 것(굵은 글씨+그림자)·안 고른 것 중 넓은 쪽 + card 테두리
         self.level_w = [max(fit_width(label, 'title', shadow=True), fit_width(label)) + 8 for _, label, _ in LEVELS]
-        w = max(248, 92 + sum(self.level_w) + 4 * (len(LEVELS) - 1) + 12)
-        h = 230 + self.SOUND_H
+        w = max(248, 92 + sum(self.level_w) + 4 * (len(LEVELS) - 1) + 12,
+                2 * Button.width_for('처음 안내 다시 보기') + 40)     # 아래 버튼 두 칸에 글씨가 들어가게
+        h = 230 + self.SOUND_H + self.EXTRA_ROW
         super().__init__(app, ((T.WIDTH - w) // 2, T.HEADER_H + (T.HEIGHT - T.HEADER_H - h) // 2, w, h))
         P = self.rect
         x = P.x + 92
@@ -64,11 +67,14 @@ class SettingsOverlay(Overlay):
         self.demo_toggle = pygame.Rect(P.x + 92, P.y + 90 + D, 26, 14)
         self.demo_row = pygame.Rect(P.x + 12, P.y + 86 + D, P.w - 24, 22)
         bw = (P.w - 40) // 2
+        live = not on_title
         self.buttons = [
-            Button((P.x + 16, P.y + 128 + D, bw, 24), '저장하기', self.save, 'blue'),
-            Button((P.x + 24 + bw, P.y + 128 + D, bw, 24), '불러오기', self.ask_load, 'purple'),
+            Button((P.x + 16, P.y + 128 + D, bw, 24), '저장하기', self.save, 'blue', enabled=live),
+            Button((P.x + 24 + bw, P.y + 128 + D, bw, 24), '불러오기', self.ask_load, 'purple', enabled=live),
             Button((P.x + 16, P.y + 160 + D, bw, 24), '도움말', lambda: app.open_overlay(HelpOverlay(app)), 'orange'),
-            Button((P.x + 24 + bw, P.y + 160 + D, bw, 24), '게임 종료', self.quit, 'red'),
+            Button((P.x + 24 + bw, P.y + 160 + D, bw, 24), '처음 안내 다시 보기', self.replay_tutorial, 'green',
+                   enabled=live),
+            Button((P.x + 16, P.y + 192 + D, P.w - 32, 24), '게임 종료', self.quit, 'red'),
         ]
 
     # ---------- 동작 ----------
@@ -100,6 +106,14 @@ class SettingsOverlay(Overlay):
             events = self.app.call('recent_events') or []
             self.app.last_seq = max([e.get('seq', 0) for e in events], default=0)
             self.app.toast('저장된 게임을 불러왔다', 'ok', 'home')
+
+    def replay_tutorial(self):
+        """처음 안내 다시 보기: tutorial_done을 지우고 지도에서 1단계부터."""
+        from .tutorial import TutorialOverlay
+        self.app.audio.set_tutorial_done(False)
+        self.close()
+        self.app.go('map')
+        self.app.open_overlay(TutorialOverlay(self.app))
 
     def quit(self):
         """게임 종료. App.run이 끝나면서 save_game을 한 번 더 부른다 (자동 저장)."""

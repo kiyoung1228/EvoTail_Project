@@ -5,6 +5,7 @@ F12: 시연 모드(60배) 켜기/끄기 - 영상 촬영용
 세이브: 소스 실행은 저장소 saves/game.db, exe는 EvoTail.exe 옆 saves/game.db (gui/paths.py)
 잡히지 않은 오류: saves/error.log (gui/crash.py)
 """
+import os
 import sys
 
 from gui import paths, crash
@@ -21,10 +22,19 @@ from gui.scenes.farm import FarmScene
 from gui.scenes.hunting import HuntScene
 from gui.scenes.bag import BagScene
 from gui.scenes.pokedex import PokedexScene
+from gui.scenes.title import LoadingScene, TitleScene
+from gui.scenes.new_game import NewGameScene
 
 
 def main(save_path=None):
-    app = App(save_path or paths.save_path())
+    save_path = save_path or paths.save_path()
+    had_save = os.path.exists(save_path)          # 게임을 켜기 전에 세이브가 있었나 (표지 "이어하기")
+    app = App(save_path)
+    app.had_save = had_save
+    # 시작: 로딩 → 표지 → (새 게임: 인사 → 첫 동료 고르기 → 맞이 → 지도 + 처음 안내)
+    app.register('loading', LoadingScene(app))
+    app.register('title', TitleScene(app))
+    app.register('new_game', NewGameScene(app))
     app.register('map', MapScene(app))
     app.register('animals', AnimalsScene(app))
     # 아직 만들지 않은 화면 (지도 건물 + 오른쪽 메뉴). 설정은 지도 위 창 (gui/scenes/settings.py)
@@ -42,7 +52,7 @@ def main(save_path=None):
     app.register('battle_prep', TeamPrepScene(app))
     app.register('battle_fight', BattleScene(app))
     app.register('battle_result', BattleResultScene(app))
-    app.go('map')
+    app.go('loading')
     app.run()
 
 

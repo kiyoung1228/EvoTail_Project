@@ -360,6 +360,44 @@ def scripted_run(self):
             res = self.call('forfeit_battle'); self.refresh()
             self.go('battle_result', result=res, before={k: 0 for k in ready}, fled=True); frames(2)
             self.scenes['battle_result'].fled = False; frames(1)
+        # 시작 흐름: 표지 메뉴(이어하기 켜짐·꺼짐) · 새 게임 확인 창 · 표지 설정 창 · 인사 · 고르기(0·2·3마리, 힐러 없음) · 맞이 3 · 튜토리얼 5
+        #  (reset_game은 부르지 않음: 위 점검용 세이브를 지우지 않게 고른 동물만 화면에 넣음)
+        self.go('title'); frames(2)
+        ti = self.scene
+        for had in (False, True):
+            self.had_save = had
+            for i in range(4):
+                ti.sel = i; frames(1)
+        ti.activate(0); frames(2)                      # 세이브 있음 → 확인 창
+        while self.overlays:
+            self.close_overlay()
+        from gui.scenes.settings import SettingsOverlay as _SO
+        self.open_overlay(_SO(self, on_title=True)); frames(2)
+        while self.overlays:
+            self.close_overlay()
+        self.go('new_game'); frames(2)
+        ng = self.scene
+        ng.dialog.click(); frames(2)                   # 인사 글자 다 보이게
+        ng.go_stage('pick')
+        picks = [[], ['dealer_normal_01', 'tank_normal_03'], ['dealer_normal_01', 'tank_normal_03', 'healer_normal_05'],
+                 ['dealer_normal_01', 'dealer_normal_04', 'tank_normal_03'], ['dealer_normal_01', 'dealer_normal_02', 'dealer_normal_03']]
+        for picked in picks:
+            ng.picked = list(picked)
+            for k in ng.normal:
+                ng.hover = k; frames(1)
+        ng.hover = None
+        ng.picked = ['dealer_normal_01', 'tank_normal_03', 'healer_normal_05']
+        ng.go_stage('meet')
+        for i in range(3):
+            ng.meet_i = i; ng._say_meet(); ng.dialog.click(); frames(2)
+        from gui.scenes.tutorial import TutorialOverlay as _TO
+        self.go('map'); frames(2)
+        tut = _TO(self); self.open_overlay(tut); frames(2)
+        for step in range(5):
+            tut.dialog.click(); frames(2)
+            if step < 4:
+                tut.advance(); frames(2)
+        tut.finish(); frames(1)
     finally:
         pygame.quit()
     # ---- 검사 ----

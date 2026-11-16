@@ -38,7 +38,7 @@ JINGLES = {
 
 # 배경음 크기 단계 (설정 창 버튼 순서)
 LEVELS = (('off', '끔', 0.0), ('low', '작게', 0.3), ('mid', '보통', 0.6), ('high', '크게', 1.0))
-DEFAULTS = {'bgm': 'mid', 'jingle': True}
+DEFAULTS = {'bgm': 'mid', 'jingle': True, 'tutorial_done': False}   # tutorial_done = 처음 안내를 끝냈거나 건너뜀
 FADE = 0.3              # 작아지는 데 0.3초 + 커지는 데 0.3초 = 0.6초
 DUCK = 0.3              # 효과음악 동안 배경음 비율
 JINGLE_VOLUME = 0.8
@@ -77,6 +77,8 @@ class Audio:
             self.settings['bgm'] = data['bgm']
         if isinstance(data.get('jingle'), bool):
             self.settings['jingle'] = data['jingle']
+        if isinstance(data.get('tutorial_done'), bool):
+            self.settings['tutorial_done'] = data['tutorial_done']
 
     def _save_settings(self):
         if not self.settings_path:
@@ -101,6 +103,11 @@ class Audio:
                 self.channel.stop()
             except pygame.error:
                 pass
+
+    def set_tutorial_done(self, done):
+        """처음 안내(튜토리얼) 끝냄/건너뜀 표시. 소리 설정과 같은 settings.json에 같은 함수로 저장."""
+        self.settings['tutorial_done'] = bool(done)
+        self._save_settings()
 
     def bgm_volume(self):
         return next(v for k, _, v in LEVELS if k == self.settings['bgm'])
@@ -152,6 +159,17 @@ class Audio:
         self._apply_volume()
 
     # ---------- 효과음악 ----------
+    def preload(self):
+        """효과음악을 미리 읽어 둠 (로딩 화면). 못 읽으면 조용히 넘어감."""
+        if not self.ok:
+            return
+        for name, file in JINGLES.items():
+            if name not in self._sounds:
+                try:
+                    self._sounds[name] = pygame.mixer.Sound(os.path.join(BGM_DIR, file))
+                except (pygame.error, FileNotFoundError):
+                    pass
+
     def jingle(self, name):
         if not self.ok or not self.settings['jingle'] or name not in JINGLES:
             return

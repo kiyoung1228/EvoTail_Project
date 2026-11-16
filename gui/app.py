@@ -43,6 +43,7 @@ TOAST_BAR = {'ok': 'green', 'bad': 'red', 'info': 'orange'}
 class Scene:
     """화면 하나. handle → update → draw 순서로 매 프레임 불린다. 좌표는 논리 픽셀."""
     music = None      # 배경음 곡 이름 (gui/audio.py TRACKS 키). 'map' = 지도 낮·밤, None = 지금 곡 그대로
+    header = True     # 상단 바: True = 보통 / 'blank' = 코인 칸을 '—'로 (새 게임 고르기) / False = 안 그림 (로딩·표지)
 
     def __init__(self, app):
         self.app = app
@@ -71,6 +72,7 @@ class Overlay:
     rect 밖을 클릭하거나 ESC를 누르면 닫힌다 (close_outside=False면 밖 클릭은 무시).
     """
     close_outside = True
+    dim = True                # False면 App이 뒤를 어둡게 하지 않음 (튜토리얼처럼 창이 직접 어둡게 할 때)
 
     def __init__(self, app, rect):
         self.app = app
@@ -320,7 +322,7 @@ class App:
         record(info, pygame.Rect(x, g.y, w, g.h), inner, 'header')
         if rate >= T.SPEED_DEMO:
             chip(surface, (box.right + 6, box.centery), f'시연 모드 {int(rate)}배', 'red', anchor='midleft')
-        coins = f"{self.state.get('coins', 0):,}"
+        coins = '—' if getattr(self.scene, 'header', True) == 'blank' else f"{self.state.get('coins', 0):,}"
         coin = pygame.Rect(0, 2, max(90, fit_width(coins, 'title', extra=16) + 4), 21)
         coin.right = T.WIDTH - 8
         card(surface, coin)
@@ -381,9 +383,11 @@ class App:
         for overlay in list(self.overlays):
             overlay.update(dt)
         self.scene.draw(self.screen)
-        self.draw_header(self.screen)
+        if getattr(self.scene, 'header', True):
+            self.draw_header(self.screen)
         for overlay in self.overlays:         # 창마다 뒤를 한 번씩 어둡게 (위에 뜬 창이 잘 보이게)
-            self.screen.blit(self._dim, (0, 0))
+            if getattr(overlay, 'dim', True):
+                self.screen.blit(self._dim, (0, 0))
             overlay.draw(self.screen)
         self.draw_toasts(self.screen)
         pygame.transform.scale(self.screen, T.WINDOW, self.window)
