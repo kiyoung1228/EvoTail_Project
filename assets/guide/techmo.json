@@ -1,0 +1,24 @@
+{
+ "note": "안내원 테크모 (회색 까마귀, 학사모). 원본 32×32, 파일 4배(128). 화면 ×2(64) 또는 ×4(128 = 파일 그대로)",
+ "frames": [
+  "idle",
+  "blink",
+  "talk",
+  "flap1",
+  "flap2",
+  "flap3",
+  "flap1_talk",
+  "flap2_talk",
+  "flap3_talk"
+ ],
+ "flap_cycle": [
+  "flap3",
+  "idle",
+  "flap1",
+  "flap2",
+  "flap1",
+  "idle"
+ ],
+ "blink": "idle 사이에 0.1초",
+ "talk": "말할 때 talk ↔ idle 번갈아 (0.15초)"
+}

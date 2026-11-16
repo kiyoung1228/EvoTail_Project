@@ -58,7 +58,7 @@ assets/              1단계 이미지 30장, assets/sprites/<ID>_s<단계>.png 
   map/               섬 마을 지도 낮·밤 + 클릭 영역 map.json
   ui/                메뉴 아이콘. ui/kit/ = 도트 UI 키트 조각·아이콘 (docs/UI_KIT.md)
   fonts/             갈무리 글꼴 (OFL)
-docs/mockups/        확정된 화면 목업 (메인 낮·밤, 설정 창, 내 동물 animals_v2, battle/ 전투장(prep_v2·fight_floor_v2 = 배경 v2), home/ 주방, shop/ 상점·부화, hospital/ 병원, farm/ 밭, hunt/ 사냥터, bag/ 가방, dex/ 도감)
+docs/mockups/        확정된 화면 목업 (메인 낮·밤, 설정 창, 내 동물 animals_v2, battle/ 전투장(prep_v2·fight_floor_v2 = 배경 v2), home/ 주방, shop/ 상점·부화, hospital/ 병원, farm/ 밭, hunt/ 사냥터, bag/ 가방, dex/ 도감, title/ 표지·새 게임·튜토리얼·테크모)
 docs/UI_KIT.md       도트 UI 키트 규칙 (모든 화면이 따름). 조각 다시 만들기: tools/uikit.py
 gui/                 Pygame 화면 (아래 GUI 규칙)
 CHARACTERS.md        캐릭터 목록 · GUI.md 화면 구조 설명
@@ -100,7 +100,7 @@ CHARACTERS.md        캐릭터 목록 · GUI.md 화면 구조 설명
 **역할 = 속성**: 딜러=불, 탱커=물, 힐러=바람. 유형도 딜러형/탱커형/힐러형.
 **캐릭터 30종**: 일반 15(2단계까지) + 특급 15(3단계까지), 역할별 5종씩. 같은 역할·등급은 기준값 ±10%.
 시작 능력치 기준(체/공/방/민): 일반 딜러 60/90/50/80, 탱커 100/50/90/40, 힐러 60/60/60/60, 특급은 ×1.4.
-최초 지급: 새 게임 때 일반 15마리 중 3마리를 직접 고름(역할 자유), starters 없으면 역할별 첫 일반 3마리 (불씨여우·물방울수달·산들오리). 고르는 화면은 아직 없음 (표지·튜토리얼 PR에서 `reset_game(starters=[...])`로 연결 예정, PR #23)
+최초 지급: 새 게임 때 일반 15마리 중 3마리를 직접 고름(역할 자유), starters 없으면 역할별 첫 일반 3마리 (불씨여우·물방울수달·산들오리). 새 게임 흐름의 "첫 동료 고르기"에서 고름 → `reset_game(confirm=True, starters=[...])` (아래 시작 흐름 섹션)
 
 **역할별 MAX** (단계 기준 300/500/1000 × 배율)
 | 역할 | 체력 | 공격 | 방어 | 민첩 |
@@ -336,6 +336,30 @@ CHARACTERS.md        캐릭터 목록 · GUI.md 화면 구조 설명
 - `Scene.music` 기본값 `None` = 지금 곡 그대로 (지금은 쓰는 화면 없음)
 - 실행 파일: `EvoTail.spec`의 `assets` 통째로 묶기에 `assets/bgm`도 들어감 (SDL2_mixer가 ogg 재생, exe에서 확인함)
 
+## 시작 흐름 (로딩 · 표지 · 새 게임 · 처음 안내, 목업 `docs/mockups/title/`)
+게임을 켜면 로딩 → 표지. `run_gui.main`이 App을 만들기 **전에** 세이브 파일이 있었는지(`app.had_save`) 확인해서 표지 "이어하기"를 켬/끔
+- **안내원 테크모**: 학사모를 쓴 회색 까마귀 (오리지널 도트, 목업 `techmo_sheet.png`). 그림 `assets/guide/techmo_<표정>.png` = 원본 32의 4배(128), 화면 ×1~×4 정수배만(`guide.TechmoArt.get(kind, n)`: 128 → ¼ → ×n). 표정 idle·blink·talk·flap1~3·flap*_talk, 날개 파닥 순서는 `assets/guide/techmo.json` `flap_cycle`
+- **대사 표는 `gui/guide.py` 한 곳** (WELCOME, PICK_HINT, ROLE_LINES, TUTORIAL). 숫자는 백엔드 값 (훈련 동시 N마리 = 스냅샷 `training_max_concurrent`)
+- **대화 상자** (`guide.Dialog`, tools/tut_mock.py `dialog()`): 아래(y 282) 또는 위(y 58) 판 + 왼쪽 테크모 얼굴(말하는 동안 talk ↔ idle) + 이름 칩 "테크모" + 2줄 + "▼ 클릭". 글자는 한 글자씩, 클릭하면 바로 다 보이고 한 번 더 클릭하면 다음. 글씨 줄은 check_text_fit 기록(tag `guide`). 오른쪽 위 "건너뛰기", 왼쪽 위 진행 칸(`guide.progress`, "첫 동료 ■□□" / "처음 안내 ■■□□□")
+- **로딩** (`gui/scenes/title.py` `LoadingScene`): 표지 하늘(back) 위 테크모 ×2 파닥 + 게이지 + "섬으로 가는 중...". 글꼴·표지 그림·테크모·동물 스프라이트·효과음악을 프레임마다 12ms씩 미리 읽고 게이지를 채움, 최소 0.8초 → 표지
+- **표지** (`TitleScene`, title_v5.png·idle.gif): 그림 `assets/title/`(논리의 2배 → ½), 자리·속도는 `assets/title/title.json` (logo_topleft, clouds, islands, techmo_feet, parade_y·gap·speed, menu_y0·gap, logo_letters·logo_tail·logo_sparkles). 코드에 자리 숫자를 적지 않음
+  - 순서: back → 구름(오른쪽으로 흐름, 화면 밖이면 왼쪽에서 다시) → 섬 2개(±2px) → 새 떼 → mid → 동물 행렬 + 테크모(발 y 순서) → 매화 꽃잎 + 빛 알갱이 → front → 로고(+ 반짝이) → 메뉴
+  - 동물 행렬 = 일반 15종(get_catalog 순서) 원본 ×2, 오른쪽 보고 흙길 따라 통통, 발밑 그림자. 테크모는 옛 돌문 위(techmo_feet), 가끔 깜빡·파닥
+  - 메뉴 4줄(반투명 한지 판 + 글자 테두리): 새 게임 / 이어하기(세이브 없으면 회색) / 설정(표지에선 저장·불러오기·처음 안내 다시 보기 꺼짐) / 게임 종료. 고른 줄 노랑 + 매화 커서, 마우스·↑↓·Enter
+  - 새 게임: 세이브가 있으면 확인 창 "새 게임을 시작할까? · 지금 세이브는 사라진다" → 연출(title_v5_newgame.gif): "새 게임" 깜빡 0.5초 → 동물들 "!" 깜짝 점프 0.4초 → 테크모 중심 아이리스 0.8초 → 새 게임 흐름
+  - 이스터에그: 로고 글자 누르면 그 글자만 위로 6px 통(부제 띠는 그대로), 꼬리 5번 누르면 행렬 전부 하트 + 점프
+- **새 게임 흐름** (`gui/scenes/new_game.py` `NewGameScene`): 배경 = 표지 정원(로고·메뉴·행렬 없이) 어둡게
+  - 인사(n1): 테크모 ×4 파닥 + 빛. 건너뛰기 = 고르기로
+  - 첫 동료 고르기(n2·n3·n3b): 상단 바(가운데 날짜 칸 = "새 게임"만, 코인 '—', Scene `header = 'blank'`), 리본 "첫 동료 고르기", 테크모 한 줄. 왼쪽 일반 15마리(역할 3줄 × 5, 고른 순서 번호), 오른쪽 내 팀 3칸(✕로 빼기) + 마우스 올린 동물(이름·역할·강점 '기준'=균형·능력치 = get_catalog base_stats) + 팀 조합(역할 개수 칩, 힐러 없으면 "힐러 없음 · 회복 못 함", 탱커 없으면 "탱커 없음 · 지켜 줄 동료 없음", 셋 다 있으면 금색 "균형 잡힌 팀!" — 세기만 하고 막지 않음) + "이 동료들과 시작" = `reset_game(confirm=True, starters=[3마리])`(실패면 백엔드 알림). 건너뛰기 = 일반 15마리 중 무작위 3마리
+  - 맞이(n4, 3번): 고른 순서대로 스포트라이트 + 원본 ×4 + 오른쪽 이름·역할·속성·능력치 카드, 테크모 파닥, "첫 동료 1/3". 대사 = "○○와 함께! " + 역할별 2줄(`guide.ROLE_LINES`, 조사 `T.josa`)
+  - 끝나면 지도 + 처음 안내 (settings.json `tutorial_done`이 true면 안내 없이 지도만)
+- **처음 안내** (`gui/scenes/tutorial.py` `TutorialOverlay`, app.Overlay `dim = False`): 화면을 어둡게 + 강조 칸만 뚫고 노란 테두리 2줄 + 통통 화살표, 대화 상자(강조 칸이 아래쪽이면 위로). "처음 안내 N / 5" 진행 칸과 건너뛰기는 **대화 상자 안 오른쪽 위**(이름 칩과 같은 줄, 진행 칸 → 건너뛰기, 상자가 위든 아래든 같은 자리, `TutorialOverlay.layout`). 건너뛰기 클릭은 대화 상자 클릭(다음)보다 먼저
+  - 강조 칸은 실제 화면 좌표: 1 가방 = 지도 `menu_rect('bag')` / 2 내 동물 = `menu_rect('my_animals')` → 누르면 내 동물 화면 / 3 훈련 = 내 동물 화면 쉬움·중간·어려움 버튼 합친 칸 → 지도로 / 4 전투장 = 지도 `places['battle']` / 5 마무리: 다른 단계처럼 지도를 어둡게(강조 칸 없이) + 큰 테크모 ×3. 자리는 마당·장소 이름표·오른쪽 메뉴·대화 상자·상단 바와 안 겹치는 곳 중 마당 위쪽 가운데에 가장 가까운 곳(`done_rect`, 그림 실제 영역 기준). check_text_fit이 마당·마당 동물·이름표·메뉴·대화 상자와 겹침을 점검(겹치면 위반)
+  - 대화 상자나 강조 칸을 누르면 다음 단계, 그 밖 클릭·ESC는 막음. 끝내거나 건너뛰면 `saves/settings.json`의 `tutorial_done = true` (소리 설정과 같은 파일·같은 저장 함수 `audio.set_tutorial_done`)
+  - 설정 창 "처음 안내 다시 보기"(도움말 옆) = tutorial_done을 지우고 지도에서 1단계부터
+- 곡: 로딩·표지·새 게임 흐름 = `'map'`(지도 낮 곡)
+- 다시 만들기: `python tools/title_assets.py` (PYTHONUTF8 없이 됨, 파일은 utf-8로 읽고 씀. tools/title5.py의 코드 도트 → assets/title/·assets/guide/ 그림 + title.json·techmo.json). 목업: `tools/title5.py`(표지·gif), `tools/tut_mock.py`(새 게임·튜토리얼), `tools/techmo.py`(테크모 도트)
+
 ## 진행 상황
 - 완료: 백엔드 1차(기영), 캐릭터 30종 데이터, 역할별 MAX, 도트 75장 (PR #1 merge됨)
 - 완료 (PR #2 merge됨): 진화 단계별 이름·이미지를 백엔드가 반환, GUI 뼈대, 텍스트 카드 지도(임시), 집 화면(상태·능력치·간식·훈련·진화), 시간 속도 F5/F12
@@ -357,12 +381,13 @@ CHARACTERS.md        캐릭터 목록 · GUI.md 화면 구조 설명
 - 완료 (PR #21 merge됨): 전투장 배경 v2(arena_art.py), 장소별 BGM·효과음악, 설정 창 소리 줄
 - 완료 (PR #22 merge됨): 상점 쪽수 글씨 빼기, 가방 탭 같은 폭, 사냥 activity kind 'hunt'
 - 완료 (PR #23 merge됨, 기영): 백엔드 규칙 정리 — turn_events, 스냅샷 stages·training_count, get_rules crops·hatching·disease_probability, get_hunts completion_effects, 훈련 동시 3마리, 시작 동물 고르기(reset_game starters)
-- 진행 중 (브랜치 `sync-backend`): GUI를 PR #23에 맞춤 (turn_events 재생, 스냅샷 stages, 표시값 → 백엔드 값, 훈련 2/3·가득, 상대 조합)
+- 완료 (PR #24 merge됨): GUI를 PR #23에 맞춤 (turn_events 재생, 스냅샷 stages, 표시값 → 백엔드 값, 훈련 2/3·가득, 상대 조합)
+- 진행 중 (브랜치 `title-tutorial`): 시작 흐름 (로딩·표지·새 게임 첫 동료 고르기·맞이·처음 안내 5단계, 안내원 테크모)
 
 ## 다음 할 일 (순서대로)
 1. **메인 화면을 목업대로**: `map_scene.py`의 텍스트 카드를 지도 이미지 + 간판 + 오른쪽 메뉴로 교체. 마당 동물은 `map.json`의 `yard` 안에서 움직이게. 지금의 "집" 화면(AnimalsScene)은 메뉴 "내 동물"로 연결
 2. **설정 창** (시간 속도, 시연 모드, 저장·불러오기, 게임 종료)
 3. **전투장**: 스테이지 선택(적 미리보기 `preview_stage`), 팀 3마리 + 전투 전 포션 선택, 전투 화면(체력바, 행동 버튼은 `get_battle_actions`로), 결과 화면
 4. ~~상점(구매·판매·알 부화)~~, ~~병원(치료)~~ (완료, PR #14), ~~밭~~ (완료, PR #15), ~~사냥터~~ (완료, PR #16), ~~가방~~ (완료, PR #17), ~~도감~~ (완료, PR #18). (집 주방 + 타이밍 미니게임 = 완료, PR #13)
-5. 마이룸(여유 있으면)
+5. ~~표지·새 게임·튜토리얼~~ (완료, 브랜치 `title-tutorial`), 마이룸(여유 있으면)
 6. ~~실행 파일(PyInstaller)~~ (완료, PR #19), 보고서, **시연 영상(F12 시연 모드)**
