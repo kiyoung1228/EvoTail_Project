@@ -58,7 +58,7 @@ assets/              1단계 이미지 30장, assets/sprites/<ID>_s<단계>.png 
   map/               섬 마을 지도 낮·밤 + 클릭 영역 map.json
   ui/                메뉴 아이콘. ui/kit/ = 도트 UI 키트 조각·아이콘 (docs/UI_KIT.md)
   fonts/             갈무리 글꼴 (OFL)
-docs/mockups/        확정된 화면 목업 (메인 낮·밤, 설정 창, 내 동물 animals_v2, battle/ 전투장(prep_v2·fight_floor_v2 = 배경 v2), home/ 주방, shop/ 상점·부화, hospital/ 병원, farm/ 밭, hunt/ 사냥터, bag/ 가방, dex/ 도감, title/ 표지·새 게임·튜토리얼·테크모)
+docs/mockups/        확정된 화면 목업 (메인 낮·밤, 설정 창, 내 동물 animals_v2, battle/ 전투장(prep_v2·fight_floor_v2 = 배경 v2), home/ 주방, shop/ 상점·부화, hospital/ 병원, farm/ 밭, hunt/ 사냥터, bag/ 가방, dex/ 도감, title/ 표지·새 게임·튜토리얼·테크모, my_room/ 마이룸)
 docs/UI_KIT.md       도트 UI 키트 규칙 (모든 화면이 따름). 조각 다시 만들기: tools/uikit.py
 gui/                 Pygame 화면 (아래 GUI 규칙)
 CHARACTERS.md        캐릭터 목록 · GUI.md 화면 구조 설명
@@ -162,7 +162,7 @@ CHARACTERS.md        캐릭터 목록 · GUI.md 화면 구조 설명
 - 예전 "집" 건물과 "도감" 건물은 없앰. 동물은 밖(마당)에서 지낸다.
 
 **오른쪽 메뉴 5개** (아이콘 `assets/ui/icon_*.png`)
-내 동물(`my_animals`, 지금의 AnimalsScene) · 도감(`pokedex`) · 가방(`bag`, 인벤토리) · 마이룸(`my_room`, 처음엔 "준비 중") · 설정(`settings`)
+내 동물(`my_animals`, 지금의 AnimalsScene) · 도감(`pokedex`) · 가방(`bag`, 인벤토리) · 마이룸(`my_room`, 트로피·기록·일기장) · 설정(`settings`)
 
 **설정 창** (`gui/scenes/settings.py`, 지도 메뉴 "설정" → 지도 위 창): 배경음 크기·효과음악, 시간 속도(보통 / 빠르게 5배), 시연 모드(60배, 영상용), 저장하기(`save_game`), 불러오기(`load_game`, 확인 창 먼저), 도움말, 게임 종료, 마지막 저장 시각.
 - 백엔드는 모든 변경을 바로 SQLite에 저장(자동 저장), 종료할 때도 `App.run`이 `save_game`을 부름. 마지막 저장 시각은 스냅샷 `last_saved`(실제 Unix 시각, 자동 저장 포함, PR #9)를 표시
@@ -360,6 +360,16 @@ CHARACTERS.md        캐릭터 목록 · GUI.md 화면 구조 설명
 - 곡: 로딩·표지·새 게임 흐름 = `'map'`(지도 낮 곡)
 - 다시 만들기: `python tools/title_assets.py` (PYTHONUTF8 없이 됨, 파일은 utf-8로 읽고 씀. tools/title5.py의 코드 도트 → assets/title/·assets/guide/ 그림 + title.json·techmo.json). 목업: `tools/title5.py`(표지·gif), `tools/tut_mock.py`(새 게임·튜토리얼), `tools/techmo.py`(테크모 도트)
 
+## 마이룸 (목업 `docs/mockups/my_room/` room_C, `gui/scenes/my_room.py` `MyRoomScene`)
+지도 오른쪽 메뉴 "마이룸" → 이 화면. ◀ 지도 + 빨간 리본 "마이룸", 곡 `'map'`. ESC = 지도
+- **데이터** (백엔드에 있는 명령만 읽음, enter 때 + App이 상태를 다시 읽을 때마다): 업적 `get_achievement_details` → [{id, label, achieved}] 16개(순서 그대로), 기록 `get_statistics`(counters), 일기 `get_event_history(limit=40)`(최근 일부터)
+- **그림** `assets/my_room/`: `room_day.png`·`room_night.png`(1280×720 = 논리 2배 → ½, 위 26px 투명, 스냅샷 `clock.night`로 바로 바꿈. 진열장·칠판·일기장은 비어 있고 트로피·글씨는 코드가 그림), `trophies/<id>.png`(달성)·`<id>_locked.png`(아직) = 원본 16의 4배 → ½ = 32. **자리 숫자는 전부 `assets/my_room/room.json`**
+- **진열장**(shelf.slots 자리에 그 id 트로피): 달성한 것만 발밑 그림자(shelf.shadow) + 몇 개에 천천히 깜빡이는 반짝이, 아래 명판 "트로피 8 / 16". 마우스를 올리면 `select_frame` + 3줄 말풍선(`widgets.tooltip`에 [(글씨, 색)] 여러 줄): label / 초록 "달성!" 또는 회색 "아직" / 회색 얻는 법. 얻는 법은 GUI 표시 문구 표 `my_room.HOWTO`(백엔드에 없음), 표에 없는 업적은 3줄째 없이, 그림 없으면 키트 아이콘
+- **칠판**(board): "나의 기록" + 6칸(cells 순서) 전투 승리 battles_won · 훈련 완료 trainings_completed · 사냥 다녀옴 hunts_completed · 작물 수확 crops_harvested · 요리 성공 cooks_succeeded · 물건 구매 items_purchased. 키트 아이콘 + 분필색 이름 + 흰 숫자(오른쪽 맞춤), 없는 키는 0. 칸은 칠판 초록 면 전체를 두 칸으로 나눔(왼쪽이 조금 넓음, "사냥 다녀옴"이 왼쪽): 9999까지 이름과 숫자 사이 2px 이상 (check_text_fit tag `my-room-board`)
+- **일기장**(diary): "일기장" + "최근 일", 6줄 = 최근 일부터. 문장·아이콘은 `App.event_line`(알림과 같은 `EVENT_TEXT`·`EVENT_ICON`). EVENT_TEXT에 없는 종류(autonomous_action 등)는 건너뜀, `text_max_w`를 넘는 줄은 줄이지 않고 빼고 다음 일. 없으면 회색 "아직 기록이 없다" (tag `my-room-diary`)
+- **동물**: 지도 마당과 같은 규칙으로 고른 동물(`MapScene._layout` 재사용)을 깔개(rug 타원) 안에서 천천히 돌아다니게, 원본 ×2, 발밑 그림자, 발 y 순서. 자율행동 rest인 한 마리는 방석(cushion) 위에 엎드려 zZ(`SpriteCache.lying`), 혼자 놀기(play)는 가끔 ♪. 밤엔 전부 엎드려 zZ + 도트 어둡게(지도 `NIGHT_TINT`). 동물을 누르면 내 동물 화면(selected)
+- 다시 만들기: `python tools/room_assets.py`(그림·room.json), `python tools/room_mock.py docs/mockups/my_room`(목업)
+
 ## 진행 상황
 - 완료: 백엔드 1차(기영), 캐릭터 30종 데이터, 역할별 MAX, 도트 75장 (PR #1 merge됨)
 - 완료 (PR #2 merge됨): 진화 단계별 이름·이미지를 백엔드가 반환, GUI 뼈대, 텍스트 카드 지도(임시), 집 화면(상태·능력치·간식·훈련·진화), 시간 속도 F5/F12
@@ -382,12 +392,13 @@ CHARACTERS.md        캐릭터 목록 · GUI.md 화면 구조 설명
 - 완료 (PR #22 merge됨): 상점 쪽수 글씨 빼기, 가방 탭 같은 폭, 사냥 activity kind 'hunt'
 - 완료 (PR #23 merge됨, 기영): 백엔드 규칙 정리 — turn_events, 스냅샷 stages·training_count, get_rules crops·hatching·disease_probability, get_hunts completion_effects, 훈련 동시 3마리, 시작 동물 고르기(reset_game starters)
 - 완료 (PR #24 merge됨): GUI를 PR #23에 맞춤 (turn_events 재생, 스냅샷 stages, 표시값 → 백엔드 값, 훈련 2/3·가득, 상대 조합)
-- 진행 중 (브랜치 `title-tutorial`): 시작 흐름 (로딩·표지·새 게임 첫 동료 고르기·맞이·처음 안내 5단계, 안내원 테크모)
+- 완료 (PR #25 merge됨): 시작 흐름 (로딩·표지·새 게임 첫 동료 고르기·맞이·처음 안내 5단계, 안내원 테크모)
+- 진행 중 (브랜치 `my-room`): 마이룸 (트로피 진열장·기록 칠판·일기장·방 동물)
 
 ## 다음 할 일 (순서대로)
 1. **메인 화면을 목업대로**: `map_scene.py`의 텍스트 카드를 지도 이미지 + 간판 + 오른쪽 메뉴로 교체. 마당 동물은 `map.json`의 `yard` 안에서 움직이게. 지금의 "집" 화면(AnimalsScene)은 메뉴 "내 동물"로 연결
 2. **설정 창** (시간 속도, 시연 모드, 저장·불러오기, 게임 종료)
 3. **전투장**: 스테이지 선택(적 미리보기 `preview_stage`), 팀 3마리 + 전투 전 포션 선택, 전투 화면(체력바, 행동 버튼은 `get_battle_actions`로), 결과 화면
 4. ~~상점(구매·판매·알 부화)~~, ~~병원(치료)~~ (완료, PR #14), ~~밭~~ (완료, PR #15), ~~사냥터~~ (완료, PR #16), ~~가방~~ (완료, PR #17), ~~도감~~ (완료, PR #18). (집 주방 + 타이밍 미니게임 = 완료, PR #13)
-5. ~~표지·새 게임·튜토리얼~~ (완료, 브랜치 `title-tutorial`), 마이룸(여유 있으면)
+5. ~~표지·새 게임·튜토리얼~~ (완료, PR #25), ~~마이룸~~ (완료, 브랜치 `my-room`)
 6. ~~실행 파일(PyInstaller)~~ (완료, PR #19), 보고서, **시연 영상(F12 시연 모드)**

@@ -283,11 +283,16 @@ class App:
         events = self.call('recent_events') or []
         for e in events:
             if e.get('seq', 0) > (self.last_seq or 0):
-                fmt = EVENT_TEXT.get(e.get('type'))
-                if fmt:
-                    self.toast(fmt(e, self.name_of), 'info', EVENT_ICON.get(e.get('type')))
+                line = self.event_line(e)
+                if line:
+                    self.toast(line[0], 'info', line[1])
         if events:
             self.last_seq = max(e.get('seq', 0) for e in events)
+
+    def event_line(self, e):
+        """이벤트 → (문장, 아이콘) 또는 None (EVENT_TEXT에 없는 종류). 알림·마이룸 일기장이 같이 씀."""
+        fmt = EVENT_TEXT.get(e.get('type'))
+        return (fmt(e, self.name_of), EVENT_ICON.get(e.get('type'))) if fmt else None
 
     def draw_header(self, surface):
         """나무 판자 상단 바: 로고 / 시간·날씨 칸 / 코인 칸."""

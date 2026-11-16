@@ -360,6 +360,32 @@ def scripted_run(self):
             res = self.call('forfeit_battle'); self.refresh()
             self.go('battle_result', result=res, before={k: 0 for k in ready}, fled=True); frames(2)
             self.scenes['battle_result'].fled = False; frames(1)
+        # 마이룸: 칠판 6칸 9999 · 일기(모든 EVENT_TEXT 종류, 가장 긴 이름) · 명판 · 트로피 말풍선 16개
+        from gui.app import EVENT_TEXT as _ET
+        from gui.scenes.my_room import ROOM as _ROOM
+        longest = max((a['id'] for a in self.state['animals']), key=lambda k: len(self.name_of(k)))
+        def room_fixture(s):    # test fixture only (temp save)
+            keep = dict(s.get('counters', {}))
+            s['counters'].update(battles_won=9999, trainings_completed=9999, hunts_completed=9999,
+                                 crops_harvested=9999, cooks_succeeded=9999, items_purchased=9999)
+            s['_keep_counters'] = keep
+            for kind in _ET:
+                for extra in ({'win': True}, {'win': False}) if kind == 'battle_end' else ({},):
+                    g._emit(s, kind, animal=longest, stat='agility', gain=65, coins=9999, **extra)
+            return True
+        g._mutate(room_fixture); self.refresh()
+        self.go('my_room'); frames(3)
+        rm = self.scene
+        for k in range(len(rm.diary) + 1):                 # 일기 6줄: 최근 일을 하나씩 밀어 가며 전부
+            rm.diary = rm.diary[k:] if k else rm.diary; frames(1)
+        rm._load()
+        for slot in _ROOM['shelf']['slots']:
+            move((slot['x'] + 16, slot['y'] + 16)); frames(1)
+        move((10, 350))
+        def room_restore(s):
+            s['counters'] = s.pop('_keep_counters', s['counters'])
+            return True
+        g._mutate(room_restore); self.refresh()
         # 시작 흐름: 표지 메뉴(이어하기 켜짐·꺼짐) · 새 게임 확인 창 · 표지 설정 창 · 인사 · 고르기(0·2·3마리, 힐러 없음) · 맞이 3 · 튜토리얼 5
         #  (reset_game은 부르지 않음: 위 점검용 세이브를 지우지 않게 고른 동물만 화면에 넣음)
         self.go('title'); frames(2)
