@@ -1,6 +1,7 @@
 """태풍 시간(밤 02:00)으로 맞춘 실제 화면 찍기 (지도·내 동물·스테이지·마이룸). 글씨 UI는 그대로, 비는 목업에서 덧그림."""
 import os, sys, tempfile
-PROJ = '/home/claude/kiyoung1228/evotail_project'
+from pathlib import Path
+PROJ = str(Path(__file__).resolve().parent.parent)
 sys.path.insert(0, PROJ); os.chdir(PROJ)
 OUT = sys.argv[1]
 import pygame, run_gui
