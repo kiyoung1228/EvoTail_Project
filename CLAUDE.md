@@ -375,7 +375,7 @@ CHARACTERS.md        캐릭터 목록 · GUI.md 화면 구조 설명
 - **설명 문구는 `gui/theme.py` `NATURE_TIP` 한 곳** (NATURE_LABEL 옆, 두 줄 = 버릇 / 조건). **백엔드 규칙이 바뀌면 같이 바꿀 것**
 - 말풍선 `T.nature_tip(nature, blocked)` = 3줄 "성격 · 먹보"(title) / 버릇 / 조건(회색). `T.nature_blocked(a)` = 스냅샷 `participation` False이고 `participation_reason`이 "그 성격 이름:"으로 시작하면 조건 줄 빨강. `widgets.tooltip` 여러 줄은 (글씨, 색[, 글꼴])
 - 표시 위치: 내 동물 화면 성격 칩(파랑) 말풍선 · 부화 결과 칩 줄 끝에 성격 칩 + 말풍선(`hatch_egg` 응답에 nature가 없으면 refresh한 스냅샷의 그 key, 중복이면 그 개체) · 새 게임 맞이 카드 역할·속성 칩 옆(reset_game 뒤 스냅샷)
-- **까칠 활동 거부**: 자율행동 `action == 'refuse'`면 지도 마당·마이룸 말풍선 아이콘 = 키트 `huff`(회색 찡그린 얼굴 + 김 한 줄). 아픔 다음, 상태 나쁨 frown보다 먼저. 지도 이름 말풍선 낮 "활동 거부" / 밤 "삐져서 안 잔다"(`map_scene.DAY_LABEL`·`NIGHT_LABEL`), 마이룸에선 밤에도 안 잠(z 없음)
+- **까칠 활동 거부**: 자율행동 `action == 'refuse'`면 지도 마당·마이룸 말풍선 아이콘 = 키트 `huff`(frown 얼굴을 왼쪽 아래로 옮기고 오른쪽 위에 빨간 화난 표시 = 네 귀퉁이가 바깥으로 휜 십자 5×5, 빨강 (220,60,60) + 밝은 점 (255,140,140). 12칸이라 얼굴과 1px 띄울 자리가 없어 아래 왼쪽 귀퉁이가 얼굴 테두리에 붙음). 아픔 다음, 상태 나쁨 frown보다 먼저. 지도 이름 말풍선 낮 "활동 거부" / 밤 "삐져서 안 잔다"(`map_scene.DAY_LABEL`·`NIGHT_LABEL`), 마이룸에선 밤에도 안 잠(z 없음)
 - check_text_fit: 성격 말풍선 5종 + 까칠 조건 걸림, 부화 칩 줄(tag `hatch-chips`, 가장 긴 이름 + 장난꾸러기), 맞이 칩 줄(tag `meet-chips`). 점검 스크립트는 `pygame.mouse.get_pos`를 마지막으로 옮긴 자리로 바꿔서 창에 초점이 없어도 마우스 말풍선을 그림
 
 ## 태풍 · 2배 이벤트 (목업 `docs/mockups/storm/`, `gui/storm.py`)
