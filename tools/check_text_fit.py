@@ -386,6 +386,30 @@ def scripted_run(self):
             s['counters'] = s.pop('_keep_counters', s['counters'])
             return True
         g._mutate(room_restore); self.refresh()
+        # 태풍 2배 이벤트: 지도 띠 + 시작 알림(두 줄) · 상단 바 칩 + 말풍선 · 내 동물 띠 + 훈련 2배(능력치 4개, +130까지)
+        #  · 스테이지 고르기 띠 + 보상 "승리 X → 2X"(모든 스테이지 + 1,800) · 출전 준비 띠 · 마이룸 창 비 · 끝 알림(두 줄)
+        from gui import storm as _ST
+        from gui.scenes.battle_stage import draw_storm_reward as _dsr
+        g._mutate(lambda s: s.update(created=s['created'] - 3330, _keep_created=s['created']) or True)
+        self.reset_storm(); self.refresh()
+        self._storm = False; self.go('map'); self.refresh(); frames(2)        # 태풍 시작 알림
+        print('storm check clock', self.state['clock'])
+        move(self.storm_chip.center); frames(1); move((10, 350))
+        self.go('animals'); frames(1)
+        an = self.scene
+        for stat in T.STATS:
+            an.train_stat = stat; frames(2)
+        self.go('battle'); frames(1)
+        sp = self.scene
+        for st in self.state.get('stages', []):
+            sp.selected = st['id']; frames(2)
+        _dsr(self.screen, {'mode': 'normal', 'reward': 1800}, (sp_x := 481, 300, 620 - sp_x, 18))
+        self.go('battle_prep', stage_id=sp.selected); frames(2)
+        self.go('my_room'); frames(2)
+        self.toast(*_ST.TOAST_END[:1], 'info', 'sun', sub=_ST.TOAST_END[1]); frames(2)
+        g._mutate(lambda s: s.update(created=s.pop('_keep_created')) or True)
+        self.go('map'); self.refresh(); frames(2)                          # 태풍 끝 알림
+        print('storm check end', self.state['clock'])
         # 시작 흐름: 표지 메뉴(이어하기 켜짐·꺼짐) · 새 게임 확인 창 · 표지 설정 창 · 인사 · 고르기(0·2·3마리, 힐러 없음) · 맞이 3 · 튜토리얼 5
         #  (reset_game은 부르지 않음: 위 점검용 세이브를 지우지 않게 고른 동물만 화면에 넣음)
         self.go('title'); frames(2)

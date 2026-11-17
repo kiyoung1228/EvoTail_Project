@@ -74,6 +74,7 @@ class NewGameScene(Scene):
         res = self.app.call('reset_game', confirm=True, starters=list(keys))
         if res is None:
             return False
+        self.app.reset_storm()
         self.app.refresh()
         events = self.app.call('recent_events') or []
         self.app.last_seq = max([e.get('seq', 0) for e in events], default=0)

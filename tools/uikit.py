@@ -176,6 +176,8 @@ def nine(piece, margin, w, h):
 
 # ---------- 아이콘 12x12 ----------
 ICON_ROWS = {
+ 'rain': ("............", "...OOOO.....", "..OGGGGOO...", ".OGWWGGGGO..", "OGWGGGGGGGO.", "OGGGGGGGGGO.",
+          ".OOOOOOOOO..", "..B..B..B...", ".B..B..B....", "............", "..B..B......", "............"),   # 태풍 (비구름)
  'heart': ("............", ".OO....OO...", "ORRO..ORRO..", "ORWRRORRRRO.", "ORRRRRRRRRO.", "ORRRRRRRRRO.", ".ORRRRRRRO..", "..ORRRRRO...", "...ORRRO....", "....ORO.....", ".....O......", "............"),
  'sword': ("..........OO", ".........OWO", "........OWO.", ".......OWO..", "......OWO...", ".O...OWO....", ".OO.OWO.....", "..OOWO......", "..OBOO......", ".OBOOO......", "OBO..OO.....", "OO..........."),
  'shield': ("............", ".OOOOOOOOO..", ".OWWBBBBBO..", ".OWBBBBBBO..", ".OWBBYBBBO..", ".OWBYYYBBO..", ".OBBBYBBBO..", "..OBBBBBO...", "..OBBBBBO...", "...OBBBO....", "....OOO.....", "............"),
@@ -218,7 +220,7 @@ def export_kit(out):
                 continue
             save(f'button_{c}_{st}', piece_button(c, st))
     save('gauge_frame', piece_gauge())
-    for c in ('red', 'brown', 'green', 'gray'):      # gray = 전투 결과 "도망쳤다"
+    for c in ('red', 'brown', 'green', 'gray', 'blue'):      # gray = 전투 결과 "도망쳤다", blue = 태풍 2배 이벤트 띠
         save(f'ribbon_{c}', piece_ribbon(c))
     (out / 'icons').mkdir(exist_ok=True)
     for n in ICON_ROWS:

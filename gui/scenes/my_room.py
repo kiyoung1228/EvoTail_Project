@@ -16,6 +16,7 @@ import pygame
 from .. import theme as T
 from .. import widgets as W
 from ..app import Scene
+from .. import storm as S
 from ..widgets import text, text_in, card, ribbon, select_frame, tooltip, record, fit_width, Kit, Button, BUTTON_H
 from .map_scene import NIGHT_TINT
 
@@ -167,6 +168,8 @@ class MyRoomScene(Scene):
 
     def update(self, dt):
         self.t += dt
+        if S.is_storm(self.app):
+            self.window_rain()[0].update(dt)
         if getattr(self.app, '_refreshed_at', None) != self._loaded_at:   # 상태를 다시 읽었으면 업적·기록·일기도
             self._load()
         animals = self.roomies()
@@ -183,6 +186,10 @@ class MyRoomScene(Scene):
             shade = pygame.Surface((T.WIDTH, T.HEIGHT), pygame.SRCALPHA)
             shade.fill(NIGHT_SHADE)
             surface.blit(shade, (0, 0))
+        if S.is_storm(self.app):                     # 태풍: 창 유리 안에만 비 (창살 아래) + 유리 물방울
+            rain, mask, drops = self.window_rain()
+            rain.draw(surface, mask)
+            drops.draw(surface, self.t)
         self._draw_shelf(surface)
         self._draw_board(surface)
         self._draw_diary(surface)
@@ -191,6 +198,15 @@ class MyRoomScene(Scene):
         ribbon(surface, (self.back.rect.right + 10, 33, max(92, fit_width('마이룸', 'title', shadow=True) + 30), 18),
                '마이룸', 'red')
         self._draw_tip(surface)
+
+    def window_rain(self):
+        """창 비 (60줄, 튐 없음) + 유리 마스크(room.json glass, 낮 그림의 창살 색으로 한 번만) + 물방울 14개."""
+        if getattr(self, '_window', None) is None:
+            g = ROOM['glass']
+            mask = S.glass_mask(W.background('assets/my_room/room_day.png'), g)
+            box = (g['x'], g['y'], g['w'], g['h'] + g['arch'])
+            self._window = (S.Rain(box, n=60, seed=8, splash=0), mask, S.GlassDrops(g))
+        return self._window
 
     def _achieved(self):
         return {a['id']: a for a in self.achievements}

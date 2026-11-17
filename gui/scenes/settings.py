@@ -102,6 +102,7 @@ class SettingsOverlay(Overlay):
 
     def load(self):
         if self.app.call('load_game') is not None:
+            self.app.reset_storm()                # 불러온 세이브의 태풍 상태는 알림 없이 기준만
             self.app.refresh()
             events = self.app.call('recent_events') or []
             self.app.last_seq = max([e.get('seq', 0) for e in events], default=0)

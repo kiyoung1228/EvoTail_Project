@@ -336,9 +336,10 @@ def gauge(surface, rect, value, maximum, color):
 
 # ---------- 버튼 ----------
 class Button:
-    """키트 버튼. color: green orange purple red brown blue gold gray. sub가 있으면 두 줄 버튼."""
+    """키트 버튼. color: green orange purple red brown blue gold gray. sub가 있으면 두 줄 버튼.
+    sub: 글씨 하나, 또는 [(글씨, 색 또는 None), ...] 조각 (예: 태풍 2배 숫자만 금색). sub_icon: 아랫줄 끝 아이콘."""
 
-    def __init__(self, rect, label, on_click, color='green', enabled=True, icon=None, sub=None):
+    def __init__(self, rect, label, on_click, color='green', enabled=True, icon=None, sub=None, sub_icon=None):
         self.rect = pygame.Rect(rect)
         self.label = label
         self.on_click = on_click
@@ -346,6 +347,7 @@ class Button:
         self.enabled = enabled
         self.icon = icon
         self.sub = sub
+        self.sub_icon = sub_icon
 
     def handle(self, event):
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1 and self.rect.collidepoint(event.pos):
@@ -373,7 +375,8 @@ class Button:
         fg = (226, 220, 210) if state == 'disabled' else T.WHITE
         sh = T.shade('gray', 0) if state == 'disabled' else T.shade(color, 0)
         if self.sub:      # 두 줄: 위 굵은 글씨, 아래 작은 글씨. 두 줄을 한 덩어리로 가운데
-            g1, g2 = glyph_box(self.label, 'title'), glyph_box(self.sub, 'small')
+            sub_text = self.sub if isinstance(self.sub, str) else ''.join(t for t, _ in self.sub)
+            g1, g2 = glyph_box(self.label, 'title'), glyph_box(sub_text, 'small')
             block = g1.h + 1 + 1 + g2.h + 1                 # 그림자 1 + 줄 사이 1
             top = face.y + (face.h - block) // 2
             if self.icon:      # 아이콘은 윗줄(굵은 글씨) 왼쪽에
@@ -384,9 +387,34 @@ class Button:
                             log=False).union((x1, top, 14, g1.h + 1))
             else:
                 a = text_in(surface, self.label, (face.x, top, face.w, g1.h + 1), 'title', fg, shadow=sh, log=False)
-            b = text_in(surface, self.sub, (face.x, top + g1.h + 2, face.w, g2.h + 1), 'small', fg, shadow=sh,
-                        log=False)
-            record(f'{self.label}/{self.sub}', a.union(b), face, 'button')
+            if isinstance(self.sub, str) and not self.sub_icon:
+                b = text_in(surface, self.sub, (face.x, top + g1.h + 2, face.w, g2.h + 1), 'small', fg, shadow=sh,
+                            log=False)
+                record(f'{self.label}/{self.sub}', a.union(b), face, 'button')
+                return
+            parts = [(self.sub, None)] if isinstance(self.sub, str) else list(self.sub)
+            whole = ''.join(t for t, _ in parts)
+            ws = [glyph_box(t, 'small').w + glyph_box(t, 'small').x for t, _ in parts]   # 조각을 이어 붙일 폭
+            ws[-1] = glyph_box(parts[-1][0], 'small').right
+            lead = glyph_box(parts[0][0], 'small').x
+            tw = sum(ws) - lead + 1 + (14 if self.sub_icon else 0)
+            x2 = face.x + (face.w - tw) // 2 - lead
+            y2 = top + g1.h + 2
+            b = pygame.Rect(x2 + lead, y2, tw, g2.h + 1)
+            ref = glyph_box(whole, 'small')
+            for (t, col), w in zip(parts, ws):
+                c = fg if col is None or state == 'disabled' else col
+                f = T.font('small')
+                dest = (x2, y2 - ref.y + (g2.h + 1 - ref.h - 1) // 2)
+                surface.blit(f.render(t, False, sh), (dest[0] + 1, dest[1] + 1))
+                surface.blit(f.render(t, False, c), dest)
+                x2 += w
+            if self.sub_icon:
+                img = Kit.icon(self.sub_icon)
+                if state == 'disabled':
+                    img = img.copy(); img.fill((170, 170, 170, 255), special_flags=pygame.BLEND_RGBA_MULT)
+                surface.blit(img, (x2 + 2, y2 + (g2.h + 1 - 12) // 2))
+            record(f'{self.label}/{whole}', a.union(b), face, 'button')
             return
         g = glyph_box(self.label, 'title')
         w = g.w + 1 + (14 if self.icon else 0)

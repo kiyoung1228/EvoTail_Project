@@ -259,6 +259,13 @@
     16
    ],
    "margin": 9
+  },
+  "ribbon_blue": {
+   "size": [
+    40,
+    16
+   ],
+   "margin": 9
   }
  },
  "icons": [
@@ -270,6 +277,7 @@
   "home",
   "lock",
   "meat",
+  "rain",
   "shield",
   "smile",
   "snack",
