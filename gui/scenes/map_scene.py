@@ -16,6 +16,7 @@ import pygame
 
 from .. import theme as T
 from ..app import Scene
+from .. import storm as S
 from ..widgets import (text, text_width, text_in, fit_width, glyph_box, panel, card, card_inner, tooltip,
                        select_frame, Kit, CARD_LABEL_H)
 from .settings import SettingsOverlay
@@ -45,6 +46,7 @@ MENU_BTN_H = 2 + 1 + 24 + 13 + 2                           # 테두리 + 아이�
 MENU_STEP = 51         # 버튼 간격
 MENU_BTN_W = 36        # _size_menu()가 글씨에 맞춰 다시 정함
 MENU_PANEL = pygame.Rect(589, 40, 46, 270)
+BAND_POS = (8, T.HEADER_H + 6)          # 태풍 2배 이벤트 띠: 상단 바 아래 왼쪽 (하늘)
 
 
 def _size_menu():
@@ -197,6 +199,10 @@ class MapScene(Scene):
         return dx * dx + dy * dy <= 1
 
     def update(self, dt):
+        if S.is_storm(self.app):
+            rain, bolt = self.storm_fx()
+            rain.update(dt)
+            bolt.update(dt)
         yard, _, _ = self._layout()
         night = self.app.state.get('clock', {}).get('night')
         keep = set()
@@ -334,21 +340,54 @@ class MapScene(Scene):
         """지도에서는 알림을 왼쪽 아래(하늘·섬 가장자리)에 띄워 건물을 가리지 않는다."""
         return 'bottomleft', (6, T.HEIGHT - 6)
 
+    def storm_box(self):
+        """태풍 그늘·비·번쩍이 덮는 지도 영역 (상단 바 아래, 오른쪽 메뉴 패널 왼쪽)."""
+        return pygame.Rect(0, T.HEADER_H, MENU_PANEL.x, T.HEIGHT - T.HEADER_H)
+
+    def storm_fx(self):
+        """비·번개 (처음 태풍 때 한 번 만들어 두고 이동만)."""
+        if getattr(self, '_rain', None) is None or self._rain.box != self.storm_box():
+            self._rain = S.Rain(self.storm_box())
+            self._bolt = S.Lightning()
+        return self._rain, self._bolt
+
     def draw(self, surface):
         night = bool(self.app.state.get('clock', {}).get('night'))
+        storm = S.is_storm(self.app)
         surface.blit(self.app.map_image(night), (0, 0))
-        hover_place = self.hover[1] if self.hover and self.hover[0] == 'place' else None
-        if hover_place:
-            select_frame(surface, self.places[hover_place]['rect'].inflate(4, 4))
-        for key in self.places:
-            self._draw_sign(surface, key, key == hover_place)
         yard, at_place, hidden = self._layout()
-        self._draw_yard_animals(surface, yard, night)
-        for a, r in self._place_animal_rects(at_place):
-            self._draw_small_animal(surface, a, r, night)
+        hover_place = self.hover[1] if self.hover and self.hover[0] == 'place' else None
+        if storm:   # 지도 → 먹구름(섬 밖) → 남색 그늘 → 동물 → 비 → 번개 → 간판·메뉴·말풍선(비 위, 밝게)
+            rain, bolt = self.storm_fx()
+            surface.blit(S.clouds(), (0, 0))
+            box = self.storm_box()
+            surface.blit(S.shade(box.size), box)
+            drawn = self._draw_yard_animals(surface, yard, night, bubbles=False)
+            smalls = self._place_animal_rects(at_place)
+            for a, r in smalls:
+                self._draw_small_animal(surface, a, r, night, bubble=False)
+            rain.draw(surface)
+            bolt.draw(surface, box)
+            if hover_place:
+                select_frame(surface, self.places[hover_place]['rect'].inflate(4, 4))
+            for key in self.places:
+                self._draw_sign(surface, key, key == hover_place)
+            self._draw_yard_bubbles(surface, drawn, night)
+            for a, r in smalls:
+                self._small_bubble(surface, a, r)
+        else:
+            if hover_place:
+                select_frame(surface, self.places[hover_place]['rect'].inflate(4, 4))
+            for key in self.places:
+                self._draw_sign(surface, key, key == hover_place)
+            self._draw_yard_animals(surface, yard, night)
+            for a, r in self._place_animal_rects(at_place):
+                self._draw_small_animal(surface, a, r, night)
         if hidden > 0:
             self._draw_more(surface, hidden)
         self._draw_menu(surface)
+        if storm:
+            S.band(surface, BAND_POS, pygame.time.get_ticks() / 1000)
         if hover_place:
             tooltip(surface, PLACES[hover_place][1], self.places[hover_place]['rect'], 'right',
                     bounds=(0, T.HEADER_H, MENU_PANEL.x - 3, T.HEIGHT - T.HEADER_H))
@@ -434,7 +473,7 @@ class MapScene(Scene):
             return NIGHT_LABEL[action]
         return DAY_LABEL.get(action, auto.get('label', ''))
 
-    def _draw_yard_animals(self, surface, yard, night):
+    def _draw_yard_animals(self, surface, yard, night, bubbles=True):
         t = pygame.time.get_ticks() / 1000
         drawn = [a for a in yard if a['id'] in self.walkers]
         drawn.sort(key=lambda a: self.walkers[a['id']]['pos'][1])     # 뒤(위)에 있는 동물부터
@@ -456,7 +495,12 @@ class MapScene(Scene):
             if self.walkers[key]['target'][0] < self.walkers[key]['pos'][0] - 1:
                 img = pygame.transform.flip(img, True, False)
             surface.blit(img, (x, y + int(dy)))
-        # 아이콘 말풍선은 동물을 다 그린 뒤에. 마우스를 올린 동물은 글씨 설명(툴팁)으로 대신
+        if bubbles:
+            self._draw_yard_bubbles(surface, drawn, night)
+        return drawn
+
+    def _draw_yard_bubbles(self, surface, drawn, night):
+        # 아이콘 말풍선은 동물을 다 그린 뒤에 (태풍이면 비 위에). 마우스를 올린 동물은 글씨 설명(툴팁)으로 대신
         placed = []
         if self.hover and self.hover[0] == 'animal':
             placed.append(self._animal_tip_rect(self.hover[1], night))
@@ -502,11 +546,15 @@ class MapScene(Scene):
             tooltip(surface, self._animal_tip_text(a, night), target, 'above',
                     bounds=(0, T.HEADER_H, MENU_PANEL.x - 3, T.HEIGHT - T.HEADER_H))
 
-    def _draw_small_animal(self, surface, a, rect, night):
+    def _draw_small_animal(self, surface, a, rect, night, bubble=True):
         img = self._tint(self.app.sprites.get(a.get('sprite'), PLACE_SIZE), night, a.get('sick'))
         surface.blit(img, rect)
+        if bubble:
+            self._small_bubble(surface, a, rect)
+
+    def _small_bubble(self, surface, a, rect):
         if a.get('sick') and self.hover != ('animal', a['id']):     # 아픔: 회색 하트 말풍선
-            art = img.get_bounding_rect().move(rect.topleft)
+            art = self.app.sprites.get(a.get('sprite'), PLACE_SIZE).get_bounding_rect().move(rect.topleft)
             self._icon_bubble(surface, 'heart', True, (art.centerx, art.top), [])
 
     def _draw_more(self, surface, hidden):

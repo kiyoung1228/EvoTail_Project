@@ -35,7 +35,7 @@
 | `card.png`, `card_selected.png` | 24×24 | 6 | 목록 칸, 알림, 상단 바의 작은 칸, 선택 강조 |
 | `button_<색>_<상태>.png` | 24×16 | 5 | 버튼. 색: green, orange, purple, red, brown, blue, gold, gray / 상태: normal, hover, pressed, disabled |
 | `gauge_frame.png` | 16×8 | 3 | 게이지 틀 (채움은 코드로) |
-| `ribbon_<색>.png` | 40×16 | 9 | 제목 리본 (red, brown, green). 높이 18로 늘려 씀 |
+| `ribbon_<색>.png` | 40×16 | 9 | 제목 리본 (red, brown, green, gray = 도망쳤다, blue = 태풍 2배 이벤트 띠). 높이 18로 늘려 씀 |
 
 ```python
 def nine_slice(img, margin, w, h):
@@ -70,7 +70,7 @@ def nine_slice(img, margin, w, h):
 코드로 그림: 본색 사각형 + 검은 1px 테두리 + 윗줄 밝은색 + 갈무리9 흰 글씨. 역할(딜러 orange, 탱커 blue, 힐러 green), 속성, 등급, 단계, 성격, "마당" 표시에 사용.
 
 ## 아이콘 (`assets/ui/kit/icons/`, 12×12)
-heart(체력·출전 가능), sword(공격), shield(방어), wing(민첩), meat(포만감), smile(기분), frown(기분 나쁨·상태 나쁨, 회색 찡그린 얼굴), zzz(피로도·잠), lock(잠김), check(깬 단계), coin(코인·가격), sun(낮), snack(간식), home(집·마당), back(뒤로)
+heart(체력·출전 가능), sword(공격), shield(방어), wing(민첩), meat(포만감), smile(기분), frown(기분 나쁨·상태 나쁨, 회색 찡그린 얼굴), zzz(피로도·잠), lock(잠김), check(깬 단계), coin(코인·가격), sun(낮), snack(간식), home(집·마당), back(뒤로), rain(태풍 비구름 · 2배 이벤트)
 
 ## 화면 공통 배치
 - **배경**: 각 화면은 지도 그림(`assets/map/map_day.png` / `map_night.png`)을 어둡게(밝기 55%, 채도 70%) 깔고 그 위에 창을 띄운다. 단색 배경 금지.

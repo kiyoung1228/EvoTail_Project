@@ -14,7 +14,8 @@ from .. import enemies as E
 from .battle_fight import shorten
 from . import arena_art as ART
 from ..widgets import (text, text_in, glyph_box, fit_width, panel, card, card_inner, ribbon, chip, icon, tooltip,
-                       select_frame, nine, Button, Kit, mouse_pos, BUTTON_H, CARD_LABEL_H)
+                       select_frame, nine, Button, Kit, mouse_pos, record, BUTTON_H, CARD_LABEL_H, TEXT_PAD)
+from .. import storm as S
 
 # 대회 메달 테두리 [어두움, 본색, 밝음] (메달 색은 키트 팔레트에 없어 여기서 정함)
 MEDAL = {
@@ -53,6 +54,28 @@ def reward_text(st):
     if st.get('cleared'):
         return '받음 (처음만)'
     return f"{'첫 우승' if st.get('mode') == 'rank' else '첫 승리'} {st['reward']:,}"
+
+
+def storm_reward(app, st):
+    """태풍 중 일반(mode normal) 스테이지면 승리 보상 2배 (roc _settle_battle). 대회·뉴비는 그대로."""
+    return S.is_storm(app) and st.get('mode') == 'normal'
+
+
+def draw_storm_reward(surface, st, box):
+    """ "승리 200 → 400": 뒤 숫자(× STORM_MULTIPLIER)는 금색 + 비구름. 그린 영역."""
+    box = pygame.Rect(box)
+    head = f"{reward_text(st)} → "
+    big = f"{st['reward'] * S.STORM_MULTIPLIER:,}"
+    a = text_in(surface, head, (box.x, box.y, glyph_box(head, 'title').w + 1, box.h), 'title', align='left', pad=0,
+                log=False)
+    x = box.x + glyph_box(head, 'title').right + glyph_box(' ', 'title').w + 1
+    b = text_in(surface, big, (x, box.y, glyph_box(big, 'title').w + 2, box.h), 'title', S.GOLD,
+                shadow=T.shade('orange', 0), align='left', pad=0, log=False)
+    surface.blit(Kit.icon('rain'), (b.right + 2, box.y + (box.h - 12) // 2))
+    drawn = a.union(b).union((b.right + 2, box.y + (box.h - 12) // 2, 12, 12))
+    # 왼쪽은 다른 줄처럼 아이콘 바로 뒤(pad 0)라 점검 칸만 TEXT_PAD만큼 왼쪽으로: 오른쪽(패널 끝)·위아래 여백을 본다
+    record(f'{head}{big}', drawn, (box.x - TEXT_PAD, box.y, box.w + TEXT_PAD, box.h), 'storm-reward')
+    return drawn
 
 
 def circle_clip(img, r):
@@ -137,6 +160,8 @@ class StagePickScene(Scene):
         self.app.backdrop(surface)
         self.back.draw(surface)
         ribbon(surface, (78, 33, 92, 18), '전투장', 'red')
+        if S.is_storm(self.app):                      # 태풍 2배 이벤트 띠: 리본 오른쪽 한 줄
+            S.band(surface, (176, 33), pygame.time.get_ticks() / 1000, row=True)
         self._draw_map(surface)
         self._draw_info(surface)
 
@@ -230,8 +255,12 @@ class StagePickScene(Scene):
                 icon(surface, ic, (x, y + 2))
                 x += 14
             kind = 'title' if label != '상대' else 'body'
-            text_in(surface, shorten(value, P.right - 12 - x, kind), (x, y, P.right - 12 - x, 15), kind,
-                    align='left', pad=0, log=False)
+            if label == '보상' and storm_reward(self.app, st):     # 쉼표·금색 그림자까지 들어가게 줄을 3px 높게
+                draw_storm_reward(surface, st, (x, y - 1, P.right - 12 - x, 18))
+                y += 3
+            else:
+                text_in(surface, shorten(value, P.right - 12 - x, kind), (x, y, P.right - 12 - x, 15), kind,
+                        align='left', pad=0, log=False)
             y += 16
         self._draw_lineup(surface, y + 1)
         self.go_btn.draw(surface)
@@ -463,6 +492,9 @@ class TeamPrepScene(Scene):
         self._tip = None
         self.app.backdrop(surface)
         ribbon(surface, (self.buttons[0].rect.right + 10, 33, max(92, self.title_w), 18), self.title, 'red')
+        if S.is_storm(self.app):
+            S.band(surface, (self.buttons[0].rect.right + 10 + max(92, self.title_w) + 6, 33),
+                   pygame.time.get_ticks() / 1000, row=True)
         self._draw_top(surface)
         self._draw_others(surface)
         self._draw_potions(surface)

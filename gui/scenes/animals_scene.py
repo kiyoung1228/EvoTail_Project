@@ -6,6 +6,7 @@ import pygame
 
 from .. import theme as T
 from ..app import Scene, Overlay
+from .. import storm as S
 from ..widgets import (text, text_width, text_in, panel, card, card_inner, ribbon, chip, gauge, icon, tooltip,
                        Button, Kit, mouse_pos, shorten, fit_width, wrap2, record, BUTTON_H)
 
@@ -126,14 +127,28 @@ class AnimalsScene(Scene):
         else:
             stat = self.train_stat
             full = self.training_full()            # 훈련장 가득이면 미리 끔 (실패 이유는 백엔드 알림 그대로)
+            storm = S.is_storm(app)                 # 태풍 중 시작한 훈련은 2배 (roc, 숫자는 gui/storm.py)
             for i, diff in enumerate(('easy', 'medium', 'hard')):
                 dur, gain, _ = self.rules.get('training', {}).get(diff, (0, 0, 0))
                 self.buttons.append(Button(
                     (300 + i * 108, 280, 102, 32), T.DIFFICULTY_LABEL[diff],
-                    lambda d=diff, s=stat: app.act('start_training', f"{T.STAT_LABEL[s]} 훈련 시작", icon='sword',
-                                                   key=key, stat=s, difficulty=d),
-                    'green', sub=f'{dur // 60}분 · +{gain}',
+                    lambda d=diff, s=stat: app.act('start_training', lambda r, s=s: self.train_toast(s, r),
+                                                   icon='sword', key=key, stat=s, difficulty=d),
+                    'green', **self.train_sub(dur, gain, storm),
                     enabled=not busy and not full and a['participation'] and a['stats'][stat] < a['caps'][stat]))
+
+    @staticmethod
+    def train_sub(dur, gain, storm):
+        """훈련 버튼 아랫줄 "10분 · +10". 태풍이면 숫자 ×STORM_MULTIPLIER 금색 + 비구름 ("10분 · +20")."""
+        if not storm:
+            return {'sub': f'{dur // 60}분 · +{gain}'}
+        return {'sub': [(f'{dur // 60}분 · ', None), (f'+{gain * S.STORM_MULTIPLIER}', S.GOLD)], 'sub_icon': 'rain'}
+
+    @staticmethod
+    def train_toast(stat, res):
+        """훈련 시작 알림: 백엔드 expected_gain (태풍 2배·피로 절반이 반영된 값)."""
+        gain = (res or {}).get('expected_gain')
+        return f"{T.STAT_LABEL[stat]} 훈련 시작" + (f" · +{gain}" if gain is not None else '')
 
     def training_slots(self):
         """(지금 훈련 중인 수, 동시에 훈련할 수 있는 수) = 스냅샷 training_count / training_max_concurrent."""
@@ -171,6 +186,8 @@ class AnimalsScene(Scene):
         self._tip = None
         self.app.backdrop(surface)
         ribbon(surface, (78, 33, 92, 18), '내 동물', 'red')
+        if S.is_storm(self.app):                      # 태풍 2배 이벤트 띠: 리본 오른쪽 한 줄
+            S.band(surface, (176, 33), pygame.time.get_ticks() / 1000, row=True)
         self._draw_list(surface)
         panel(surface, DETAIL)
         a = self.app.animal(self.selected)

@@ -19,10 +19,12 @@ from roc.bridge import GameBridge
 from roc.worker import GameWorker
 from . import theme as T
 from .widgets import (text, text_width, text_in, glyph_box, fit_width, record, card, card_inner, chip, icon,
-                      moon_icon, SpriteCache)
+                      moon_icon, SpriteCache, tooltip)
+from . import widgets as W
 from .display import setup_window_scale
 from . import crash
 from .audio import Audio, map_track
+from . import storm as S
 
 EVENT_TEXT = {
     'training_complete': lambda e, n: f"{n(e.get('animal'))} 훈련 완료! {T.STAT_LABEL.get(e.get('stat'), '')} +{e.get('gain', '')}",
@@ -38,6 +40,7 @@ EVENT_ICON = {'training_complete': 'sword', 'hunt_complete': 'meat', 'disease': 
               'hatch': 'heart', 'crop_ready': 'meat', 'random_bonus': 'coin', 'battle_end': 'sword'}
 MOUSE_EVENTS = (pygame.MOUSEMOTION, pygame.MOUSEBUTTONDOWN, pygame.MOUSEBUTTONUP)
 TOAST_BAR = {'ok': 'green', 'bad': 'red', 'info': 'orange'}
+TOAST_SUB = (52, 92, 168)        # 두 줄 알림의 둘째 줄 (목업 storm_1_map)
 
 
 class Scene:
@@ -124,7 +127,9 @@ class App:
         self.worker = GameWorker(self.game, interval=1.0)
         self.state = {}
         self.auto = {}
-        self.toast_item = None    # (문구, 사라질 시각, 종류 ok/bad/info, 아이콘). 한 번에 1개만
+        self.toast_item = None    # (문구, 사라질 시각, 종류 ok/bad/info, 아이콘, 둘째 줄). 한 번에 1개만
+        self._storm = None        # 지난 스냅샷의 clock.storm (None = 시작·불러오기 직후, 알림 없이 기준만)
+        self.storm_chip = None    # 상단 바 태풍 칩 자리 (말풍선용)
         self._refreshed_at = time.time()
         self.last_seq = None
         self.running = True
@@ -159,6 +164,13 @@ class App:
     def refresh(self):
         self.state = self.call('get_snapshot') or self.state
         self._refreshed_at = time.time()
+        storm = S.is_storm(self)
+        if self._storm is not None and storm != self._storm:      # 태풍 시작·끝 알림 (어느 화면이든)
+            if storm:
+                self.toast(S.TOAST_START[0], 'info', 'rain', sub=S.TOAST_START[1])
+            else:
+                self.toast(S.TOAST_END[0], 'info', 'sun', sub=S.TOAST_END[1])
+        self._storm = storm
         self.auto = {a['id']: a for a in (self.call('get_autonomous_state') or [])}
 
     def animal(self, key):
@@ -181,11 +193,15 @@ class App:
         elapsed = min(2.0, time.time() - self._refreshed_at)       # 멈춰 있을 때 너무 앞서가지 않게
         return clock.get('timestamp', 0) + elapsed * (clock.get('rate', 1) or 1)
 
-    def toast(self, msg, kind='info', icon_name=None):
-        """알림은 한 번에 1개만. 새 알림이 오면 바꿔 끼우고, TOAST_SECONDS 뒤 사라진다."""
+    def toast(self, msg, kind='info', icon_name=None, sub=None):
+        """알림은 한 번에 1개만. 새 알림이 오면 바꿔 끼우고, TOAST_SECONDS 뒤 사라진다. sub = 둘째 줄(작은 글씨)."""
         if icon_name is None:
             icon_name = {'ok': 'heart', 'info': 'sun'}.get(kind)
-        self.toast_item = (msg, time.time() + TOAST_SECONDS, kind, icon_name)
+        self.toast_item = (msg, time.time() + TOAST_SECONDS, kind, icon_name, sub)
+
+    def reset_storm(self):
+        """불러오기·새 게임 직후: 다음 스냅샷은 태풍 알림 없이 기준만."""
+        self._storm = None
 
     # ---- 배경 ----
     def map_image(self, night):
@@ -310,27 +326,41 @@ class App:
         # 목업 순서: "1일차 · 낮 14:20 · 맑음". day·time은 백엔드 clock (PR #6, 1일차 06:00 시작)
         when = f"{'밤' if night else '낮'} {clock['time']}" if clock.get('time') else ('밤' if night else '낮')
         day = f"{clock['day']}일차 · " if clock.get('day') else ''
-        info = f"{day}{when} · {'태풍' if clock.get('storm') else '맑음'}"
-        if 1 < rate < T.SPEED_DEMO:
-            info += f" · {int(rate)}배속"
+        storm = bool(clock.get('storm'))
+        speed = f" · {int(rate)}배속" if 1 < rate < T.SPEED_DEMO else ''
         blank = getattr(self.scene, 'header', True) == 'blank'     # 새 게임 고르기: 지금 세이브 날짜 대신
+        self.storm_chip = None
         if blank:
-            info = '새 게임'
+            info, tail = '새 게임', ''
+        elif storm:                                                  # "· 태풍" 대신 파란 칩 (비구름 + 흰 "태풍")
+            info, tail = f"{day}{when} ·", speed
+        else:
+            info, tail = f"{day}{when} · 맑음{speed}", ''
+        chip_w = S.header_chip_width() + 4 if storm and not blank else 0
+        tail_w = glyph_box(tail).w + 3 if tail else 0                 # 글자 + 그림자 자리 + 오른쪽 여백
         # 상단 바의 작은 칸: 안쪽 17 = 글자 11(쉼표 등 아래로 내려오는 글자 13) + 여백 4 → card 21
-        box = pygame.Rect(0, 2, max(158, fit_width(info, extra=14) + 4), 21); box.centerx = T.WIDTH // 2
+        box = pygame.Rect(0, 2, max(158, fit_width(info, extra=14) + 4 + chip_w + tail_w), 21)
+        box.centerx = T.WIDTH // 2
         card(surface, box)
         inner = card_inner(box)
         if blank:                                                    # 아이콘 없이 글씨만 가운데
             text_in(surface, info, inner, 'body', tag='header')
         else:
-            w = 14 + glyph_box(info).w
+            w = 14 + glyph_box(info).w + chip_w + tail_w
             x = inner.x + (inner.w - w) // 2
             if night:
                 surface.blit(moon_icon(), (x, inner.y + 2))
             else:
                 icon(surface, 'sun', (x, inner.y + 2))
-            g = text_in(surface, info, (x + 14, inner.y, w - 14, inner.h), 'body', log=False)
-            record(info, pygame.Rect(x, g.y, w, g.h), inner, 'header')
+            g = text_in(surface, info, (x + 14, inner.y, glyph_box(info).w + 1, inner.h), 'body', log=False)
+            right = g.right
+            if storm:
+                self.storm_chip = S.header_chip(surface, (g.right + 4, inner.y + (inner.h - 16) // 2))
+                right = self.storm_chip.right
+                if tail:
+                    t = text_in(surface, tail, (right + 1, inner.y, tail_w + 1, inner.h), 'body', log=False)
+                    right = t.right
+            record(info + (' [태풍]' + tail if storm else ''), pygame.Rect(x, g.y, right - x, g.h), inner, 'header')
         if rate >= T.SPEED_DEMO and not blank:
             chip(surface, (box.right + 6, box.centery), f'시연 모드 {int(rate)}배', 'red', anchor='midleft')
         coins = '—' if getattr(self.scene, 'header', True) == 'blank' else f"{self.state.get('coins', 0):,}"
@@ -341,6 +371,8 @@ class App:
         icon(surface, 'coin', (inner.x + 2, inner.y + 2))
         g = text_in(surface, coins, inner, 'title', align='right', log=False)
         record(coins, pygame.Rect(inner.x + 2, g.y, g.right - inner.x - 2, g.h), inner, 'header')
+        if self.storm_chip and self.storm_chip.collidepoint(W.mouse_pos()) and not self.overlays:
+            tooltip(surface, S.HEADER_TIP, self.storm_chip, 'below', bounds=(0, 0, T.WIDTH, T.HEIGHT))
 
     def draw_toasts(self, surface):
         """알림 1개: card 조각 + 왼쪽 4px 색 막대 + 아이콘 + 글씨. 자리는 화면이 정한다 (toast_anchor)."""
@@ -348,10 +380,11 @@ class App:
             self.toast_item = None
         if not self.toast_item:
             return
-        msg, _, kind, icon_name = self.toast_item
+        msg, _, kind, icon_name, sub = self.toast_item
         # 카드 테두리 2 + 색 막대 4 + 여백 5 + (아이콘 14) + 글씨 + 여백 + 테두리 2
-        w = 2 + 4 + 5 + (14 if icon_name else 0) + fit_width(msg) - 2 + 2
-        box = pygame.Rect(0, 0, w, 20)
+        lead = 2 + 4 + 5 + (14 if icon_name else 0)
+        w = lead + (max(fit_width(msg, 'title'), fit_width(sub, 'small')) if sub else fit_width(msg)) - 2 + 2
+        box = pygame.Rect(0, 0, w, 34 if sub else 20)                # 두 줄: 윗줄 title 16 + 아랫줄 small 14
         anchor, pos = self.scene.toast_anchor() if self.scene else Scene.toast_anchor(None)
         setattr(box, anchor, pos)
         card(surface, box)
@@ -361,10 +394,21 @@ class App:
         inner = card_inner(box)
         content = pygame.Rect(box.x + 6, inner.y, inner.right - box.x - 6, inner.h)    # 색 막대 오른쪽
         x = box.x + 11
+        tx = x + (14 if icon_name else 0)
+        if sub:
+            row1 = pygame.Rect(content.x, inner.y, content.w, 16)
+            row2 = pygame.Rect(content.x, inner.y + 15, content.w, inner.h - 15)
+            if icon_name:
+                icon(surface, icon_name, (x, row1.y + 2))
+            g = text_in(surface, msg, (tx, row1.y, glyph_box(msg, 'title').w + 1, row1.h), 'title', log=False)
+            record(msg, pygame.Rect(x, g.y, g.right - x, g.h), row1, 'toast')
+            g2 = text_in(surface, sub, (tx, row2.y, glyph_box(sub, 'small').w + 1, row2.h), 'small', TOAST_SUB,
+                         log=False)
+            record(sub, g2, row2, 'toast')
+            return
         if icon_name:
             icon(surface, icon_name, (x, inner.y + 2))
-        g = text_in(surface, msg, (x + (14 if icon_name else 0), inner.y, glyph_box(msg).w, inner.h), 'body',
-                    log=False)
+        g = text_in(surface, msg, (tx, inner.y, glyph_box(msg).w, inner.h), 'body', log=False)
         record(msg, pygame.Rect(x, g.y, g.right - x, g.h), content, 'toast')
 
     def _to_logical(self, event):

@@ -43,6 +43,19 @@ def background(night):
     return base
 
 
+WINDOW = (248, 40, 102, 60, 14)          # window2(x0, y0, w, h) + 아치 높이 (background()와 같은 값)
+
+
+def glass():
+    """창 유리 자리 (태풍 비·물방울을 유리에만, 창살·화분 뒤로). 아치 = 위쪽 반타원, 창살 색은 그리지 않음."""
+    x0, y0, w, h, arch = WINDOW
+    sy = y0 + arch + h + 4                                     # 창턱 (window2와 같음)
+    pots = [[px - 1, sy - 18, px + 15, sy + 1] for px in (x0 + 8, x0 + w - 22)]
+    return {'x': x0, 'y': y0, 'w': w, 'h': h, 'arch': arch,
+            'bar_colors': [list(K.INK), [206, 158, 102]], 'keepouts': pots,
+            '_note': '유리 = 아치(위 반타원) + 아래 사각형. bar_colors(창살·테두리 색) 픽셀과 keepouts(창턱 화분) 안에는 비를 안 그림'}
+
+
 def layout():
     s = SHELF; slots = []
     for i, (code, name, _) in enumerate(R.ACH):
@@ -72,6 +85,7 @@ def layout():
                   'sub_right': [dx + dw - 8, dy + 13], 'sub': '최근 일', 'sub_color': [240, 220, 246],
                   'lines': [{'icon': [dx + 7, dy + 28 + k * 17], 'text_left': [dx + 22, dy + 34 + k * 17]} for k in range(6)],
                   'text_max_w': dw - 30},
+        'glass': glass(),
         'rug': {'center': [RUG[0], RUG[1]], 'rx': RUG[2], 'ry': RUG[3]},
         'cushion': {'center': list(CUSHION)},
     }
