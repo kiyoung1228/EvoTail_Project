@@ -185,6 +185,7 @@ ICON_ROWS = {
  'meat': ("............", "......OOOO..", ".....ORRRRO.", "....ORRWRRRO", "....ORRRRRRO", "....ORRRRRRO", "...OORRRRRO.", "..OWWOOOOO..", ".OWWO.......", ".OWO........", "..O.........", "............"),
  'smile': ("............", "...OOOOOO...", "..OYYYYYYO..", ".OYYYYYYYYO.", ".OYOYYYOYYO.", ".OYYYYYYYYO.", ".OYOYYYYOYO.", ".OYYOOOOYYO.", "..OYYYYYYO..", "...OOOOOO...", "............", "............"),
  'frown': ("............", "...OOOOOO...", "..OSSSSSSO..", ".OSSSSSSSSO.", ".OSOSSSOSSO.", ".OSSSSSSSSO.", ".OSSOOOOSSO.", ".OSOSSSSOSO.", "..OSSSSSSO..", "...OOOOOO...", "............", "............"),  # 기분 나쁨 (회색 찡그린 얼굴)
+ 'huff': ("..........O.", "..OOOOOO.O..", ".OSSSSSSO.O.", "OSSSSSSSSO.O", "OSOSSSOSSO..", "OSSSSSSSSO..", "OSSOOOOSSO..", "OSOSSSSOSO..", ".OSSSSSSO...", "..OOOOOO....", "............", "............"),  # 까칠 활동 거부 (frown + 김 한 줄)
  'lock': ("............", "....OOOO....", "...O....O...", "...O....O...", "..OOOOOOOO..", "..OYYYYYYO..", "..OYYOOYYO..", "..OYYOOYYO..", "..OYYYYYYO..", "..OOOOOOOO..", "............", "............"),  # 잠김
  'check': ("............", "...OOOOOO...", "..OKKKKKKO..", ".OKKKKKKWKO.", ".OKKKKKWWKO.", ".OKWKKWWKKO.", ".OKWWWWKKKO.", ".OKKWWKKKKO.", "..OKKKKKKO..", "...OOOOOO...", "............", "............"),  # 깬 단계
  'zzz': ("............", "......OOOOO.", "......OBBO..", ".......OO...", "......OBBOO.", "..OOOO.OOOO.", "..OBBO......", "...OO.......", "..OBBOO.....", "..OOOOO.....", "............", "............"),
