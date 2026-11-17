@@ -11,7 +11,7 @@ from .. import theme as T
 from .. import guide as G
 from ..app import Scene
 from ..widgets import (text, text_in, panel, card, chip, gauge, select_frame, record, fit_width, mouse_pos, ribbon,
-                       Button, BUTTON_H)
+                       Button, BUTTON_H, tooltip)
 from .title import ART, parade_keys, stage1_sprite
 
 ROLES = ('dealer', 'tank', 'healer')
@@ -309,7 +309,12 @@ class NewGameScene(Scene):
         panel(surface, box)
         text(surface, info.get('name', ''), (448, 114), 'big', T.TEXT, 'midleft')
         r = chip(surface, (448, 126), T.ROLE_LABEL[role], T.ROLE_KIT[role])
-        chip(surface, (r.right + 3, 126), T.ELEMENT_LABEL[info['element']], T.ELEMENT_KIT[info['element']])
+        e = chip(surface, (r.right + 3, 126), T.ELEMENT_LABEL[info['element']], T.ELEMENT_KIT[info['element']])
+        a = self.app.animal(key)                     # 성격 = reset_game 뒤 스냅샷의 그 동물 nature
+        nature = a.get('nature') if a else None
+        nature_chip = chip(surface, (e.right + 3, 126), T.NATURE_LABEL.get(nature, nature), 'blue') if nature else None
+        self.nature_chip = nature_chip
+        record('칩 줄', r.union(nature_chip or e), (446, 124, box.right - 10 - 446, 20), 'meet-chips')
         st = info.get('base_stats') or {}
         for i, (stat, label) in enumerate(STAT_SHORT):
             y = 150 + i * 14
@@ -319,3 +324,5 @@ class NewGameScene(Scene):
         surface.blit(G.art().get(G.art().flap(self.t), 2), (120, 172))
         G.progress(surface, '첫 동료', self.meet_i + 1, 3)
         self.dialog.draw(surface)
+        if nature_chip and nature_chip.collidepoint(mouse_pos()):
+            tooltip(surface, T.nature_tip(nature, T.nature_blocked(a)), nature_chip, 'below')

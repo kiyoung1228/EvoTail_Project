@@ -57,6 +57,15 @@ STAT_ICON = {'hp': 'heart', 'attack': 'sword', 'defense': 'shield', 'agility': '
 STATS = ('hp', 'attack', 'defense', 'agility')
 NATURE_LABEL = {'glutton': '먹보', 'sleepy': '잠꾸러기', 'playful': '장난꾸러기',
                 'balanced': '평범한', 'picky': '까칠'}
+# 성격 설명 (GUI 표시 문구, 두 줄 = 버릇 / 훈련·사냥·출전 조건).
+# 백엔드 규칙(roc/autonomy.py PERSONALITY_FOCUS·'refuse', service._available)을 바꾸면 같이 바꿀 것
+NATURE_TIP = {
+    'glutton': ('먹이 찾기를 좋아한다', '포만감이 좋음일 때만 훈련·사냥·출전'),
+    'sleepy': ('낮잠을 좋아한다', '피로도가 좋음일 때만 훈련·사냥·출전'),
+    'playful': ('혼자 놀기를 좋아한다', '기분이 좋음일 때만 훈련·사냥·출전'),
+    'picky': ('상태가 나쁘면 활동을 거부한다', '보통인 상태가 2개 이상이면 못 나간다'),
+    'balanced': ('특별한 버릇이 없다', '상태가 나쁨만 아니면 활동 가능'),
+}
 DIFFICULTY_LABEL = {'easy': '쉬움', 'medium': '중간', 'hard': '어려움'}
 
 # 상태 3단계 기준 (백엔드 GameService._status_label 과 같은 값)
@@ -131,3 +140,18 @@ def font(kind='body'):
             sys_path = pygame.font.match_font(('malgungothic', 'applesdgothicneo', 'nanumgothic', 'notosanscjkkr'))
             _font_cache[kind] = pygame.font.Font(sys_path, size)
     return _font_cache[kind]
+
+
+def nature_blocked(animal):
+    """성격 조건에 걸려 있나: 스냅샷 participation False + participation_reason이 그 성격 이유("먹보: ...")."""
+    if not animal or animal.get('participation', True):
+        return False
+    label = NATURE_LABEL.get(animal.get('nature'), '')
+    return bool(label) and str(animal.get('participation_reason', '')).startswith(label + ':')
+
+
+def nature_tip(nature, blocked=False):
+    """성격 말풍선 3줄 [(글씨, 색, 글꼴)]: "성격 · 먹보"(title) / 버릇 / 조건(회색, 걸려 있으면 빨강)."""
+    habit, rule = NATURE_TIP.get(nature, ('', ''))
+    return [(f"성격 · {NATURE_LABEL.get(nature, nature)}", TEXT, 'title'), (habit, TEXT, 'body'),
+            (rule, BAD if blocked else TEXT_SOFT, 'body')]

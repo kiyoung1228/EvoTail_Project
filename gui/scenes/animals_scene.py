@@ -196,7 +196,7 @@ class AnimalsScene(Scene):
         for b in self.buttons:
             b.draw(surface)
         if self._tip:      # 상태 아이콘 설명 (마우스를 올렸을 때)
-            tooltip(surface, self._tip[0], self._tip[1], 'right')
+            tooltip(surface, self._tip[0], self._tip[1], self._tip[2] if len(self._tip) > 2 else 'right')
 
     def _status_icon(self, a):
         """목록 오른쪽 상태 아이콘 (아이콘, 회색 여부, 설명). 표시만, 규칙 아님. 지도 말풍선과 같은 뜻.
@@ -283,7 +283,11 @@ class AnimalsScene(Scene):
                              ('특급' if a['rarity'] == 'special' else '일반', 'purple' if a['rarity'] == 'special' else 'gray'),
                              (f"{a['stage']}/{a['max_stage']}단계", 'brown'),
                              (T.NATURE_LABEL.get(a['nature'], a['nature']), 'blue')):
-            cx = chip(surface, (cx, 88), label, color).right + 3
+            c = chip(surface, (cx, 88), label, color)
+            cx = c.right + 3
+        self.nature_chip = c
+        if c.collidepoint(mouse_pos()):     # 성격 칩(마지막): 버릇·조건 말풍선, 지금 조건에 걸려 있으면 조건 줄 빨강
+            self._tip = (T.nature_tip(a['nature'], T.nature_blocked(a)), c, 'below')
 
         auto = self.app.auto.get(a['id'], {})
         act = a.get('activity')

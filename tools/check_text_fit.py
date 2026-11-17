@@ -47,8 +47,11 @@ def scripted_run(self):
     def frames(n=2):
         for _ in range(n):
             self.step(1 / T.FPS)
+    _pos = [(0, 0)]
+    pygame.mouse.get_pos = lambda: _pos[0]     # 창에 초점이 없어도 마우스를 올린 자리가 그대로 읽히게 (점검 전용)
     def move(lpos):
         wpos = (lpos[0] * S + S // 2, lpos[1] * S + S // 2)
+        _pos[0] = wpos
         pygame.mouse.set_pos(wpos)
         pygame.event.post(pygame.event.Event(pygame.MOUSEMOTION, pos=wpos, rel=(0, 0), buttons=(0, 0, 0)))
         frames(2)
@@ -410,6 +413,34 @@ def scripted_run(self):
         g._mutate(lambda s: s.update(created=s.pop('_keep_created')) or True)
         self.go('map'); self.refresh(); frames(2)                          # 태풍 끝 알림
         print('storm check end', self.state['clock'])
+        # 성격: 내 동물 성격 칩 말풍선 5종(+ 까칠 조건에 걸림 빨강) · 부화 결과 칩 줄(가장 긴 이름 + 장난꾸러기)
+        def set_nature(key, nature, **st):
+            def fn(s):    # test fixture only (temp save)
+                s['animals'][key]['nature'] = nature
+                s['animals'][key].update(st)
+                return True
+            g._mutate(fn); self.refresh()
+        for nat in T.NATURE_LABEL:
+            set_nature('dealer_normal_02', nat)
+            self.go('animals', selected='dealer_normal_02'); frames(1)
+            move(self.scene.nature_chip.center); frames(1)
+        set_nature('dealer_normal_02', 'picky', fullness=40, mood=40, fatigue=0)
+        print('picky blocked', T.nature_blocked(self.animal('dealer_normal_02')),
+              self.animal('dealer_normal_02').get('participation_reason'))
+        move((10, 350)); move(self.scene.nature_chip.center); frames(1); move((10, 350))
+        longest_key = max(g.characters, key=lambda k: len(g.characters[k]['name']))
+        set_nature(longest_key, 'playful')
+        g._mutate(lambda s: s['inventory'].update(egg_basic=1) or True); self.refresh()
+        from gui.scenes.hatch import HatchOverlay as _HO
+        self.go('shop'); frames(1)
+        ov = _HO(self, 'egg_basic'); self.open_overlay(ov); ov.skip(); frames(2)
+        ov.result = dict(ov.result, id=longest_key, name=g.characters[longest_key]['name'])
+        ov.info = (self.call('get_catalog') or {}).get(longest_key, {})
+        frames(2)
+        print('hatch chips', longest_key, ov.nature(), ov.nature_chip)
+        move(ov.nature_chip.center); frames(1); move((10, 350))
+        while self.overlays:
+            self.close_overlay()
         # 시작 흐름: 표지 메뉴(이어하기 켜짐·꺼짐) · 새 게임 확인 창 · 표지 설정 창 · 인사 · 고르기(0·2·3마리, 힐러 없음) · 맞이 3 · 튜토리얼 5
         #  (reset_game은 부르지 않음: 위 점검용 세이브를 지우지 않게 고른 동물만 화면에 넣음)
         self.go('title'); frames(2)
@@ -438,8 +469,11 @@ def scripted_run(self):
         ng.hover = None
         ng.picked = ['dealer_normal_01', 'tank_normal_03', 'healer_normal_05']
         ng.go_stage('meet')
+        for k in ng.picked:                              # 맞이 카드 칩 줄: 가장 긴 성격(장난꾸러기)
+            set_nature(k, 'playful')
         for i in range(3):
             ng.meet_i = i; ng._say_meet(); ng.dialog.click(); frames(2)
+            move(ng.nature_chip.center); frames(1); move((10, 350))
         from gui.scenes.tutorial import TutorialOverlay as _TO
         self.go('map'); frames(2)
         tut = _TO(self); self.open_overlay(tut); frames(2)

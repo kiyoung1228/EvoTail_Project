@@ -318,7 +318,8 @@ class MyRoomScene(Scene):
         animals = self.roomies()
         rest = self.resting_key(animals)
         order = sorted(animals, key=lambda a: self.animal_rect(a, rest).bottom)      # 발 y 순서
-        sleepers = [a['id'] for a in animals if night and a['id'] != rest]          # 밤: 방석 말고 자는 동물
+        refusing = {a['id'] for a in animals if self.app.auto.get(a['id'], {}).get('action') == 'refuse'}
+        sleepers = [a['id'] for a in animals if night and a['id'] != rest and a['id'] not in refusing]   # 밤: 방석 말고 자는 동물
         z_turn = sleepers[int(self.t / Z_EVERY) % len(sleepers)] if sleepers else None
         for a in order:
             r = self.animal_rect(a, rest)
@@ -335,7 +336,9 @@ class MyRoomScene(Scene):
             surface.blit(img, (foot[0] - art.centerx, foot[1] - art.bottom))
             top = foot[1] - art.h - 4
             action = self.app.auto.get(a['id'], {}).get('action')
-            if a['id'] == rest:                                    # 상자 "zZ"는 방석 위 동물만
+            if a['id'] in refusing:                                # 까칠 활동 거부: 지도와 같은 huff 말풍선 (밤에도 안 잠)
+                self.app.scenes['map']._icon_bubble(surface, 'huff', False, (foot[0], top + 2), [])
+            elif a['id'] == rest:                                  # 상자 "zZ"는 방석 위 동물만
                 self._bubble(surface, 'zZ', (foot[0], top))
             elif lying and a['id'] == z_turn:                      # 나머지는 작은 "z"가 한 마리씩 떠오르며 사라짐
                 self._float_z(surface, (foot[0] + 6, top + 4), (self.t % Z_EVERY) / Z_EVERY)

@@ -68,8 +68,9 @@ DIM_NIGHT = (228, 224, 224, 255)    # 상태 나쁨 (밤에는 덜 어둡게)
 MIN_GAP = 26          # 마당 동물 발 사이 최소 거리 (논리 px). 그림 폭 ≈ 32라 말풍선이 안 겹침
 
 # 마우스를 올렸을 때 글씨 말풍선 (밤에는 문구만 바꾼다. 표시 문구, 규칙 아님)
-NIGHT_LABEL = {'rest': '잠자는 중 zZ', 'idle': '꾸벅꾸벅…', 'play': '밤 산책', 'eat': '야식 찾는 중'}
-DAY_LABEL = {'rest': '휴식 중 z'}
+NIGHT_LABEL = {'rest': '잠자는 중 zZ', 'idle': '꾸벅꾸벅…', 'play': '밤 산책', 'eat': '야식 찾는 중',
+               'refuse': '삐져서 안 잔다'}
+DAY_LABEL = {'rest': '휴식 중 z', 'refuse': '활동 거부'}       # refuse = 까칠 성격이 상태가 나빠 활동 거부 (백엔드 자율행동)
 
 # 활동 → 그 활동을 보여줄 장소
 ACTIVITY_PLACE = {'hunt': 'hunting', 'training': 'home'}   # 백엔드 activity kind → 지도 장소 키
@@ -431,14 +432,16 @@ class MapScene(Scene):
     def _mood_icon(self, a, night):
         """동물 머리 위 아이콘 (이름, 회색 여부) 또는 None. 표시만, 규칙 아님.
 
-        아픔 회색 heart / 상태 하나라도 나쁨 → 회색 찡그린 얼굴 frown / 휴식·밤잠 zzz /
+        아픔 회색 heart / 까칠 활동 거부(action refuse) → huff / 상태 하나라도 나쁨 → 회색 찡그린 얼굴 frown / 휴식·밤잠 zzz /
         먹이 찾기 meat / 혼자 놀기 heart. 평소 자유 행동은 말풍선 없음.
         """
+        action = self.app.auto.get(a['id'], {}).get('action', 'idle')
         if a.get('sick'):
             return 'heart', True
+        if action == 'refuse':           # 까칠 활동 거부: 상태 나쁨(frown)보다 먼저
+            return 'huff', False
         if T.any_bad(a):
             return 'frown', False        # 아이콘 자체가 회색
-        action = self.app.auto.get(a['id'], {}).get('action', 'idle')
         if action == 'rest' or (night and action == 'idle'):
             return 'zzz', False
         if action == 'eat':

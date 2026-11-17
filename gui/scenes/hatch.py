@@ -17,7 +17,7 @@ from .. import theme as T
 from .. import items as I
 from ..app import Overlay
 from ..widgets import (text, text_in, glyph_box, fit_width, panel, card, card_inner, ribbon, chip, icon, gauge,
-                       wrap_lines, Button, BUTTON_H)
+                       wrap_lines, Button, BUTTON_H, tooltip, mouse_pos, record)
 
 SHAKE_END, CRACK_END, BURST_END = 1.2, 2.2, 2.6
 GOLD = (236, 184, 52)
@@ -87,6 +87,14 @@ class HatchOverlay(Overlay):
         self.info = (app.call('get_catalog') or {}).get(key, {})
         self.total = len(app.call('get_catalog') or {})
         self.evo = app.call('get_evolution_status', key=key) or {}
+
+    def nature(self):
+        """얻은 동물의 성격: hatch_egg 응답의 nature, 없으면 부화 뒤 refresh한 스냅샷의 그 key (중복이면 그 개체)."""
+        res = self.result or {}
+        if res.get('nature'):
+            return res['nature']
+        a = self.app.animal(res.get('id'))
+        return a.get('nature') if a else None
 
     # ---------- 진행 ----------
     @property
@@ -241,9 +249,17 @@ class HatchOverlay(Overlay):
                  (T.ROLE_LABEL.get(info.get('role'), ''), T.ROLE_KIT.get(info.get('role'), 'gray')),
                  (T.ELEMENT_LABEL.get(info.get('element'), ''), T.ELEMENT_KIT.get(info.get('element'), 'gray')),
                  (f"강점 {'균형' if strength in ('', '기준') else strength}", 'green')]
+        nature = self.nature()
+        if nature:                                  # 새로 얻은 그 개체의 성격 (파란 칩, 말풍선)
+            chips.append((T.NATURE_LABEL.get(nature, nature), 'blue'))
+        row = None
         for label, color in chips:
             r = chip(surface, (cx, 88), label, color)
+            row = r if row is None else row.union(r)
             cx = r.right + 3
+        record('칩 줄', row, (x - 2, 86, right - x + 4, 20), 'hatch-chips')     # 칩 줄이 오른쪽 끝을 넘지 않는지
+        nature_chip = r if nature else None
+        self.nature_chip = nature_chip
         # 설명: 칩 줄(아래 끝 104)과 도감 칸(140) 사이 가운데 (한 줄 116, 두 줄 110 = 칩에서 4px 이상)
         lines = wrap_lines(info.get('description', ''), right - x, 'body')[:2]
         top = 104 + (36 - (11 + 13 * (len(lines) - 1))) // 2
@@ -270,3 +286,6 @@ class HatchOverlay(Overlay):
         text(surface, f"{evo.get('stage', 1)}단계 MAX 기준 · 네 능력치 MAX면 진화", (x, 258), 'small', T.TEXT_SOFT)
         for b in self.buttons:
             b.draw(surface)
+        if nature_chip and nature_chip.collidepoint(mouse_pos()):
+            a = self.app.animal(res.get('id'))
+            tooltip(surface, T.nature_tip(nature, T.nature_blocked(a)), nature_chip, 'below')
